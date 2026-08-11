@@ -32,14 +32,14 @@ Visi jangka panjang: menjadi asisten kerja lapangan standar bagi ASN di seluruh 
 **Pak Darto (52) — Petugas Lapangan Senior**
 Kurang familiar aplikasi kompleks, butuh tombol besar & alur linear. Prioritas: cepat selesai, tidak takut "salah pencet".
 
-**Bu Rina (34) — Verifikator/Bendahara**
-Memeriksa puluhan bukti per hari. Butuh workspace efisien, shortcut keyboard, dan indikator risiko cepat.
+**Bu Rina (34) — Verifikator**
+Memeriksa puluhan bukti dan nominal pengeluaran per hari. Butuh workspace efisien, shortcut keyboard, dan indikator risiko cepat.
 
 **Pak Anwar (45) — Admin Instansi**
-Mengelola penugasan & pegawai. Butuh visibilitas progres tim dan kemudahan membuat tugas berulang.
+Mengelola penugasan & pegawai, sekaligus memantau ringkasan progres tim untuk pimpinan. Butuh visibilitas progres tim dan kemudahan membuat tugas berulang.
 
-**Ibu Sari (50) — Pimpinan/Kepala Dinas**
-Hanya butuh ringkasan cepat: berapa tugas berjalan, berapa yang perlu perhatian.
+**Ibu Sari (50) — Admin (Kepala Dinas)**
+Menggunakan akses Admin terutama untuk melihat ringkasan cepat: berapa tugas berjalan, berapa yang perlu perhatian.
 
 ## 5. Jobs To Be Done
 
@@ -54,10 +54,8 @@ Hanya butuh ringkasan cepat: berapa tugas berjalan, berapa yang perlu perhatian.
 | Role | Deskripsi | Permission Utama |
 |---|---|---|
 | **Petugas** | Pegawai lapangan | Lihat tugas sendiri, ambil foto, scan nota, kirim laporan |
-| **Verifikator** | Memeriksa bukti & LPJ | Lihat semua tugas dalam scope, approve/minta revisi |
-| **Bendahara** | Mengelola keuangan | Lihat & rekap pengeluaran, verifikasi nominal, ekspor laporan keuangan |
-| **Admin** | Mengelola instansi | CRUD pegawai, buat penugasan, atur template LPJ |
-| **Pimpinan** | Melihat progres | Read-only dashboard, laporan ringkas, tidak bisa edit data |
+| **Verifikator** | Memeriksa bukti, keuangan & LPJ | Lihat semua tugas dalam scope, approve/minta revisi, verifikasi nominal, lihat & rekap pengeluaran, ekspor laporan keuangan, generate LPJ |
+| **Admin** | Mengelola instansi | CRUD pegawai, buat penugasan, atur template LPJ, lihat dashboard ringkas & laporan progres tim (read-only untuk kebutuhan pimpinan) |
 | **Super Admin** | Kelola seluruh sistem/instansi | Semua akses + kelola instansi lain, konfigurasi global |
 
 ## 7. Information Architecture
@@ -71,7 +69,7 @@ Tulap.id
 │   ├── Scan Nota
 │   ├── Riwayat
 │   └── Akun
-└── Web Dashboard (Admin/Verifikator/Bendahara/Pimpinan)
+└── Web Dashboard (Admin/Verifikator)
     ├── Dashboard
     ├── Penugasan
     ├── Verifikasi (Workspace)
@@ -178,7 +176,7 @@ Terima Tugas → Buka Instruksi → Datang ke Lokasi → Checklist
 
 ## 12. Web Screen-by-Screen Specification
 
-### 12.1 Dashboard (Admin/Pimpinan)
+### 12.1 Dashboard (Admin)
 - **Card**: Tugas Aktif, Selesai Hari Ini, Menunggu Verifikasi, Perlu Perhatian
 - **Sections**: Progress seluruh tugas, Recent Activity, Warning List, Verification Queue
 - **Desktop layout**: 4-column card grid → 2-column content (activity + queue)
@@ -372,7 +370,7 @@ Full-screen, watermark semi-transparan, indikator GPS real-time (hijau/merah), c
 
 ## 23. Finance Flow
 
-`Nota Masuk (OCR) → Masuk Daftar Pengeluaran (Menunggu Verifikasi) → Bendahara Cek Nominal → Disetujui/Perlu Diperbaiki → Terhubung ke LPJ`
+`Nota Masuk (OCR) → Masuk Daftar Pengeluaran (Menunggu Verifikasi) → Verifikator Cek Nominal → Disetujui/Perlu Diperbaiki → Terhubung ke LPJ`
 
 ## 24. LPJ Flow
 
@@ -391,17 +389,17 @@ Full-screen, watermark semi-transparan, indikator GPS real-time (hijau/merah), c
 
 ## 26. Permission Model
 
-| Aksi | Petugas | Verifikator | Bendahara | Admin | Pimpinan | Super Admin |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| Lihat tugas sendiri | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Ambil foto/nota | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Approve/Revisi bukti | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Verifikasi nominal | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ |
-| Buat penugasan | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ |
-| Kelola pegawai | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ |
-| Generate LPJ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
-| Lihat dashboard ringkas | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Kelola instansi lain | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Aksi | Petugas | Verifikator | Admin | Super Admin |
+|---|:---:|:---:|:---:|:---:|
+| Lihat tugas sendiri | ✅ | ✅ | ✅ | ✅ |
+| Ambil foto/nota | ✅ | ❌ | ❌ | ❌ |
+| Approve/Revisi bukti | ❌ | ✅ | ❌ | ✅ |
+| Verifikasi nominal | ❌ | ✅ | ❌ | ✅ |
+| Buat penugasan | ❌ | ❌ | ✅ | ✅ |
+| Kelola pegawai | ❌ | ❌ | ✅ | ✅ |
+| Generate LPJ | ❌ | ✅ | ✅ | ✅ |
+| Lihat dashboard ringkas | ❌ | ❌ | ✅ | ✅ |
+| Kelola instansi lain | ❌ | ❌ | ❌ | ✅ |
 
 ## 27. Database Domain Model
 
