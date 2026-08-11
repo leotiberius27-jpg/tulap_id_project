@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../expense_ocr/presentation/pages/receipt_scanner_entry_page.dart';
 import '../../../geotag_camera/presentation/pages/geotag_camera_entry_page.dart';
 import '../../domain/entities/task_entity.dart';
 import '../controllers/task_detail_controller.dart';
@@ -12,8 +13,7 @@ import '../widgets/task_status_banner.dart';
 /// Layar Detail Tugas sesuai Bagian 11.2 spesifikasi - pusat kendali
 /// satu tugas: instruksi, checklist, bukti, status. Halaman inilah
 /// yang menyatukan seluruh fitur yang sudah dibangun sebelumnya:
-/// GeotagCameraEntryPage, ReceiptScannerPage (menyusul entry page-nya),
-/// dan checklist lokal.
+/// GeotagCameraEntryPage, ReceiptScannerEntryPage, dan checklist lokal.
 /// ----------------------------------------------------------------------
 class TaskDetailPage extends StatelessWidget {
   final String officerName;
@@ -175,18 +175,11 @@ class TaskDetailPage extends StatelessWidget {
             icon: Icons.receipt_long_outlined,
             label: 'Scan Nota',
             count: task.expenseNoteCount,
-            onTap: () {
-              // CATATAN: ReceiptScannerPage butuh CameraController yang
-              // sudah diinisialisasi, sama seperti GeotagCameraEntryPage.
-              // Halaman "entry" khusus OCR scanner belum dibuat - pola
-              // yang sama persis perlu direplikasi dari
-              // GeotagCameraEntryPage sebelum tombol ini berfungsi penuh.
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Scan Nota: entry page kamera untuk OCR belum dibuat.'),
-                ),
-              );
-            },
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ReceiptScannerEntryPage(taskId: task.id),
+              ),
+            ),
           ),
         ),
       ],
