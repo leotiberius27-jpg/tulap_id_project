@@ -42,6 +42,17 @@ class TaskRemoteDataSource {
     await _dioClient.dio.post('/tasks/$taskId/start');
   }
 
+  /// GET /tasks - backend otomatis membatasi hasil ke tugas milik user
+  /// yang login jika rolenya PEGAWAI (lihat TasksService.findAll),
+  /// jadi tidak perlu filter tambahan di sini.
+  Future<List<TaskModel>> getTasks() async {
+    final response = await _dioClient.dio.get('/tasks');
+    final items = (response.data as Map<String, dynamic>)['items'] as List;
+    return items
+        .map((json) => TaskModel.fromApiJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Melempar DioException dengan response.data berisi
   /// { message, incompleteItems } jika backend menolak karena checklist
   /// belum lengkap (lihat TasksService.submitForVerification di

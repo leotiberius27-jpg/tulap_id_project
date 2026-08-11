@@ -139,6 +139,16 @@ class TaskRepositoryImpl implements TaskRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, List<TaskEntity>>> getActiveTasks() async {
+    try {
+      final tasks = await _remoteDataSource.getTasks();
+      return Right(tasks);
+    } on DioException catch (e) {
+      return Left(TaskNotFoundFailure(_extractErrorMessage(e)));
+    }
+  }
+
   String _extractErrorMessage(DioException e) {
     final data = e.response?.data;
     if (data is Map && data['message'] is String) {

@@ -43,6 +43,7 @@ import '../../features/task_detail/data/datasources/task_local_datasource.dart';
 import '../../features/task_detail/data/datasources/task_remote_datasource.dart';
 import '../../features/task_detail/data/repositories/task_repository_impl.dart';
 import '../../features/task_detail/domain/repositories/task_repository.dart';
+import '../../features/task_detail/domain/usecases/get_active_tasks.dart';
 import '../../features/task_detail/domain/usecases/get_task_detail.dart';
 import '../../features/task_detail/domain/usecases/submit_task_for_verification.dart';
 import '../../features/task_detail/domain/usecases/toggle_checklist_item.dart';
@@ -169,6 +170,7 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<SubmitTaskForVerification>(
     () => SubmitTaskForVerification(sl()),
   );
+  sl.registerLazySingleton<GetActiveTasks>(() => GetActiveTasks(sl()));
 }
 
 /// registerCameraSession

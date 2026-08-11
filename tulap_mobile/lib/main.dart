@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'app/di/injection_container.dart';
 import 'core/sync/background_sync_service.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/domain/usecases/get_current_session.dart';
+import 'features/auth/presentation/pages/login_page.dart';
+import 'features/home/presentation/pages/home_page.dart';
 
 /// main.dart
 /// ----------------------------------------------------------------------
@@ -34,22 +37,45 @@ class TulapApp extends StatelessWidget {
       title: 'Tulap.id',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      // Rute awal sementara - akan diganti dengan flow Login -> Beranda
-      // begitu fitur auth & home dibangun di sisi mobile.
-      home: const _PlaceholderHome(),
+      home: const _AuthGate(),
     );
   }
 }
 
-class _PlaceholderHome extends StatelessWidget {
-  const _PlaceholderHome();
+/// _AuthGate
+/// ----------------------------------------------------------------------
+/// Titik keputusan rute awal (Bagian 8 Mobile Sitemap: `Login ->
+/// Beranda`). Memeriksa apakah ada sesi tersimpan (token + profil user
+/// di flutter_secure_storage, lihat AuthLocalDataSource) TANPA
+/// panggilan network - jika ada, user langsung masuk ke Beranda
+/// (sesi sebelumnya masih berlaku); jika tidak, ke Login.
+/// ----------------------------------------------------------------------
+class _AuthGate extends StatelessWidget {
+  const _AuthGate();
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Tulap.id - Beranda menyusul'),
-      ),
+    return FutureBuilder(
+      future: sl<GetCurrentSession>()(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.data != null) {
+          return const HomePage();
+        }
+
+        return LoginPage(
+          onLoginSuccess: (_) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const HomePage()),
+            );
+          },
+        );
+      },
     );
   }
 }

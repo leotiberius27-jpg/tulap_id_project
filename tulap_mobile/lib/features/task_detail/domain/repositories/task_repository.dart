@@ -28,4 +28,14 @@ abstract class TaskRepository {
   /// kelengkapan checklist sebagai sumber kebenaran final - client
   /// hanya melakukan pre-check optimis lewat `TaskEntity.isReadyToSubmit`.
   Future<Either<Failure, TaskEntity>> submitForVerification(String taskId);
+
+  /// Mengambil daftar ringkas tugas milik user yang login, dipakai
+  /// Beranda untuk menentukan "Kartu Tugas Aktif" (Bagian 11.1
+  /// spesifikasi). BEDA dengan getTaskDetail: endpoint list backend
+  /// (`GET /tasks`) tidak menyertakan checklist/jumlah bukti, jadi
+  /// item di sini punya `checklistItems` kosong - caller yang butuh
+  /// detail lengkap tetap harus memanggil getTaskDetail(id) terpisah.
+  /// TIDAK memakai cache lokal (network-only) karena belum ada tabel
+  /// cache untuk daftar tugas, hanya untuk satu tugas terakhir dibuka.
+  Future<Either<Failure, List<TaskEntity>>> getActiveTasks();
 }
