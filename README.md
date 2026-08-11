@@ -67,10 +67,11 @@ Buka `pubspec_additions.yaml`, salin seluruh baris di bawah `dependencies:` ke `
 flutter pub get
 ```
 
+Setelah `flutter create .` menghasilkan folder `android/`, timpa `android/app/src/main/kotlin/<package_id_anda>/MainActivity.kt` bawaan dengan isi `tulap_mobile/android/app/src/main/kotlin/id/tulap/tulap_mobile/MainActivity.kt` dari arsip ini (sesuaikan baris `package` agar sama persis dengan `applicationId` di `android/app/build.gradle` Anda) — ini mengimplementasikan RootDetector secara native untuk Android (heuristik sederhana: build tags, keberadaan binary `su`, aplikasi manajemen root umum). **iOS belum diimplementasikan** — RootDetector akan fail-safe ke `false` di iOS sampai versi Swift-nya dibuat.
+
 **Sebelum aplikasi bisa di-run**, satu hal ini masih perlu dilengkapi:
-1. **RootDetector native implementation** — saat ini hanya wrapper `MethodChannel` kosong; perlu kode native Kotlin/Swift, atau ganti dengan package siap pakai (`safe_device`).
-2. **Session DI untuk ReceiptScannerPage** — pola yang sama seperti `GeotagCameraEntryPage` perlu dibuat untuk fitur OCR sebelum bisa dipanggil dari UI.
-3. **Flow Login → Beranda** — `main.dart` saat ini masih mengarah ke halaman placeholder; perlu dihubungkan ke fitur Auth & Beranda begitu keduanya dibangun di sisi mobile.
+1. **Session DI untuk ReceiptScannerPage** — SELESAI, lihat `ReceiptScannerEntryPage`.
+2. **Flow Login → Beranda** — SELESAI, `main.dart` kini memakai `_AuthGate` yang mengarahkan ke `LoginPage` atau `HomePage` tergantung sesi tersimpan.
 
 ---
 
@@ -104,8 +105,13 @@ import '../styles/globals.css'; // yang berisi @tailwind base/components/utiliti
 | Migrasi SQLite + Dependency Injection (Mobile) | ✅ Selesai |
 | Geotagged Camera Engine | ✅ Selesai (kode + DI) |
 | Sync Queue (offline outbox) | ✅ Selesai — SELURUH jenis entity (foto, nota, checklist) sudah tersambung end-to-end |
-| OCR Receipt Scanner | ✅ Selesai (kode), ⚠️ belum ada entry page DI khusus scanner |
+| OCR Receipt Scanner | ✅ Selesai (kode + `ReceiptScannerEntryPage`), tombol "Scan Nota" di Task Detail sudah tersambung |
 | Task Detail (checklist, header, evidence actions) di Mobile | ✅ Selesai (kode + DI) |
+| Auth (Login) di Mobile | ✅ Selesai — `POST /auth/login` + token & profil tersimpan di `flutter_secure_storage` |
+| Beranda di Mobile | ✅ Selesai — Bagian 11.1: header, kartu tugas aktif, aksi cepat, status sync |
+| Flow Login → Beranda → Detail Tugas | ✅ Selesai — `main.dart` memakai `_AuthGate` |
+| RootDetector native (Android) | ✅ Selesai — heuristik sederhana (build tags, binary `su`, aplikasi manajemen root) |
+| RootDetector native (iOS) | ❌ Belum dibangun — fail-safe ke `false` |
 | LPJ Generator | ❌ Belum dibangun |
 | Web Dashboard (halaman nyata) | ❌ Belum dibangun — baru token |
 
@@ -114,9 +120,11 @@ import '../styles/globals.css'; // yang berisi @tailwind base/components/utiliti
 npx prisma migrate dev --name add_task_checklist
 ```
 
-**Catatan penting soal role:** dokumen spesifikasi produk (`docs/tulap_product_spec.md`, Bagian 6) menyebut 6 role (termasuk BENDAHARA & PIMPINAN), namun skema Prisma (`schema.prisma`) baru mendukung 4 role (PEGAWAI, VERIFIKATOR, ADMIN, SUPER_ADMIN). Ini kesenjangan yang perlu diputuskan: tambahkan 2 role tsb ke enum `RoleName` + jalankan migrasi, atau perbarui dokumen spesifikasi agar konsisten dengan implementasi.
+**Catatan soal role:** dokumen spesifikasi produk (`docs/tulap_product_spec.md`) sudah disederhanakan menjadi 4 role, konsisten dengan skema Prisma (`schema.prisma`): PEGAWAI, VERIFIKATOR, ADMIN, SUPER_ADMIN. Tanggung jawab BENDAHARA (verifikasi nominal/keuangan) digabung ke VERIFIKATOR; tanggung jawab PIMPINAN (dashboard ringkas read-only) digabung ke ADMIN.
 
-**Catatan penting soal DI kamera:** jangan navigasi langsung ke `GeotagCameraPage` — selalu lewat `GeotagCameraEntryPage`. `TaskDetailPage` sudah memanggil ini dengan benar lewat tombol "Foto Kegiatan". Tombol "Scan Nota" di `TaskDetailPage` MASIH placeholder (menampilkan snackbar) karena pola `GeotagCameraEntryPage` belum direplikasi untuk `ReceiptScannerPage` — ini pekerjaan berikutnya yang paling jelas di sisi mobile.
+**Catatan penting soal DI kamera:** jangan navigasi langsung ke `GeotagCameraPage`/`ReceiptScannerPage` — selalu lewat `GeotagCameraEntryPage`/`ReceiptScannerEntryPage`. `TaskDetailPage` dan `HomePage` sudah memanggil keduanya dengan benar lewat tombol "Foto Kegiatan"/"Scan Nota".
+
+**Catatan soal Quick Actions di Beranda:** tombol "Lokasi" dan "Lihat LPJ" pada Aksi Cepat Beranda masih placeholder (menampilkan snackbar "belum tersedia") — belum ada layar Peta atau LPJ di sisi mobile (di luar cakupan pekerjaan ini, lihat saran fitur tambahan).
 
 ---
 
