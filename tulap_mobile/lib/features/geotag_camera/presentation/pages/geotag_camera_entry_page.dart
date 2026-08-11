@@ -1,7 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import '../../../../app/di/injection_container.dart';
-import '../../domain/entities/geotag_photo_entity.dart';
 import '../../domain/usecases/capture_geotagged_photo.dart';
 import '../../domain/usecases/validate_location_integrity.dart';
 import '../controllers/geotag_camera_controller.dart';

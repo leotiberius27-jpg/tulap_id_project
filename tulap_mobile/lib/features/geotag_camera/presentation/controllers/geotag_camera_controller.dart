@@ -1,4 +1,3 @@
-import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import '../../domain/entities/geotag_photo_entity.dart';
 import '../../domain/usecases/capture_geotagged_photo.dart';

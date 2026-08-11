@@ -8,7 +8,6 @@ import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/ocr/receipt_ocr_engine.dart';
 import '../../../../core/ocr/receipt_parser.dart';
-import '../../domain/entities/expense_note_entity.dart';
 import '../models/expense_note_model.dart';
 
 const int _kTargetMaxFileSizeBytes = 300 * 1024; // ~300KB, sama seperti foto geotag
