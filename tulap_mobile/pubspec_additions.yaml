@@ -1,0 +1,56 @@
+# Dependency tambahan yang dibutuhkan oleh fitur Geotag Camera Engine.
+# Tambahkan blok ini ke pubspec.yaml utama proyek tulap_mobile
+# (di bawah section `dependencies:` yang sudah ada).
+
+dependencies:
+  camera: ^0.11.0            # Akses hardware kamera lintas platform
+  geolocator: ^13.0.1        # GPS, akurasi lokasi, deteksi mock location (Android)
+  flutter_image_compress: ^2.3.0  # Kompresi foto ke target ~300KB
+  path_provider: ^2.1.4      # Lokasi direktori penyimpanan lokal aplikasi
+  sqflite: ^2.3.3            # Database lokal (offline-first)
+  crypto: ^3.0.5             # SHA-256 checksum integritas file
+  uuid: ^4.5.1                # Generate ID lokal untuk foto sebelum sync
+  dartz: ^0.10.1              # Either<Failure, T> untuk error handling functional
+  provider: ^6.1.2            # State management ringan untuk controller
+  intl: ^0.19.0                # Format tanggal/jam Bahasa Indonesia di watermark
+  dio: ^5.7.0                  # HTTP client untuk komunikasi ke backend NestJS
+  connectivity_plus: ^6.1.0   # Deteksi status koneksi internet
+  flutter_secure_storage: ^9.2.2  # Simpan JWT access/refresh token dengan aman
+  google_mlkit_text_recognition: ^0.13.1  # OCR on-device untuk scan nota
+  get_it: ^8.0.2                # Service locator untuk dependency injection
+
+# CATATAN IMPLEMENTASI:
+# 1. RootDetector (core/security/root_detector.dart) memakai MethodChannel
+#    native 'id.tulap.security/device_integrity' - butuh implementasi
+#    native Kotlin (Android) & Swift (iOS) terpisah, ATAU ganti dengan
+#    package siap pakai seperti `safe_device` / `flutter_jailbreak_detection`.
+# 2. Server timestamp saat ini memakai DateTime.now().toUtc() sebagai
+#    fallback offline-first - perlu direkonsiliasi dengan waktu server
+#    asli saat proses sinkronisasi di fitur sync_queue (belum dibangun).
+# 3. Watermark overlay saat ini murni visual UI (WatermarkOverlay widget) -
+#    untuk watermark permanen ter-burn di file gambar, tambahkan proses
+#    image compositing di GeotagCameraLocalDataSource sebelum kompresi.
+# 4. Fitur Sync Queue MENYELESAIKAN catatan #2 di atas: serverTimestamp
+#    kini direkonsiliasi otomatis oleh SyncRemoteDataSource._uploadGeotagPhoto
+#    begitu upload foto berhasil - lihat komentar di file tersebut.
+# 5. Upload Expense Note SUDAH SELESAI diimplementasikan lewat fitur
+#    OCR Receipt Scanner - lihat SyncRemoteDataSource._uploadExpenseNote.
+#    Upload Task Checklist masih UnimplementedError, menunggu fitur
+#    Task Detail/Checklist dibangun.
+# 6. Tabel SQLite yang perlu ditambahkan ke skema migrasi lokal:
+#    - 'sync_queue' (id, entityType, entityLocalId, taskId, status,
+#      attemptCount, createdAt, lastAttemptAt, lastErrorMessage)
+#    - 'expense_notes' (id, taskId, localScanPath, vendorName,
+#      transactionDate, totalAmount, taxAmount, receiptNumber, category,
+#      ocrRawText, ocrConfidence, duplicateOfNoteId)
+# 7. ReceiptParser (core/ocr/receipt_parser.dart) adalah rule-based
+#    parser dengan kamus vendor retail Indonesia - mudah ditambah
+#    vendor/kategori baru tanpa mengubah logic inti. Deteksi duplikat
+#    nota memakai signature vendor+tanggal+nominal, divalidasi ulang
+#    secara otoritatif di backend saat sinkronisasi.
+# 8. SELESAI: migrasi SQLite (core/database/local_database.dart) dan
+#    Dependency Injection (app/di/injection_container.dart) sudah
+#    dibuat. main.dart memanggil initDependencies() sebelum runApp().
+#    Untuk membuka kamera, navigasi ke GeotagCameraEntryPage (BUKAN
+#    GeotagCameraPage langsung) - entry page ini menangani inisialisasi
+#    CameraController & registrasi DI session per-sesi kamera.

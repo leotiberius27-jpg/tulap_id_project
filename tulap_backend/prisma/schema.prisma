@@ -1,0 +1,271 @@
+// =====================================================================
+// TULAP.ID - SKEMA DATABASE UTAMA
+// =====================================================================
+// Prisma Schema untuk PostgreSQL
+// Mencakup: RBAC (User & Role), Task SPPD, Geotag Photo, Expense Note
+// Kepatuhan: UU PDP No. 27/2022 - Data Center wajib di region Indonesia
+// =====================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================================
+// 1. MODUL RBAC: ROLE & USER
+// =====================================================================
+
+/// Master data Role untuk keperluan Role-Based Access Control (RBAC)
+model Role {
+  id          String   @id @default(uuid())
+  name        RoleName @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("roles")
+}
+
+/// Enum daftar Role sesuai kebutuhan instansi pemerintah
+enum RoleName {
+  PEGAWAI // Staf lapangan - input tugas, foto, nota
+  VERIFIKATOR // Atasan/Finance - verifikasi laporan
+  ADMIN // Admin instansi - kelola user & konfigurasi
+  SUPER_ADMIN // Admin pusat - kelola seluruh instansi/tenant
+
+  @@map("role_name")
+}
+
+/// Data pengguna sistem (ASN, Tim Inspeksi, Staf Keuangan, dll)
+model User {
+  id           String   @id @default(uuid())
+  nip          String?  @unique // Nomor Induk Pegawai (opsional utk non-ASN)
+  fullName     String   @map("full_name")
+  email        String   @unique
+  phoneNumber  String?  @map("phone_number")
+  passwordHash String   @map("password_hash")
+  instansiName String?  @map("instansi_name") // Nama dinas/instansi
+  unitKerja    String?  @map("unit_kerja") // Unit kerja/bagian
+
+  roleId String @map("role_id")
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  isActive      Boolean   @default(true) @map("is_active")
+  lastLoginAt   DateTime? @map("last_login_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relasi balik
+  tasks           Task_SPPD[]      @relation("TaskAssignee")
+  createdTasks    Task_SPPD[]      @relation("TaskCreator")
+  geotagPhotos    Geotag_Photo[]
+  expenseNotes    Expense_Note[]   @relation("ExpenseOwner")
+  verifiedNotes   Expense_Note[]   @relation("ExpenseVerifier")
+
+  @@index([roleId])
+  @@index([email])
+  @@index([isActive])
+  @@map("users")
+}
+
+// =====================================================================
+// 2. MODUL TUGAS DINAS (SPPD)
+// =====================================================================
+
+/// Enum status siklus hidup tugas SPPD
+enum TaskStatus {
+  DRAFT // Baru dibuat, belum berjalan
+  ONGOING // Sedang berlangsung di lapangan
+  PENDING_VERIFICATION // Menunggu verifikasi Verifikator
+  REVISION_NEEDED // Dikembalikan untuk perbaikan
+  VERIFIED // Sudah diverifikasi/disetujui
+  REJECTED // Ditolak
+  COMPLETED // Selesai & LPJ terbit
+
+  @@map("task_status")
+}
+
+/// Tabel utama pencatatan Surat Perintah Perjalanan Dinas (SPPD)
+model Task_SPPD {
+  id           String @id @default(uuid())
+  taskCode     String @unique @map("task_code") // Nomor surat tugas/SPPD
+
+  taskName    String @map("task_name")
+  destination String // Lokasi/kota tujuan tugas
+  description String?
+
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+
+  budgetAmount    Decimal @map("budget_amount") @db.Decimal(15, 2)
+  realizedAmount  Decimal @default(0) @map("realized_amount") @db.Decimal(15, 2)
+
+  status TaskStatus @default(DRAFT)
+
+  // Pegawai yang ditugaskan ke lapangan
+  assigneeId String @map("assignee_id")
+  assignee   User   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+
+  // Admin/atasan yang membuat penugasan
+  creatorId String @map("creator_id")
+  creator   User   @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relasi balik
+  geotagPhotos Geotag_Photo[]
+  expenseNotes Expense_Note[]
+  checklistItems Task_Checklist_Item[]
+
+  @@index([assigneeId])
+  @@index([creatorId])
+  @@index([status])
+  @@index([startDate, endDate]) // Optimasi pencarian rentang tanggal
+  @@map("task_sppd")
+}
+
+// =====================================================================
+// 2B. MODUL CHECKLIST TUGAS
+// =====================================================================
+
+/// Item checklist per tugas - "Satu Tugas = Satu Folder Pintar" (Bagian
+/// 7 dokumen spesifikasi). Ditentukan Admin saat membuat penugasan
+/// (jenis bukti wajib apa saja), dicentang satu-per-satu oleh Pegawai
+/// selagi bekerja di lapangan.
+model Task_Checklist_Item {
+  id String @id @default(uuid())
+
+  taskId String    @map("task_id")
+  task   Task_SPPD @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  label String // Contoh: "Datang ke lokasi", "Foto kondisi awal"
+  order Int // Urutan tampil di UI (checklist berurutan, bukan acak)
+
+  // Sebagian item WAJIB dipenuhi sebelum tugas bisa dikirim untuk
+  // verifikasi (mis. "Foto kegiatan"), sebagian bersifat opsional
+  // (mis. "Isi catatan tambahan").
+  isMandatory Boolean @default(true) @map("is_mandatory")
+
+  isCompleted   Boolean   @default(false) @map("is_completed")
+  completedAt   DateTime? @map("completed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([taskId])
+  @@map("task_checklist_items")
+}
+
+// =====================================================================
+// 3. MODUL BUKTI FOTO GEOTAG
+// =====================================================================
+
+/// Foto kegiatan lapangan dengan validasi lokasi & integritas file
+model Geotag_Photo {
+  id String @id @default(uuid())
+
+  taskId String    @map("task_id")
+  task   Task_SPPD @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  uploaderId String @map("uploader_id")
+  uploader   User   @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
+
+  // Lokasi penyimpanan fisik file di S3-Compatible Storage (Region Jakarta)
+  photoUrl String @map("photo_url")
+
+  // Data Geotagging
+  latitude       Decimal @db.Decimal(10, 7)
+  longitude      Decimal @db.Decimal(10, 7)
+  address        String? // Hasil reverse-geocoding
+
+  // Timestamp WAJIB diambil dari server, bukan device, untuk mencegah rekayasa
+  serverTimestamp DateTime @map("server_timestamp")
+
+  // Keamanan & Integritas
+  integrityHash     String  @map("integrity_hash") // SHA-256 checksum file asli
+  isMockLocationFlag Boolean @default(false) @map("is_mock_location_flag") // Terdeteksi fake GPS
+  isRootedDeviceFlag Boolean @default(false) @map("is_rooted_device_flag") // Terdeteksi root/jailbreak
+
+  caption String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([taskId])
+  @@index([uploaderId])
+  @@index([serverTimestamp])
+  @@map("geotag_photos")
+}
+
+// =====================================================================
+// 4. MODUL NOTA/BUKTI PENGELUARAN
+// =====================================================================
+
+/// Enum kategori nota, mengacu kepada parser OCR retail lokal
+enum ExpenseCategory {
+  BBM // SPBU
+  TOL
+  PENGINAPAN // Hotel/penginapan
+  RETAIL // Indomaret/Alfamart/minimarket
+  KONSUMSI // Makan/minum
+  TRANSPORTASI_LAIN // Taksi/ojek online/parkir
+  LAINNYA
+
+  @@map("expense_category")
+}
+
+/// Enum status verifikasi nota oleh Verifikator/Finance
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+
+  @@map("verification_status")
+}
+
+/// Hasil digitalisasi nota fisik (scan + OCR) sebagai bukti pengeluaran
+model Expense_Note {
+  id String @id @default(uuid())
+
+  taskId String    @map("task_id")
+  task   Task_SPPD @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  ownerId String @map("owner_id") // Pegawai pemilik nota
+  owner   User   @relation("ExpenseOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  // Lokasi file scan nota di S3-Compatible Storage
+  scanUrl String @map("scan_url")
+
+  // Hasil ekstraksi OCR
+  vendorName      String   @map("vendor_name")
+  transactionDate DateTime @map("transaction_date")
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(15, 2)
+  category        ExpenseCategory
+  ocrRawText      String?  @map("ocr_raw_text") // Teks mentah hasil OCR (untuk audit trail)
+  ocrConfidence   Decimal? @map("ocr_confidence") @db.Decimal(5, 2) // Skor keyakinan OCR (0-100)
+
+  // Verifikasi
+  verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
+  verifierId         String?            @map("verifier_id")
+  verifier            User?             @relation("ExpenseVerifier", fields: [verifierId], references: [id], onDelete: SetNull)
+  verifiedAt          DateTime?          @map("verified_at")
+  rejectionReason     String?            @map("rejection_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([taskId])
+  @@index([ownerId])
+  @@index([verifierId])
+  @@index([verificationStatus])
+  @@index([transactionDate]) // Optimasi rekap laporan per periode
+  @@index([category])
+  @@map("expense_notes")
+}
