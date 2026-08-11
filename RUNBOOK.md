@@ -151,4 +151,4 @@ flutter run
 
 ## Setelah Tahap 3 Berhasil
 
-Baru masuk akal untuk melanjutkan fitur yang belum selesai (Login/Beranda screen di mobile, Scan Nota entry page, LPJ Generator, Web Dashboard) — karena sekarang Anda punya fondasi yang **terbukti jalan**, bukan cuma kode yang belum pernah dites end-to-end.
+Baru masuk akal untuk melanjutkan fitur yang belum selesai (halaman untuk memicu LPJ Generator di mobile/web, Web Dashboard, RootDetector iOS) — karena sekarang Anda punya fondasi yang **terbukti jalan**, bukan cuma kode yang belum pernah dites end-to-end.

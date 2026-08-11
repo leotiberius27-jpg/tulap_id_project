@@ -8,6 +8,7 @@ import { UsersModule } from './modules/users/users.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { ChecklistModule } from './modules/checklist/checklist.module';
 import { EvidenceModule } from './modules/evidence/evidence.module';
+import { LpjModule } from './modules/lpj/lpj.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -23,7 +24,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     TasksModule,
     ChecklistModule,
     EvidenceModule,
-    // Modul lain (documents/LPJ) akan didaftarkan di sini secara bertahap.
+    LpjModule,
   ],
   providers: [
     // Urutan guard PENTING: JwtAuthGuard (autentikasi) dijalankan

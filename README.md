@@ -33,8 +33,8 @@ Install dependency yang dipakai kode:
 ```bash
 npm install @nestjs/passport @nestjs/jwt passport passport-jwt bcrypt \
   @prisma/client class-validator class-transformer @nestjs/config \
-  @aws-sdk/client-s3 @nestjs/platform-express multer
-npm install -D prisma @types/passport-jwt @types/bcrypt @types/multer
+  @aws-sdk/client-s3 @nestjs/platform-express multer pdfkit
+npm install -D prisma @types/passport-jwt @types/bcrypt @types/multer @types/pdfkit
 ```
 
 Siapkan environment:
@@ -50,7 +50,9 @@ npx prisma migrate dev --name init
 npm run start:dev
 ```
 
-**Catatan:** hanya modul `auth` (login, register, RBAC) yang sudah dibangun. Modul `users`, `tasks`, `evidence` (photo/receipt), `finance`, dan `documents` (LPJ) masih perlu dibangun menyusul.
+**Catatan:** modul `auth`, `users`, `tasks` (+ `checklist`), `evidence` (photo/receipt), dan `lpj` (generate PDF) sudah dibangun. Modul `finance` (rekap/ekspor laporan keuangan sebagai layar tersendiri) masih belum dibangun. Endpoint `POST /lpj/generate` murni generate PDF on-demand dari data tugas VERIFIED yang sudah ada — TIDAK menyimpan record LPJ baru maupun mengunggah ke S3 (skema Prisma belum punya model `LPJ`/`LPJTemplate` yang disebut di Bagian 27 dokumen spesifikasi).
+
+**Catatan penting:** arsip ini TIDAK menyertakan `src/main.ts` (bootstrap NestJS) — file itu dihasilkan otomatis oleh `nest new` dan TIDAK BOLEH ikut tertimpa. Saat "timpa folder `src/` bawaan" di atas, pastikan Anda menyalin folder-folder di dalam `src/` (`common/`, `infrastructure/`, `modules/`, `app.module.ts`) TANPA menghapus `main.ts` yang sudah ada di project baru Anda.
 
 ---
 
@@ -112,7 +114,8 @@ import '../styles/globals.css'; // yang berisi @tailwind base/components/utiliti
 | Flow Login → Beranda → Detail Tugas | ✅ Selesai — `main.dart` memakai `_AuthGate` |
 | RootDetector native (Android) | ✅ Selesai — heuristik sederhana (build tags, binary `su`, aplikasi manajemen root) |
 | RootDetector native (iOS) | ❌ Belum dibangun — fail-safe ke `false` |
-| LPJ Generator | ❌ Belum dibangun |
+| LPJ Generator (Backend) | ✅ Selesai — `POST /lpj/generate`, generate PDF on-demand dari tugas VERIFIED |
+| LPJ Generator (halaman Web/Mobile) | ❌ Belum dibangun — belum ada UI untuk memicu endpoint ini |
 | Web Dashboard (halaman nyata) | ❌ Belum dibangun — baru token |
 
 **PENTING - migrasi database baru diperlukan:** `schema.prisma` baru saja ditambahkan model `Task_Checklist_Item`. Jika Anda sudah pernah menjalankan `prisma migrate dev` sebelumnya, jalankan lagi:
