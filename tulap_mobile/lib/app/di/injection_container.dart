@@ -13,6 +13,13 @@ import '../../core/security/mock_location_detector.dart';
 import '../../core/security/root_detector.dart';
 import '../../core/sync/background_sync_service.dart';
 
+import '../../features/auth/data/datasources/auth_local_datasource.dart';
+import '../../features/auth/data/datasources/auth_remote_datasource.dart';
+import '../../features/auth/data/repositories/auth_repository_impl.dart';
+import '../../features/auth/domain/repositories/auth_repository.dart';
+import '../../features/auth/domain/usecases/get_current_session.dart';
+import '../../features/auth/domain/usecases/login.dart';
+
 import '../../features/expense_ocr/data/datasources/expense_ocr_local_datasource.dart';
 import '../../features/expense_ocr/data/repositories/expense_ocr_repository_impl.dart';
 import '../../features/expense_ocr/domain/repositories/expense_ocr_repository.dart';
@@ -84,6 +91,21 @@ Future<void> initDependencies() async {
 
   sl.registerLazySingleton<ReceiptOcrEngine>(() => ReceiptOcrEngine());
   sl.registerLazySingleton<ReceiptParser>(() => ReceiptParser());
+
+  // ============================================================
+  // AUTH - didaftarkan lebih dulu karena main.dart butuh
+  // GetCurrentSession SEBELUM runApp() untuk menentukan rute awal
+  // (Login atau Beranda).
+  // ============================================================
+  sl.registerLazySingleton<AuthRemoteDataSource>(
+    () => AuthRemoteDataSource(sl()),
+  );
+  sl.registerLazySingleton<AuthLocalDataSource>(() => AuthLocalDataSource());
+  sl.registerLazySingleton<AuthRepository>(
+    () => AuthRepositoryImpl(remoteDataSource: sl(), localDataSource: sl()),
+  );
+  sl.registerLazySingleton<Login>(() => Login(sl()));
+  sl.registerLazySingleton<GetCurrentSession>(() => GetCurrentSession(sl()));
 
   // ============================================================
   // SYNC QUEUE - didaftarkan lebih dulu karena geotag_camera &
