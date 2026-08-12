@@ -54,7 +54,11 @@ final GetIt sl = GetIt.instance;
 
 /// Ganti sesuai environment (dev/staging/production) - dalam proyek
 /// nyata sebaiknya dibaca dari file .env, bukan hardcode di sini.
-const String _kApiBaseUrl = 'https://api.tulap.id/v1';
+/// 10.0.2.2 adalah alias khusus Android emulator untuk mengakses
+/// localhost komputer host tempat `tulap_backend` dijalankan (RUNBOOK.md
+/// TAHAP 3) - ganti ke 'http://localhost:3000' untuk iOS Simulator/Chrome,
+/// atau 'http://<IP_LAN_komputer_Anda>:3000' untuk HP fisik.
+const String _kApiBaseUrl = 'http://10.0.2.2:3000';
 
 /// initDependencies
 /// ----------------------------------------------------------------------
