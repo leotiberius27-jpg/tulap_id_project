@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'app/di/injection_container.dart';
 import 'core/sync/background_sync_service.dart';
 import 'core/theme/app_theme.dart';
@@ -20,6 +21,11 @@ import 'features/home/presentation/pages/home_page.dart';
 /// ----------------------------------------------------------------------
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // WatermarkOverlay memformat tanggal dengan locale 'id_ID' - tanpa
+  // ini, DateFormat('...', 'id_ID') melempar LocaleDataException setiap
+  // kali overlay kamera geotag dibangun.
+  await initializeDateFormatting('id_ID', null);
 
   await initDependencies();
 
