@@ -1,0 +1,42 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tulap_backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tulap_backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tulap_backend
+    env:
+      # Nilai dummy - cukup untuk `prisma generate`/`nest build` (tidak
+      # butuh koneksi database sungguhan), tidak perlu GitHub Secrets.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tulap_db?schema=public
+      JWT_SECRET: ci-dummy-secret
+      JWT_REFRESH_SECRET: ci-dummy-refresh-secret
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: tulap_backend/package-lock.json
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - run: npm run typecheck
+
+      - run: npm run build

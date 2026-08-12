@@ -1,0 +1,37 @@
+name: Mobile CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tulap_mobile/**'
+      - '.github/workflows/mobile-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tulap_mobile/**'
+      - '.github/workflows/mobile-ci.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tulap_mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.44.9'
+
+      - run: flutter pub get
+
+      # --no-fatal-infos: proyek ini punya beberapa lint level info
+      # (API deprecated, gaya kode) yang belum dibersihkan - CI hanya
+      # menggagalkan build untuk error/warning sungguhan, bukan nitpick
+      # gaya. Hapus flag ini setelah lint info-level dibersihkan.
+      - run: flutter analyze --no-fatal-infos
+
+      - run: flutter test
