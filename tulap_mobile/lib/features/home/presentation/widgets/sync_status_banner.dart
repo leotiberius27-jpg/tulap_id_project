@@ -13,6 +13,7 @@ class SyncStatusBanner extends StatelessWidget {
   final bool isOffline;
   final int pendingCount;
   final bool allSynced;
+  final bool isSyncing;
   final VoidCallback onViewData;
 
   const SyncStatusBanner({
@@ -21,10 +22,54 @@ class SyncStatusBanner extends StatelessWidget {
     required this.pendingCount,
     required this.allSynced,
     required this.onViewData,
+    this.isSyncing = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Sync otomatis sedang berjalan di background (Bagian 31/32) - state
+    // ini SELALU didahulukan dari pending/offline agar user "merasakan"
+    // sistem bekerja, bukan cuma melihat angka berubah tiba-tiba.
+    if (isSyncing) {
+      return Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.base,
+          vertical: AppSpacing.base,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.iconSoftBlue,
+          borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 32,
+              height: 32,
+              child: Padding(
+                padding: EdgeInsets.all(7),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.action,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                pendingCount > 0
+                    ? 'Mengirim $pendingCount data...'
+                    : 'Menyinkronkan data...',
+                style: AppTypography.small.copyWith(
+                  color: AppColors.action,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (pendingCount == 0) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.base),

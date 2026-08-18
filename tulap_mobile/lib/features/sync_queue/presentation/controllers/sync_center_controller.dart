@@ -25,6 +25,26 @@ class SyncCenterController extends ChangeNotifier {
   }) : _repository = repository,
        _backgroundSyncService = backgroundSyncService {
     loadRecords();
+    // Reload otomatis jika sync latar belakang (bukan tombol "Kirim
+    // Semua" di layar ini) selesai berjalan selagi Sync Center terbuka -
+    // lihat catatan yang sama di HomeController.
+    _backgroundSyncService.addListener(_onBackgroundSyncChanged);
+  }
+
+  void _onBackgroundSyncChanged() {
+    if (!_backgroundSyncService.isSyncing) {
+      loadRecords();
+    } else {
+      notifyListeners();
+    }
+  }
+
+  bool get isBackgroundSyncing => _backgroundSyncService.isSyncing;
+
+  @override
+  void dispose() {
+    _backgroundSyncService.removeListener(_onBackgroundSyncChanged);
+    super.dispose();
   }
 
   List<SyncRecordEntity> get pendingRecords => _records

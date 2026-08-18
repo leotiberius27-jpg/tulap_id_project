@@ -44,6 +44,7 @@ class HomePage extends StatelessWidget {
         getTaskDetail: sl<GetTaskDetail>(),
         syncQueueRepository: sl<SyncQueueRepository>(),
         networkInfo: sl<NetworkInfo>(),
+        backgroundSyncService: sl<BackgroundSyncService>(),
       ),
       child: const _HomeView(),
     );
@@ -164,6 +165,7 @@ class _HomeView extends StatelessWidget {
                             isOffline: state.isOffline,
                             pendingCount: state.pendingSyncCount,
                             allSynced: state.allSynced,
+                            isSyncing: state.isSyncing,
                             onViewData: () => _openSyncCenter(context),
                           ),
                           const SizedBox(height: AppSpacing.xl),

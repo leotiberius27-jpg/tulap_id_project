@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import '../../features/sync_queue/domain/usecases/process_sync_queue.dart';
 import '../network/network_info.dart';
 
@@ -13,8 +14,14 @@ import '../network/network_info.dart';
 ///
 /// Service ini di-inisialisasi SEKALI di awal aplikasi (mis. lewat
 /// dependency injection container) dan berjalan sepanjang app aktif.
+///
+/// EXTENDS ChangeNotifier agar layar (Beranda, Sync Center) bisa
+/// bereaksi LIVE saat sync otomatis berjalan di background - sebelum
+/// ini `_isSyncing` murni internal, jadi banner status di Beranda bisa
+/// basi (menampilkan "X data menunggu" walau sebenarnya sudah
+/// tersinkron oleh trigger otomatis) sampai user me-refresh manual.
 /// ----------------------------------------------------------------------
-class BackgroundSyncService {
+class BackgroundSyncService extends ChangeNotifier {
   final ProcessSyncQueue _processSyncQueue;
   final NetworkInfo _networkInfo;
 
@@ -23,6 +30,8 @@ class BackgroundSyncService {
   StreamSubscription<bool>? _connectivitySubscription;
   Timer? _pollingTimer;
   bool _isSyncing = false;
+
+  bool get isSyncing => _isSyncing;
 
   BackgroundSyncService({
     required ProcessSyncQueue processSyncQueue,
@@ -59,15 +68,19 @@ class BackgroundSyncService {
     // kebetulan terjadi bersamaan.
     if (_isSyncing) return;
     _isSyncing = true;
+    notifyListeners();
     try {
       await _processSyncQueue();
     } finally {
       _isSyncing = false;
+      notifyListeners();
     }
   }
 
+  @override
   void dispose() {
     _connectivitySubscription?.cancel();
     _pollingTimer?.cancel();
+    super.dispose();
   }
 }

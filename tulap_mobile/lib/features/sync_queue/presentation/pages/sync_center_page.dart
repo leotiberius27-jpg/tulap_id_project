@@ -88,17 +88,27 @@ class SyncCenterPage extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.base),
                 child: ElevatedButton(
-                  onPressed: controller.isRetryingAll
+                  onPressed:
+                      controller.isRetryingAll || controller.isBackgroundSyncing
                       ? null
                       : controller.retryAll,
-                  child: controller.isRetryingAll
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
+                  child: controller.isRetryingAll || controller.isBackgroundSyncing
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              'Mengirim ${controller.pendingRecords.length} data...',
+                            ),
+                          ],
                         )
                       : const Text('Kirim Semua Sekarang'),
                 ),

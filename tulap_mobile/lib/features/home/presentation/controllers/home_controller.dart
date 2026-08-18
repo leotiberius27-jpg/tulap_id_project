@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../../../core/network/network_info.dart';
+import '../../../../core/sync/background_sync_service.dart';
 import '../../../auth/domain/entities/auth_user_entity.dart';
 import '../../../auth/domain/usecases/get_current_session.dart';
 import '../../../sync_queue/domain/entities/sync_record_entity.dart';
@@ -17,6 +18,7 @@ class HomeState {
   final bool isOffline;
   final int pendingSyncCount;
   final bool allSynced;
+  final bool isSyncing;
   final String? errorMessage;
 
   const HomeState({
@@ -26,8 +28,31 @@ class HomeState {
     this.isOffline = false,
     this.pendingSyncCount = 0,
     this.allSynced = false,
+    this.isSyncing = false,
     this.errorMessage,
   });
+
+  HomeState copyWith({
+    HomeStatus? status,
+    AuthUserEntity? user,
+    TaskEntity? activeTask,
+    bool? isOffline,
+    int? pendingSyncCount,
+    bool? allSynced,
+    bool? isSyncing,
+    String? errorMessage,
+  }) {
+    return HomeState(
+      status: status ?? this.status,
+      user: user ?? this.user,
+      activeTask: activeTask ?? this.activeTask,
+      isOffline: isOffline ?? this.isOffline,
+      pendingSyncCount: pendingSyncCount ?? this.pendingSyncCount,
+      allSynced: allSynced ?? this.allSynced,
+      isSyncing: isSyncing ?? this.isSyncing,
+      errorMessage: errorMessage ?? this.errorMessage,
+    );
+  }
 }
 
 /// HomeController
@@ -46,6 +71,7 @@ class HomeController extends ChangeNotifier {
   final GetTaskDetail _getTaskDetail;
   final SyncQueueRepository _syncQueueRepository;
   final NetworkInfo _networkInfo;
+  final BackgroundSyncService _backgroundSyncService;
 
   HomeState _state = const HomeState();
   HomeState get state => _state;
@@ -56,12 +82,55 @@ class HomeController extends ChangeNotifier {
     required GetTaskDetail getTaskDetail,
     required SyncQueueRepository syncQueueRepository,
     required NetworkInfo networkInfo,
+    required BackgroundSyncService backgroundSyncService,
   })  : _getCurrentSession = getCurrentSession,
         _getActiveTasks = getActiveTasks,
         _getTaskDetail = getTaskDetail,
         _syncQueueRepository = syncQueueRepository,
-        _networkInfo = networkInfo {
+        _networkInfo = networkInfo,
+        _backgroundSyncService = backgroundSyncService {
     loadHome();
+    // Beranda ikut bereaksi LIVE saat sync otomatis berjalan/selesai di
+    // background (Bagian 31/32) - tanpa ini banner "Status Data" bisa
+    // basi (menampilkan data lama) sampai user meninggalkan & kembali
+    // ke Beranda, walau sync sebenarnya sudah selesai di latar belakang.
+    _backgroundSyncService.addListener(_onBackgroundSyncChanged);
+  }
+
+  void _onBackgroundSyncChanged() {
+    _update(_state.copyWith(isSyncing: _backgroundSyncService.isSyncing));
+    // Refresh ringan HANYA field terkait sync (bukan loadHome() penuh -
+    // itu akan mereset status ke `loading` dan membuat seluruh Beranda
+    // berkedip ke spinner setiap sync otomatis berjalan, sangat
+    // mengganggu karena bisa terjadi tiap beberapa menit).
+    if (!_backgroundSyncService.isSyncing) {
+      _refreshSyncStatus();
+    }
+  }
+
+  Future<void> _refreshSyncStatus() async {
+    final isOnline = await _networkInfo.isConnected;
+    final syncResult = await _syncQueueRepository.getAllRecords();
+    final records = syncResult.fold(
+      (_) => const <SyncRecordEntity>[],
+      (records) => records,
+    );
+    final pendingCount =
+        records.where((r) => r.status != SyncStatus.synced).length;
+
+    _update(
+      _state.copyWith(
+        isOffline: !isOnline,
+        pendingSyncCount: pendingCount,
+        allSynced: records.isNotEmpty && pendingCount == 0,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _backgroundSyncService.removeListener(_onBackgroundSyncChanged);
+    super.dispose();
   }
 
   void _update(HomeState newState) {
