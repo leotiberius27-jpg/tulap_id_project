@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_theme.dart';
 
 /// QuickActionGrid
@@ -89,10 +90,16 @@ class _QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isEnabled = onTap != null;
+    final callback = onTap;
+    final isEnabled = callback != null;
 
     return InkWell(
-      onTap: onTap,
+      onTap: callback == null
+          ? null
+          : () {
+              HapticFeedback.lightImpact();
+              callback();
+            },
       borderRadius: BorderRadius.circular(AppRadius.cardLarge),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: 6),

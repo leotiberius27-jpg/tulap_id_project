@@ -3,17 +3,22 @@ import '../../../../core/theme/app_theme.dart';
 
 /// HomeHeader
 /// ----------------------------------------------------------------------
-/// Hero header Beranda: latar gradient biru institusional, wordmark,
-/// notifikasi, sapaan + nama pegawai, instansi, dan avatar. Sesuai
-/// Bagian 5 & 19 spesifikasi visual - "premium hero", bukan AppBar datar.
-/// Sudut bawah dibuat membulat agar ActiveTaskCard bisa "mengambang" di
-/// atasnya (Bagian 6: transisi visual halus).
+/// Top bar + sapaan Beranda. Kanvas terang (bukan hero biru penuh) sesuai
+/// arah desain terbaru: navy dipakai strategis di kartu/aksi, bukan
+/// mendominasi seluruh atas layar - agar Beranda terasa lebih ringan dan
+/// lapang (referensi gaya project-management app).
 /// ----------------------------------------------------------------------
 class HomeHeader extends StatelessWidget {
   final String fullName;
   final String agencyName;
+  final VoidCallback onNotificationTap;
 
-  const HomeHeader({super.key, required this.fullName, required this.agencyName});
+  const HomeHeader({
+    super.key,
+    required this.fullName,
+    required this.agencyName,
+    required this.onNotificationTap,
+  });
 
   String get _greeting {
     final hour = DateTime.now().hour;
@@ -25,76 +30,54 @@ class HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
         AppSpacing.base,
-        topPadding + AppSpacing.md,
+        AppSpacing.sm,
         AppSpacing.base,
-        AppSpacing.xxxl + AppSpacing.sm,
-      ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.heroGradientStart, AppColors.heroGradientEnd],
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(AppRadius.hero),
-          bottomRight: Radius.circular(AppRadius.hero),
-        ),
+        0,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text('TULAP.ID', style: AppTypography.brandTitle),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(9),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 28,
+                  height: 28,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              const Text('Beranda', style: AppTypography.sectionTitle),
               const Spacer(),
-              _HeroIconButton(icon: Icons.notifications_outlined, onTap: () {}),
+              _NotificationButton(onTap: onNotificationTap),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_greeting, style: AppTypography.heroGreeting),
-                    const SizedBox(height: 2),
-                    Text(
-                      fullName,
-                      style: AppTypography.heroName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: Colors.white.withValues(alpha: 0.18),
-                child: Text(
-                  fullName.isNotEmpty ? fullName[0].toUpperCase() : '?',
-                  style: AppTypography.body.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
+          Text('$_greeting,', style: AppTypography.bodySecondary),
+          const SizedBox(height: 2),
+          Text(
+            fullName,
+            style: AppTypography.pageTitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.apartment_outlined, size: 14, color: Colors.white70),
+              const Icon(
+                Icons.apartment_outlined,
+                size: 15,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   agencyName,
-                  style: AppTypography.heroSubtitle,
+                  style: AppTypography.small,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -107,11 +90,10 @@ class HomeHeader extends StatelessWidget {
   }
 }
 
-class _HeroIconButton extends StatelessWidget {
-  final IconData icon;
+class _NotificationButton extends StatelessWidget {
   final VoidCallback onTap;
 
-  const _HeroIconButton({required this.icon, required this.onTap});
+  const _NotificationButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -119,14 +101,18 @@ class _HeroIconButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
-        width: 38,
-        height: 38,
+        width: 40,
+        height: 40,
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.14),
+        decoration: const BoxDecoration(
+          color: AppColors.background,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
+        child: const Icon(
+          Icons.notifications_outlined,
+          color: AppColors.primary,
+          size: 20,
+        ),
       ),
     );
   }

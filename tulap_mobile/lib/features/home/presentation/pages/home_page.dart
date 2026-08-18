@@ -55,11 +55,10 @@ class _HomeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
-          top: false,
           child: Consumer<HomeController>(
             builder: (context, controller, _) {
               final state = controller.state;
@@ -78,32 +77,11 @@ class _HomeView extends StatelessWidget {
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: [
-                    HomeHeader(fullName: officerName, agencyName: agencyName),
-                    // Kartu Tugas Aktif "mengambang" di atas hero (Bagian 6:
-                    // transisi visual halus). Transform.translate dipakai
-                    // alih-alih margin/padding negatif - keduanya melempar
-                    // assertion error di Flutter (isNonNegative). Transform
-                    // hanya menggeser hasil gambar, ruang aslinya tetap
-                    // disediakan di bawah kartu sebagai jarak ke section
-                    // berikutnya, jadi tidak perlu SizedBox tambahan di sini.
-                    Transform.translate(
-                      offset: const Offset(0, -32),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.base,
-                        ),
-                        child: activeTask != null
-                            ? ActiveTaskCard(
-                                task: activeTask,
-                                onContinue: () => _openTaskDetail(
-                                  context,
-                                  taskId: activeTask.id,
-                                  officerName: officerName,
-                                  agencyName: agencyName,
-                                ),
-                              )
-                            : _buildEmptyTaskState(),
-                      ),
+                    HomeHeader(
+                      fullName: officerName,
+                      agencyName: agencyName,
+                      onNotificationTap: () =>
+                          _showNotAvailable(context, 'Notifikasi'),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(
@@ -112,6 +90,26 @@ class _HomeView extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          const SizedBox(height: AppSpacing.lg),
+                          Text(
+                            'Tugas Aktif',
+                            style: AppTypography.sectionLabel.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          activeTask != null
+                              ? ActiveTaskCard(
+                                  task: activeTask,
+                                  onContinue: () => _openTaskDetail(
+                                    context,
+                                    taskId: activeTask.id,
+                                    officerName: officerName,
+                                    agencyName: agencyName,
+                                  ),
+                                )
+                              : _buildEmptyTaskState(),
+                          const SizedBox(height: AppSpacing.lg),
                           Text(
                             'Aksi Cepat',
                             style: AppTypography.sectionLabel.copyWith(

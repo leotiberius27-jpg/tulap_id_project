@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/task_entity.dart';
 
@@ -27,25 +28,34 @@ class ChecklistItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => onToggle(!item.isCompleted),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onToggle(!item.isCompleted);
+      },
       borderRadius: BorderRadius.circular(AppRadius.small),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
         child: Row(
           children: [
-            Icon(
-              item.isCompleted
-                  ? Icons.check_circle
-                  : Icons.radio_button_unchecked,
-              color: item.isCompleted
-                  ? AppColors.success
-                  : AppColors.textSecondary,
-              size: 22,
+            AnimatedSwitcher(
+              duration: AppMotion.stateChange,
+              transitionBuilder: (child, animation) =>
+                  ScaleTransition(scale: animation, child: child),
+              child: Icon(
+                item.isCompleted
+                    ? Icons.check_circle
+                    : Icons.radio_button_unchecked,
+                key: ValueKey(item.isCompleted),
+                color: item.isCompleted
+                    ? AppColors.success
+                    : AppColors.textSecondary,
+                size: 22,
+              ),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
-              child: Text(
-                item.label,
+              child: AnimatedDefaultTextStyle(
+                duration: AppMotion.stateChange,
                 style: AppTypography.body.copyWith(
                   fontSize: 15,
                   decoration: item.isCompleted
@@ -55,6 +65,7 @@ class ChecklistItemTile extends StatelessWidget {
                       ? AppColors.textSecondary
                       : AppColors.textPrimary,
                 ),
+                child: Text(item.label),
               ),
             ),
             if (!item.isCompleted) ...[
