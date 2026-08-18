@@ -17,7 +17,11 @@ class SyncCenterPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Pusat Sinkronisasi')),
+      appBar: AppBar(
+        title: const Text('Pusat Sinkronisasi'),
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+      ),
       body: Consumer<SyncCenterController>(
         builder: (context, controller, _) {
           if (controller.isLoading) {
@@ -41,7 +45,7 @@ class SyncCenterPage extends StatelessWidget {
                   _SectionHeader(title: 'Perlu Diperbaiki'),
                   ...controller.failedRecords.map(
                     (r) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
                       child: SyncStatusRow(
                         record: r,
                         onRetry: () => controller.retryOne(r.id),
@@ -54,7 +58,7 @@ class SyncCenterPage extends StatelessWidget {
                   _SectionHeader(title: 'Dalam Proses'),
                   ...controller.pendingRecords.map(
                     (r) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
                       child: SyncStatusRow(record: r),
                     ),
                   ),
@@ -69,18 +73,35 @@ class SyncCenterPage extends StatelessWidget {
           if (controller.records.isEmpty || controller.allSynced) {
             return const SizedBox.shrink();
           }
-          return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.base),
-              child: ElevatedButton(
-                onPressed: controller.isRetryingAll ? null : controller.retryAll,
-                child: controller.isRetryingAll
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Kirim Semua Sekarang'),
+          return Container(
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.shadowSoft,
+                  blurRadius: 16,
+                  offset: Offset(0, -4),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.base),
+                child: ElevatedButton(
+                  onPressed: controller.isRetryingAll
+                      ? null
+                      : controller.retryAll,
+                  child: controller.isRetryingAll
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Kirim Semua Sekarang'),
+                ),
               ),
             ),
           );
@@ -90,28 +111,70 @@ class SyncCenterPage extends StatelessWidget {
   }
 
   Widget _buildEmptyState() {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(AppSpacing.lg),
-        child: Text(
-          'Belum ada data yang perlu disinkronkan.',
-          style: AppTypography.bodySecondary,
-          textAlign: TextAlign.center,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: AppColors.background,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.cloud_done_outlined,
+                color: AppColors.textSecondary,
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const Text(
+              'Belum ada data yang perlu disinkronkan.',
+              style: AppTypography.bodySecondary,
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildAllSyncedState() {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_circle, color: AppColors.success, size: 48),
-            SizedBox(height: AppSpacing.md),
-            Text('Semua data sudah terkirim', style: AppTypography.sectionTitle),
+            Container(
+              width: 72,
+              height: 72,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: AppColors.successSoft,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle_outline,
+                color: AppColors.success,
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const Text(
+              'Semua data sudah terkirim',
+              style: AppTypography.sectionTitle,
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Data aman dan tersimpan di server.',
+              style: AppTypography.bodySecondary,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -127,7 +190,12 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Text(title, style: AppTypography.sectionTitle),
+      child: Text(
+        title,
+        style: AppTypography.sectionLabel.copyWith(
+          color: AppColors.textPrimary,
+        ),
+      ),
     );
   }
 }

@@ -17,7 +17,7 @@ class TaskNotFoundFailure extends Failure {
 class TaskSubmitRejectedFailure extends Failure {
   final List<String> incompleteItems;
   TaskSubmitRejectedFailure(this.incompleteItems)
-      : super('Masih ada bukti wajib yang belum lengkap.');
+    : super('Masih ada bukti wajib yang belum lengkap.');
 }
 
 /// TaskRepositoryImpl
@@ -41,10 +41,10 @@ class TaskRepositoryImpl implements TaskRepository {
     required TaskRemoteDataSource remoteDataSource,
     required NetworkInfo networkInfo,
     required EnqueueSyncItem enqueueSyncItem,
-  })  : _localDataSource = localDataSource,
-        _remoteDataSource = remoteDataSource,
-        _networkInfo = networkInfo,
-        _enqueueSyncItem = enqueueSyncItem;
+  }) : _localDataSource = localDataSource,
+       _remoteDataSource = remoteDataSource,
+       _networkInfo = networkInfo,
+       _enqueueSyncItem = enqueueSyncItem;
 
   @override
   Future<Either<Failure, TaskEntity>> getTaskDetail(String taskId) async {
@@ -55,7 +55,9 @@ class TaskRepositoryImpl implements TaskRepository {
         final remoteTask = await _remoteDataSource.getTaskDetail(taskId);
         await _localDataSource.cacheTask(remoteTask);
         await _localDataSource.cacheChecklistItems(
-          remoteTask.checklistItems.map((e) => ChecklistItemModel.fromEntity(e)).toList(),
+          remoteTask.checklistItems
+              .map((e) => ChecklistItemModel.fromEntity(e))
+              .toList(),
         );
         // Re-fetch dari cache agar geotagPhotoCount/expenseNoteCount
         // (dihitung dari tabel lokal) ikut terisi konsisten.
@@ -74,9 +76,11 @@ class TaskRepositoryImpl implements TaskRepository {
   Future<Either<Failure, TaskEntity>> _getFromCacheOrFail(String taskId) async {
     final cached = await _localDataSource.getCachedTask(taskId);
     if (cached == null) {
-      return const Left(TaskNotFoundFailure(
-        'Tugas belum tersinkronisasi. Sambungkan ke internet terlebih dahulu.',
-      ));
+      return const Left(
+        TaskNotFoundFailure(
+          'Tugas belum tersinkronisasi. Sambungkan ke internet terlebih dahulu.',
+        ),
+      );
     }
     return Right(cached);
   }

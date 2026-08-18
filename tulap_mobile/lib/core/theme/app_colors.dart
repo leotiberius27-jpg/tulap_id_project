@@ -15,6 +15,22 @@ class AppColors {
   static const Color primaryHover = Color(0xFF003D75);
   static const Color action = Color(0xFF0072CE); // Tombol aksi interaktif
 
+  /// Gradient hero (Beranda, header layar utama) - biru dalam ke biru
+  /// institusional yang lebih cerah, dipakai sangat subtle (lihat Bagian 5
+  /// spesifikasi visual: "Deep/medium blue -> brighter institutional blue").
+  static const Color heroGradientStart = Color(0xFF00396E);
+  static const Color heroGradientEnd = Color(0xFF0064BD);
+
+  /// Warna latar lingkaran ikon Aksi Cepat - variasi biru/cyan/teal yang
+  /// tetap harmonis, tidak berubah jadi pelangi (Bagian 10).
+  static const Color iconSoftBlue = Color(0xFFE3EEFC);
+  static const Color iconSoftCyan = Color(0xFFE1F3F7);
+  static const Color iconSoftTeal = Color(0xFFE0F5F0);
+  static const Color iconSoftIndigo = Color(0xFFEAEAFB);
+
+  /// Warna shadow lembut pengganti border tebal pada kartu (Bagian 7).
+  static const Color shadowSoft = Color(0x14172033);
+
   // Status semantik
   static const Color success = Color(0xFF10B981); // Terverifikasi/Disetujui
   static const Color warning = Color(0xFFF59E0B); // Perlu perhatian

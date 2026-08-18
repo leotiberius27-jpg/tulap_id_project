@@ -22,16 +22,18 @@ class SyncCenterController extends ChangeNotifier {
   SyncCenterController({
     required SyncQueueRepository repository,
     required BackgroundSyncService backgroundSyncService,
-  })  : _repository = repository,
-        _backgroundSyncService = backgroundSyncService {
+  }) : _repository = repository,
+       _backgroundSyncService = backgroundSyncService {
     loadRecords();
   }
 
   List<SyncRecordEntity> get pendingRecords => _records
-      .where((r) =>
-          r.status == SyncStatus.pendingUpload ||
-          r.status == SyncStatus.waitingForInternet ||
-          r.status == SyncStatus.uploading)
+      .where(
+        (r) =>
+            r.status == SyncStatus.pendingUpload ||
+            r.status == SyncStatus.waitingForInternet ||
+            r.status == SyncStatus.uploading,
+      )
       .toList();
 
   List<SyncRecordEntity> get failedRecords =>
@@ -44,10 +46,7 @@ class SyncCenterController extends ChangeNotifier {
     notifyListeners();
 
     final result = await _repository.getAllRecords();
-    result.fold(
-      (_) => _records = [],
-      (records) => _records = records,
-    );
+    result.fold((_) => _records = [], (records) => _records = records);
 
     isLoading = false;
     notifyListeners();

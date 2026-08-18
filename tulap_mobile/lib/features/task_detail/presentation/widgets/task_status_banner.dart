@@ -18,7 +18,10 @@ class TaskStatusBanner extends StatelessWidget {
     final config = _configFor(status);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
         color: config.background,
         borderRadius: BorderRadius.circular(AppRadius.small),
@@ -30,7 +33,10 @@ class TaskStatusBanner extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             config.label,
-            style: AppTypography.small.copyWith(color: config.foreground, fontWeight: FontWeight.w600),
+            style: AppTypography.small.copyWith(
+              color: config.foreground,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -40,19 +46,54 @@ class TaskStatusBanner extends StatelessWidget {
   _StatusConfig _configFor(TaskStatusEntity status) {
     switch (status) {
       case TaskStatusEntity.draft:
-        return _StatusConfig('Belum Dimulai', Icons.hourglass_empty, AppColors.textSecondary, AppColors.background);
+        return _StatusConfig(
+          'Belum Dimulai',
+          Icons.hourglass_empty,
+          AppColors.textSecondary,
+          AppColors.background,
+        );
       case TaskStatusEntity.ongoing:
-        return _StatusConfig('Sedang Berjalan', Icons.directions_walk, AppColors.action, AppColors.action.withOpacity(0.1));
+        return _StatusConfig(
+          'Sedang Berjalan',
+          Icons.directions_walk,
+          AppColors.action,
+          AppColors.action.withOpacity(0.1),
+        );
       case TaskStatusEntity.pendingVerification:
-        return _StatusConfig('Menunggu Verifikasi', Icons.hourglass_top, AppColors.warning, AppColors.warningSoft);
+        return _StatusConfig(
+          'Menunggu Verifikasi',
+          Icons.hourglass_top,
+          AppColors.warning,
+          AppColors.warningSoft,
+        );
       case TaskStatusEntity.revisionNeeded:
-        return _StatusConfig('Perlu Diperbaiki', Icons.edit_note, AppColors.warning, AppColors.warningSoft);
+        return _StatusConfig(
+          'Perlu Diperbaiki',
+          Icons.edit_note,
+          AppColors.warning,
+          AppColors.warningSoft,
+        );
       case TaskStatusEntity.verified:
-        return _StatusConfig('Disetujui', Icons.verified, AppColors.success, AppColors.successSoft);
+        return _StatusConfig(
+          'Disetujui',
+          Icons.verified,
+          AppColors.success,
+          AppColors.successSoft,
+        );
       case TaskStatusEntity.rejected:
-        return _StatusConfig('Ditolak', Icons.cancel, AppColors.danger, AppColors.dangerSoft);
+        return _StatusConfig(
+          'Ditolak',
+          Icons.cancel,
+          AppColors.danger,
+          AppColors.dangerSoft,
+        );
       case TaskStatusEntity.completed:
-        return _StatusConfig('Selesai', Icons.check_circle, AppColors.success, AppColors.successSoft);
+        return _StatusConfig(
+          'Selesai',
+          Icons.check_circle,
+          AppColors.success,
+          AppColors.successSoft,
+        );
     }
   }
 }

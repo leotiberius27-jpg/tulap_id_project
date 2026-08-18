@@ -27,19 +27,19 @@ class SyncStatusBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     if (pendingCount == 0) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.md),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.base),
         decoration: BoxDecoration(
           color: AppColors.successSoft,
-          borderRadius: BorderRadius.circular(AppRadius.card),
+          borderRadius: BorderRadius.circular(AppRadius.cardLarge),
         ),
         child: Row(
           children: [
-            const Icon(Icons.check_circle, size: 18, color: AppColors.success),
+            _StatusIcon(icon: Icons.check_circle_outline, color: AppColors.success),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
-                'Semua data sudah terkirim',
-                style: AppTypography.small.copyWith(color: AppColors.success, fontWeight: FontWeight.w600),
+                'Semua data sudah tersinkron',
+                style: AppTypography.small.copyWith(color: AppColors.success, fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -55,19 +55,19 @@ class SyncStatusBanner extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: AppColors.warningSoft,
-        borderRadius: BorderRadius.circular(AppRadius.card),
+        borderRadius: BorderRadius.circular(AppRadius.cardLarge),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.cloud_off_outlined, size: 18, color: AppColors.warning),
+              _StatusIcon(icon: Icons.cloud_off_outlined, color: AppColors.warning),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   message,
-                  style: AppTypography.small.copyWith(color: AppColors.warning, fontWeight: FontWeight.w600),
+                  style: AppTypography.small.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -79,6 +79,24 @@ class SyncStatusBanner extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StatusIcon extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+
+  const _StatusIcon({required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 32,
+      height: 32,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle),
+      child: Icon(icon, size: 16, color: color),
     );
   }
 }

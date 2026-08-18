@@ -54,9 +54,9 @@ class TaskDetailController extends ChangeNotifier {
     required ToggleChecklistItem toggleChecklistItem,
     required SubmitTaskForVerification submitForVerification,
     required this.taskId,
-  })  : _getTaskDetail = getTaskDetail,
-        _toggleChecklistItem = toggleChecklistItem,
-        _submitForVerification = submitForVerification {
+  }) : _getTaskDetail = getTaskDetail,
+       _toggleChecklistItem = toggleChecklistItem,
+       _submitForVerification = submitForVerification {
     loadTask();
   }
 
@@ -70,11 +70,14 @@ class TaskDetailController extends ChangeNotifier {
 
     final result = await _getTaskDetail(taskId);
     result.fold(
-      (failure) => _update(TaskDetailState(
-        status: TaskDetailStatus.error,
-        errorMessage: failure.message,
-      )),
-      (task) => _update(TaskDetailState(status: TaskDetailStatus.loaded, task: task)),
+      (failure) => _update(
+        TaskDetailState(
+          status: TaskDetailStatus.error,
+          errorMessage: failure.message,
+        ),
+      ),
+      (task) =>
+          _update(TaskDetailState(status: TaskDetailStatus.loaded, task: task)),
     );
   }
 
@@ -148,16 +151,20 @@ class TaskDetailController extends ChangeNotifier {
               .map((i) => i.label)
               .toList();
         }
-        _update(TaskDetailState(
-          status: TaskDetailStatus.loaded,
-          task: currentTask,
-          errorMessage: failure.message,
-          incompleteItemLabels: incompleteLabels,
-        ));
+        _update(
+          TaskDetailState(
+            status: TaskDetailStatus.loaded,
+            task: currentTask,
+            errorMessage: failure.message,
+            incompleteItemLabels: incompleteLabels,
+          ),
+        );
         return false;
       },
       (updatedTask) {
-        _update(TaskDetailState(status: TaskDetailStatus.loaded, task: updatedTask));
+        _update(
+          TaskDetailState(status: TaskDetailStatus.loaded, task: updatedTask),
+        );
         return true;
       },
     );

@@ -75,86 +75,174 @@ class _LoginViewState extends State<_LoginView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Consumer<LoginController>(
-          builder: (context, controller, _) {
-            final state = controller.state;
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.heroGradientStart, AppColors.heroGradientEnd],
+          ),
+        ),
+        child: SafeArea(
+          child: Consumer<LoginController>(
+            builder: (context, controller, _) {
+              final state = controller.state;
 
-            return Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Form(
-                  key: _formKey,
+              return Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'Tulap.id',
-                        style: AppTypography.display.copyWith(color: AppColors.primary),
-                        textAlign: TextAlign.center,
+                      Container(
+                        width: 76,
+                        height: 76,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: const [
+                            BoxShadow(
+                              color: AppColors.shadowSoft,
+                              blurRadius: 16,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(14),
+                        child: Image.asset('assets/images/logo.png'),
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
+                      const SizedBox(height: AppSpacing.md),
+                      const Text('TULAP.ID', style: AppTypography.brandTitle),
+                      const SizedBox(height: 6),
+                      const Text(
                         'Tugas Lapangan, Disederhanakan.',
-                        style: AppTypography.bodySecondary,
+                        style: AppTypography.heroSubtitle,
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppSpacing.xl),
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(labelText: 'Email'),
-                        validator: (value) =>
-                            (value == null || value.trim().isEmpty) ? 'Email wajib diisi.' : null,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        textInputAction: TextInputAction.done,
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(
+                            AppRadius.cardLarge,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: AppColors.shadowSoft,
+                              blurRadius: 24,
+                              offset: Offset(0, 10),
                             ),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ],
+                        ),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                'Masuk ke Akun Anda',
+                                style: AppTypography.sectionTitle,
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: AppSpacing.lg),
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                decoration: const InputDecoration(
+                                  labelText: 'Email',
+                                  prefixIcon: Icon(
+                                    Icons.mail_outline,
+                                    size: 20,
+                                  ),
+                                ),
+                                validator: (value) =>
+                                    (value == null || value.trim().isEmpty)
+                                    ? 'Email wajib diisi.'
+                                    : null,
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: _obscurePassword,
+                                textInputAction: TextInputAction.done,
+                                decoration: InputDecoration(
+                                  labelText: 'Password',
+                                  prefixIcon: const Icon(
+                                    Icons.lock_outline,
+                                    size: 20,
+                                  ),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                    ),
+                                    onPressed: () => setState(
+                                      () => _obscurePassword =
+                                          !_obscurePassword,
+                                    ),
+                                  ),
+                                ),
+                                validator: (value) =>
+                                    (value == null || value.isEmpty)
+                                    ? 'Password wajib diisi.'
+                                    : null,
+                                onFieldSubmitted: (_) => _submit(controller),
+                              ),
+                              if (state.status == LoginStatus.error) ...[
+                                const SizedBox(height: AppSpacing.md),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.sm,
+                                    vertical: AppSpacing.sm,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.dangerSoft,
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadius.small,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    state.errorMessage ??
+                                        'Email atau password salah.',
+                                    style: AppTypography.small.copyWith(
+                                      color: AppColors.danger,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: AppSpacing.lg),
+                              ElevatedButton(
+                                onPressed: state.status == LoginStatus.submitting
+                                    ? null
+                                    : () => _submit(controller),
+                                child: state.status == LoginStatus.submitting
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Text('Masuk'),
+                              ),
+                            ],
                           ),
                         ),
-                        validator: (value) =>
-                            (value == null || value.isEmpty) ? 'Password wajib diisi.' : null,
-                        onFieldSubmitted: (_) => _submit(controller),
-                      ),
-                      if (state.status == LoginStatus.error) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          state.errorMessage ?? 'Email atau password salah.',
-                          style: AppTypography.small.copyWith(color: AppColors.danger),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                      const SizedBox(height: AppSpacing.lg),
-                      ElevatedButton(
-                        onPressed: state.status == LoginStatus.submitting
-                            ? null
-                            : () => _submit(controller),
-                        child: state.status == LoginStatus.submitting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Text('Masuk'),
                       ),
                     ],
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

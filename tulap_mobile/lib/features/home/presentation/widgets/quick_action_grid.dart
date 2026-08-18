@@ -11,6 +11,10 @@ import '../../../../core/theme/app_theme.dart';
 /// "belum tersedia", mengikuti pola placeholder yang sama seperti yang
 /// sebelumnya dipakai tombol Scan Nota di Detail Tugas sebelum entry
 /// page-nya dibangun.
+///
+/// Secara visual tampil sebagai satu panel putih (Bagian 11) dengan ikon
+/// dalam lingkaran soft berwarna variasi biru/cyan/teal (Bagian 10) -
+/// bukan lagi 4 tombol terpisah berborder.
 /// ----------------------------------------------------------------------
 class QuickActionGrid extends StatelessWidget {
   final VoidCallback? onFotoKegiatan;
@@ -28,40 +32,44 @@ class QuickActionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _QuickActionButton(
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+        boxShadow: const [
+          BoxShadow(color: AppColors.shadowSoft, blurRadius: 20, offset: Offset(0, 8)),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _QuickActionButton(
             icon: Icons.camera_alt_outlined,
             label: 'Foto',
+            iconBackground: AppColors.iconSoftBlue,
             onTap: onFotoKegiatan,
           ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _QuickActionButton(
+          _QuickActionButton(
             icon: Icons.receipt_long_outlined,
             label: 'Nota',
+            iconBackground: AppColors.iconSoftCyan,
             onTap: onScanNota,
           ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _QuickActionButton(
+          _QuickActionButton(
             icon: Icons.location_on_outlined,
             label: 'Lokasi',
+            iconBackground: AppColors.iconSoftTeal,
             onTap: onLokasi,
           ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _QuickActionButton(
+          _QuickActionButton(
             icon: Icons.description_outlined,
             label: 'LPJ',
+            iconBackground: AppColors.iconSoftIndigo,
             onTap: onLihatLpj,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -69,9 +77,15 @@ class QuickActionGrid extends StatelessWidget {
 class _QuickActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color iconBackground;
   final VoidCallback? onTap;
 
-  const _QuickActionButton({required this.icon, required this.label, required this.onTap});
+  const _QuickActionButton({
+    required this.icon,
+    required this.label,
+    required this.iconBackground,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -79,22 +93,28 @@ class _QuickActionButton extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          border: Border.all(color: AppColors.border),
-        ),
+      borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: 6),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: isEnabled ? AppColors.action : AppColors.textSecondary, size: 22),
-            const SizedBox(height: 4),
+            Container(
+              width: 52,
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isEnabled ? iconBackground : AppColors.background,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: isEnabled ? AppColors.action : AppColors.textSecondary, size: 22),
+            ),
+            const SizedBox(height: AppSpacing.xs + 2),
             Text(
               label,
               style: AppTypography.small.copyWith(
                 color: isEnabled ? AppColors.textPrimary : AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],

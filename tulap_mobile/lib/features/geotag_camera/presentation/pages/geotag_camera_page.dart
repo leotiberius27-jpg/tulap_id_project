@@ -55,14 +55,25 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
           // Tampilkan modal blocking HANYA sekali per transisi ke status
           // invalid (bukan berulang setiap polling 3 detik), agar tidak
           // mengganggu user dengan modal yang muncul terus-menerus.
+          //
+          // PENTING: guard ini HANYA di-reset saat status kembali ke
+          // `valid` (pengguna benar-benar memperbaiki lokasinya) -
+          // BUKAN saat status transit ke `checking` di awal tiap siklus
+          // polling. Sebelumnya reset juga terjadi pada `checking`,
+          // sehingga tiap 3 detik guard "batal" dan modal baru
+          // ditumpuk lagi via showDialog walau user sudah menekan
+          // "Saya Mengerti" - membuat modal terlihat tidak bisa
+          // ditutup sama sekali (dialog baru selalu muncul lagi dalam
+          // hitungan detik, bahkan sistem back button pun tampak tidak
+          // berefek karena dialog pengganti sudah terpasang lagi).
           if (state.locationStatus == LocationIntegrityStatus.invalid &&
               _lastShownInvalidStatus != LocationIntegrityStatus.invalid) {
             _lastShownInvalidStatus = LocationIntegrityStatus.invalid;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               MockLocationBlockingModal.show(context);
             });
-          } else if (state.locationStatus != LocationIntegrityStatus.invalid) {
-            _lastShownInvalidStatus = state.locationStatus;
+          } else if (state.locationStatus == LocationIntegrityStatus.valid) {
+            _lastShownInvalidStatus = null;
           }
 
 

@@ -9,7 +9,9 @@ import '../datasources/sync_remote_datasource.dart';
 import '../models/sync_record_model.dart';
 
 class SyncQueueFailure extends Failure {
-  const SyncQueueFailure([super.message = 'Gagal memproses antrian sinkronisasi.']);
+  const SyncQueueFailure([
+    super.message = 'Gagal memproses antrian sinkronisasi.',
+  ]);
 }
 
 /// SyncQueueRepositoryImpl
@@ -27,9 +29,9 @@ class SyncQueueRepositoryImpl implements SyncQueueRepository {
     required SyncLocalDataSource localDataSource,
     required SyncRemoteDataSource remoteDataSource,
     required NetworkInfo networkInfo,
-  })  : _localDataSource = localDataSource,
-        _remoteDataSource = remoteDataSource,
-        _networkInfo = networkInfo;
+  }) : _localDataSource = localDataSource,
+       _remoteDataSource = remoteDataSource,
+       _networkInfo = networkInfo;
 
   @override
   Future<Either<Failure, SyncRecordEntity>> enqueue({

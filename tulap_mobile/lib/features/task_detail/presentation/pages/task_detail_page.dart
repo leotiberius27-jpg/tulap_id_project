@@ -29,7 +29,11 @@ class TaskDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Detail Tugas')),
+      appBar: AppBar(
+        title: const Text('Detail Tugas'),
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+      ),
       body: Consumer<TaskDetailController>(
         builder: (context, controller, _) {
           final state = controller.state;
@@ -69,8 +73,14 @@ class TaskDetailPage extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadowSoft,
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,7 +88,9 @@ class TaskDetailPage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(child: Text(task.taskName, style: AppTypography.pageTitle)),
+              Expanded(
+                child: Text(task.taskName, style: AppTypography.pageTitle),
+              ),
               TaskStatusBanner(status: task.status),
             ],
           ),
@@ -89,7 +101,8 @@ class TaskDetailPage extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           _InfoRow(
             icon: Icons.calendar_today_outlined,
-            text: '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
+            text:
+                '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
           ),
           if (task.description != null && task.description!.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.md),
@@ -109,8 +122,14 @@ class TaskDetailPage extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadowSoft,
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -118,16 +137,19 @@ class TaskDetailPage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Checklist', style: AppTypography.sectionTitle),
+              Text('CHECKLIST', style: AppTypography.sectionLabel),
               Text(
-                '${task.completedChecklistCount}/${task.checklistItems.length} selesai',
-                style: AppTypography.small,
+                '${task.completedChecklistCount} dari ${task.checklistItems.length} selesai',
+                style: AppTypography.small.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(99),
             child: LinearProgressIndicator(
               value: task.checklistProgress,
               backgroundColor: AppColors.background,
@@ -135,16 +157,15 @@ class TaskDetailPage extends StatelessWidget {
               minHeight: 6,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          ...task.checklistItems.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: ChecklistItemTile(
-                item: item,
-                onToggle: (value) => controller.toggleItem(item.id, value),
-              ),
+          const SizedBox(height: AppSpacing.sm),
+          for (var i = 0; i < task.checklistItems.length; i++) ...[
+            if (i > 0) const Divider(height: 1, color: AppColors.border),
+            ChecklistItemTile(
+              item: task.checklistItems[i],
+              onToggle: (value) =>
+                  controller.toggleItem(task.checklistItems[i].id, value),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -156,6 +177,7 @@ class TaskDetailPage extends StatelessWidget {
         Expanded(
           child: _EvidenceActionCard(
             icon: Icons.camera_alt_outlined,
+            iconBackground: AppColors.iconSoftBlue,
             label: 'Foto Kegiatan',
             count: task.geotagPhotoCount,
             onTap: () => Navigator.of(context).push(
@@ -173,6 +195,7 @@ class TaskDetailPage extends StatelessWidget {
         Expanded(
           child: _EvidenceActionCard(
             icon: Icons.receipt_long_outlined,
+            iconBackground: AppColors.iconSoftCyan,
             label: 'Scan Nota',
             count: task.expenseNoteCount,
             onTap: () => Navigator.of(context).push(
@@ -230,7 +253,8 @@ class TaskDetailPage extends StatelessWidget {
                       content: Text(
                         success
                             ? 'Tugas berhasil dikirim untuk verifikasi.'
-                            : controller.state.errorMessage ?? 'Gagal mengirim tugas.',
+                            : controller.state.errorMessage ??
+                                  'Gagal mengirim tugas.',
                       ),
                     ),
                   );
@@ -240,7 +264,10 @@ class TaskDetailPage extends StatelessWidget {
             ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
             : const Text('Kirim Tugas'),
       );
@@ -268,7 +295,10 @@ class TaskDetailPage extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.md),
-            OutlinedButton(onPressed: controller.loadTask, child: const Text('Muat Ulang')),
+            OutlinedButton(
+              onPressed: controller.loadTask,
+              child: const Text('Muat Ulang'),
+            ),
           ],
         ),
       ),
@@ -298,12 +328,14 @@ class _InfoRow extends StatelessWidget {
 
 class _EvidenceActionCard extends StatelessWidget {
   final IconData icon;
+  final Color iconBackground;
   final String label;
   final int count;
   final VoidCallback onTap;
 
   const _EvidenceActionCard({
     required this.icon,
+    required this.iconBackground,
     required this.label,
     required this.count,
     required this.onTap,
@@ -313,20 +345,41 @@ class _EvidenceActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.card),
+      borderRadius: BorderRadius.circular(AppRadius.cardLarge),
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.base),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+          boxShadow: const [
+            BoxShadow(
+              color: AppColors.shadowSoft,
+              blurRadius: 16,
+              offset: Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: AppColors.action, size: 24),
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: iconBackground,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: AppColors.action, size: 20),
+            ),
             const SizedBox(height: AppSpacing.sm),
-            Text(label, style: AppTypography.body.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: AppTypography.body.copyWith(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 2),
             Text('$count item', style: AppTypography.small),
           ],

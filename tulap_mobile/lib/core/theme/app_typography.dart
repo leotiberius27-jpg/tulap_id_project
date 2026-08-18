@@ -80,4 +80,57 @@ class AppTypography {
     color: AppColors.textPrimary,
     height: 1.2,
   );
+
+  /// Label section kecil (mis. "Aksi Cepat", "Status Data", "TUGAS AKTIF")
+  /// - semibold, letter-spacing tipis, jangan sebesar sectionTitle agar
+  /// hierarki di antara label section dan judul kartu tetap terasa.
+  static const TextStyle sectionLabel = TextStyle(
+    fontFamily: fontFamily,
+    fontFamilyFallback: [fontFamilyFallback],
+    fontSize: 13,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textSecondary,
+    letterSpacing: 0.2,
+    height: 1.3,
+  );
+
+  /// Wordmark brand di hero header (mis. "TULAP.ID").
+  static const TextStyle brandTitle = TextStyle(
+    fontFamily: fontFamily,
+    fontFamilyFallback: [fontFamilyFallback],
+    fontSize: 15,
+    fontWeight: FontWeight.w700,
+    color: Colors.white,
+    letterSpacing: 0.6,
+  );
+
+  /// Sapaan di hero header (mis. "Selamat Pagi,") - lebih ringan dari nama.
+  static const TextStyle heroGreeting = TextStyle(
+    fontFamily: fontFamily,
+    fontFamilyFallback: [fontFamilyFallback],
+    fontSize: 14,
+    fontWeight: FontWeight.normal,
+    color: Colors.white70,
+    height: 1.3,
+  );
+
+  /// Nama pegawai di hero header - titik fokus utama hero.
+  static const TextStyle heroName = TextStyle(
+    fontFamily: fontFamily,
+    fontFamilyFallback: [fontFamilyFallback],
+    fontSize: 21,
+    fontWeight: FontWeight.w700,
+    color: Colors.white,
+    height: 1.3,
+  );
+
+  /// Instansi di hero header - muted, lebih kecil dari nama.
+  static const TextStyle heroSubtitle = TextStyle(
+    fontFamily: fontFamily,
+    fontFamilyFallback: [fontFamilyFallback],
+    fontSize: 13,
+    fontWeight: FontWeight.normal,
+    color: Colors.white70,
+    height: 1.4,
+  );
 }

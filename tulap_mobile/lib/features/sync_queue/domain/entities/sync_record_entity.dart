@@ -25,7 +25,8 @@ enum SyncStatus { pendingUpload, waitingForInternet, uploading, synced, failed }
 class SyncRecordEntity {
   final String id;
   final SyncEntityType entityType;
-  final String entityLocalId; // ID lokal dari entity terkait (mis. GeotagPhotoEntity.id)
+  final String
+  entityLocalId; // ID lokal dari entity terkait (mis. GeotagPhotoEntity.id)
   final String taskId;
 
   final SyncStatus status;

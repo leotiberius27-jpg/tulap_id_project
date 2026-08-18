@@ -119,43 +119,14 @@ class _ReceiptReviewSheetState extends State<ReceiptReviewSheet> {
                   : _buildDisplayNominal(),
               const SizedBox(height: AppSpacing.lg),
 
-              _isEditing ? _buildVendorField() : _buildDisplayRow(
-                label: 'Vendor',
-                value: _vendorController.text.isEmpty ? '-' : _vendorController.text,
-                needsReview: widget.draft.vendorName == null,
-              ),
-
-              _buildCategorySelector(),
-
-              _isEditing
-                  ? _buildDateField(context)
-                  : _buildDisplayRow(
-                      label: 'Tanggal',
-                      value: _formatDate(_selectedDate),
-                      needsReview: widget.draft.transactionDate == null,
-                    ),
-
-              if (_receiptNumberController.text.isNotEmpty || _isEditing)
-                _isEditing
-                    ? _buildTextField('No. Nota', _receiptNumberController)
-                    : _buildDisplayRow(
-                        label: 'No. Nota',
-                        value: _receiptNumberController.text.isEmpty
-                            ? '-'
-                            : _receiptNumberController.text,
-                        needsReview: false,
-                      ),
-
-              if (_taxController.text.isNotEmpty || _isEditing)
-                _isEditing
-                    ? _buildTextField('Pajak', _taxController, isNumber: true)
-                    : _buildDisplayRow(
-                        label: 'Pajak',
-                        value: _taxController.text.isEmpty
-                            ? '-'
-                            : 'Rp ${_taxController.text}',
-                        needsReview: false,
-                      ),
+              if (_isEditing) ...[
+                _buildVendorField(),
+                _buildCategorySelector(),
+                _buildDateField(context),
+                _buildTextField('No. Nota', _receiptNumberController),
+                _buildTextField('Pajak', _taxController, isNumber: true),
+              ] else
+                _buildDetailCard(),
 
               const SizedBox(height: AppSpacing.lg),
 
@@ -231,6 +202,54 @@ class _ReceiptReviewSheetState extends State<ReceiptReviewSheet> {
           ],
         ),
       ],
+    );
+  }
+
+  /// Mengelompokkan baris Vendor/Kategori/Tanggal/No. Nota/Pajak ke satu
+  /// panel soft-background (bukan daftar telanjang di atas sheet putih) -
+  /// selaras dengan pola "shadow/tint lembut, bukan border" yang dipakai
+  /// di Beranda & Detail Tugas (Bagian 7).
+  Widget _buildDetailCard() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.base,
+        AppSpacing.sm,
+        AppSpacing.base,
+        0,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+      ),
+      child: Column(
+        children: [
+          _buildDisplayRow(
+            label: 'Vendor',
+            value: _vendorController.text.isEmpty
+                ? '-'
+                : _vendorController.text,
+            needsReview: widget.draft.vendorName == null,
+          ),
+          _buildCategorySelector(),
+          _buildDisplayRow(
+            label: 'Tanggal',
+            value: _formatDate(_selectedDate),
+            needsReview: widget.draft.transactionDate == null,
+          ),
+          if (_receiptNumberController.text.isNotEmpty)
+            _buildDisplayRow(
+              label: 'No. Nota',
+              value: _receiptNumberController.text,
+              needsReview: false,
+            ),
+          if (_taxController.text.isNotEmpty)
+            _buildDisplayRow(
+              label: 'Pajak',
+              value: 'Rp ${_taxController.text}',
+              needsReview: false,
+            ),
+        ],
+      ),
     );
   }
 

@@ -26,8 +26,8 @@ class SyncRemoteDataSource {
   SyncRemoteDataSource({
     required DioClient dioClient,
     required Database database,
-  })  : _dioClient = dioClient,
-        _database = database;
+  }) : _dioClient = dioClient,
+       _database = database;
 
   /// Mengunggah satu record sesuai jenisnya. Melempar [DioException]
   /// apa adanya jika gagal - ditangkap & diterjemahkan jadi status oleh
@@ -120,7 +120,9 @@ class SyncRemoteDataSource {
       whereArgs: [record.entityLocalId],
     );
     if (rows.isEmpty) {
-      throw Exception('Item checklist lokal tidak ditemukan untuk sinkronisasi.');
+      throw Exception(
+        'Item checklist lokal tidak ditemukan untuk sinkronisasi.',
+      );
     }
 
     final isCompleted = rows.first['isCompleted'] == 1;

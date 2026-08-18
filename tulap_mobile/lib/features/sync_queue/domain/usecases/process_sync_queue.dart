@@ -37,8 +37,8 @@ class ProcessSyncQueue {
   ProcessSyncQueue({
     required SyncQueueRepository repository,
     required NetworkInfo networkInfo,
-  })  : _repository = repository,
-        _networkInfo = networkInfo;
+  }) : _repository = repository,
+       _networkInfo = networkInfo;
 
   Future<ProcessSyncQueueResult> call() async {
     final isOnline = await _networkInfo.isConnected;
@@ -71,16 +71,13 @@ class ProcessSyncQueue {
         for (final record in pendingRecords) {
           processed++;
           final result = await _repository.processRecord(record.id);
-          result.fold(
-            (_) => failed++,
-            (updated) {
-              if (updated.status == SyncStatus.synced) {
-                synced++;
-              } else {
-                failed++;
-              }
-            },
-          );
+          result.fold((_) => failed++, (updated) {
+            if (updated.status == SyncStatus.synced) {
+              synced++;
+            } else {
+              failed++;
+            }
+          });
         }
       },
     );

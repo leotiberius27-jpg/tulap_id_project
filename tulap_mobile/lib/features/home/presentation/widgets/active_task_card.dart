@@ -7,6 +7,8 @@ import '../../../task_detail/presentation/widgets/task_status_banner.dart';
 /// ----------------------------------------------------------------------
 /// "Kartu Tugas Aktif" sesuai Bagian 11.1 & wireframe Bagian 13: nama
 /// tugas, lokasi, jadwal, progres checklist, CTA "Lanjutkan Tugas".
+/// Kartu ini adalah pusat visual Beranda (Bagian 15) - mengambang di
+/// atas hero header dengan shadow lembut, tanpa border tebal (Bagian 7).
 /// ----------------------------------------------------------------------
 class ActiveTaskCard extends StatelessWidget {
   final TaskEntity task;
@@ -20,8 +22,10 @@ class ActiveTaskCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+        boxShadow: const [
+          BoxShadow(color: AppColors.shadowSoft, blurRadius: 24, offset: Offset(0, 10)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,18 +33,21 @@ class ActiveTaskCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('TUGAS AKTIF', style: AppTypography.small.copyWith(fontWeight: FontWeight.w700)),
+              Text('TUGAS AKTIF', style: AppTypography.sectionLabel),
               TaskStatusBanner(status: task.status),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(task.taskName, style: AppTypography.sectionTitle),
+          Text(
+            task.taskName,
+            style: AppTypography.sectionTitle.copyWith(fontSize: 19, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               const Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
               const SizedBox(width: 6),
-              Expanded(child: Text(task.destination, style: AppTypography.bodySecondary)),
+              Expanded(child: Text(task.destination, style: AppTypography.bodySecondary.copyWith(fontSize: 14))),
             ],
           ),
           const SizedBox(height: 4),
@@ -48,13 +55,18 @@ class ActiveTaskCard extends StatelessWidget {
             children: [
               const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary),
               const SizedBox(width: 6),
-              Text(_formatDate(task.endDate), style: AppTypography.bodySecondary),
+              Text(_formatDate(task.endDate), style: AppTypography.bodySecondary.copyWith(fontSize: 14)),
             ],
           ),
           if (task.checklistItems.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.base),
+            Text(
+              '${task.completedChecklistCount} dari ${task.checklistItems.length} selesai',
+              style: AppTypography.small.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
             ClipRRect(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(99),
               child: LinearProgressIndicator(
                 value: task.checklistProgress,
                 backgroundColor: AppColors.background,
@@ -62,13 +74,8 @@ class ActiveTaskCard extends StatelessWidget {
                 minHeight: 6,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              '${task.completedChecklistCount}/${task.checklistItems.length} selesai',
-              style: AppTypography.small,
-            ),
           ],
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.base),
           ElevatedButton(
             onPressed: onContinue,
             child: const Text('Lanjutkan Tugas'),

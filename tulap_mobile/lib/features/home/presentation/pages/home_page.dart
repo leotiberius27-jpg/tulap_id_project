@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../core/network/network_info.dart';
@@ -53,76 +54,120 @@ class _HomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Consumer<HomeController>(
-          builder: (context, controller, _) {
-            final state = controller.state;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          top: false,
+          child: Consumer<HomeController>(
+            builder: (context, controller, _) {
+              final state = controller.state;
 
-            if (state.status == HomeStatus.loading) {
-              return const Center(child: CircularProgressIndicator());
-            }
+              if (state.status == HomeStatus.loading) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-            final officerName = state.user?.fullName ?? 'Pengguna';
-            final agencyName = state.user?.instansiName ?? 'Instansi tidak diketahui';
-            final activeTask = state.activeTask;
+              final officerName = state.user?.fullName ?? 'Pengguna';
+              final agencyName =
+                  state.user?.instansiName ?? 'Instansi tidak diketahui';
+              final activeTask = state.activeTask;
 
-            return RefreshIndicator(
-              onRefresh: controller.loadHome,
-              child: ListView(
-                padding: const EdgeInsets.all(AppSpacing.base),
-                children: [
-                  HomeHeader(fullName: officerName, agencyName: agencyName),
-                  const SizedBox(height: AppSpacing.lg),
-                  if (activeTask != null)
-                    ActiveTaskCard(
-                      task: activeTask,
-                      onContinue: () => _openTaskDetail(
-                        context,
-                        taskId: activeTask.id,
-                        officerName: officerName,
-                        agencyName: agencyName,
-                      ),
-                    )
-                  else
-                    _buildEmptyTaskState(),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text('Aksi Cepat', style: AppTypography.sectionTitle),
-                  const SizedBox(height: AppSpacing.sm),
-                  QuickActionGrid(
-                    onFotoKegiatan: activeTask == null
-                        ? null
-                        : () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => GeotagCameraEntryPage(
+              return RefreshIndicator(
+                onRefresh: controller.loadHome,
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    HomeHeader(fullName: officerName, agencyName: agencyName),
+                    // Kartu Tugas Aktif "mengambang" di atas hero (Bagian 6:
+                    // transisi visual halus). Transform.translate dipakai
+                    // alih-alih margin/padding negatif - keduanya melempar
+                    // assertion error di Flutter (isNonNegative). Transform
+                    // hanya menggeser hasil gambar, ruang aslinya tetap
+                    // disediakan di bawah kartu sebagai jarak ke section
+                    // berikutnya, jadi tidak perlu SizedBox tambahan di sini.
+                    Transform.translate(
+                      offset: const Offset(0, -32),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.base,
+                        ),
+                        child: activeTask != null
+                            ? ActiveTaskCard(
+                                task: activeTask,
+                                onContinue: () => _openTaskDetail(
+                                  context,
+                                  taskId: activeTask.id,
                                   officerName: officerName,
                                   agencyName: agencyName,
-                                  taskId: activeTask.id,
                                 ),
-                              ),
+                              )
+                            : _buildEmptyTaskState(),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.base,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Aksi Cepat',
+                            style: AppTypography.sectionLabel.copyWith(
+                              color: AppColors.textPrimary,
                             ),
-                    onScanNota: activeTask == null
-                        ? null
-                        : () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ReceiptScannerEntryPage(taskId: activeTask.id),
-                              ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          QuickActionGrid(
+                            onFotoKegiatan: activeTask == null
+                                ? null
+                                : () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => GeotagCameraEntryPage(
+                                        officerName: officerName,
+                                        agencyName: agencyName,
+                                        taskId: activeTask.id,
+                                      ),
+                                    ),
+                                  ),
+                            onScanNota: activeTask == null
+                                ? null
+                                : () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => ReceiptScannerEntryPage(
+                                        taskId: activeTask.id,
+                                      ),
+                                    ),
+                                  ),
+                            onLokasi: () =>
+                                _showNotAvailable(context, 'Peta lokasi'),
+                            onLihatLpj: () =>
+                                _showNotAvailable(context, 'Lihat LPJ'),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          Text(
+                            'Status Data',
+                            style: AppTypography.sectionLabel.copyWith(
+                              color: AppColors.textPrimary,
                             ),
-                    onLokasi: () => _showNotAvailable(context, 'Peta lokasi'),
-                    onLihatLpj: () => _showNotAvailable(context, 'Lihat LPJ'),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  SyncStatusBanner(
-                    isOffline: state.isOffline,
-                    pendingCount: state.pendingSyncCount,
-                    allSynced: state.allSynced,
-                    onViewData: () => _openSyncCenter(context),
-                  ),
-                ],
-              ),
-            );
-          },
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          SyncStatusBanner(
+                            isOffline: state.isOffline,
+                            pendingCount: state.pendingSyncCount,
+                            allSynced: state.allSynced,
+                            onViewData: () => _openSyncCenter(context),
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -134,12 +179,22 @@ class _HomeView extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadowSoft,
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          const Icon(Icons.task_alt_outlined, color: AppColors.textSecondary, size: 40),
+          const Icon(
+            Icons.task_alt_outlined,
+            color: AppColors.textSecondary,
+            size: 40,
+          ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             'Belum ada tugas aktif hari ini.',
@@ -152,9 +207,9 @@ class _HomeView extends StatelessWidget {
   }
 
   void _showNotAvailable(BuildContext context, String featureName) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$featureName belum tersedia.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$featureName belum tersedia.')));
   }
 
   void _openTaskDetail(
@@ -172,7 +227,10 @@ class _HomeView extends StatelessWidget {
             submitForVerification: sl<SubmitTaskForVerification>(),
             taskId: taskId,
           ),
-          child: TaskDetailPage(officerName: officerName, agencyName: agencyName),
+          child: TaskDetailPage(
+            officerName: officerName,
+            agencyName: agencyName,
+          ),
         ),
       ),
     );

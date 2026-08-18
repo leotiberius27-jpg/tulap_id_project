@@ -9,11 +9,14 @@ class TaskRemoteDataSource {
 
   Future<TaskModel> getTaskDetail(String taskId) async {
     final taskResponse = await _dioClient.dio.get('/tasks/$taskId');
-    final checklistResponse =
-        await _dioClient.dio.get('/tasks/$taskId/checklist');
+    final checklistResponse = await _dioClient.dio.get(
+      '/tasks/$taskId/checklist',
+    );
 
     final checklistItems = (checklistResponse.data as List)
-        .map((json) => ChecklistItemModel.fromJson(json as Map<String, dynamic>))
+        .map(
+          (json) => ChecklistItemModel.fromJson(json as Map<String, dynamic>),
+        )
         .toList();
 
     // Jumlah foto/nota TIDAK disertakan langsung di response backend

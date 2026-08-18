@@ -29,5 +29,5 @@ class SubmitTaskForVerification {
 class ChecklistIncompleteFailure extends Failure {
   final List<dynamic> incompleteItems;
   ChecklistIncompleteFailure(this.incompleteItems)
-      : super('${incompleteItems.length} bukti wajib belum lengkap.');
+    : super('${incompleteItems.length} bukti wajib belum lengkap.');
 }

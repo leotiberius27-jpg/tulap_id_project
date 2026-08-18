@@ -83,15 +83,15 @@ class TaskEntity {
   int get completedChecklistCount =>
       checklistItems.where((i) => i.isCompleted).length;
 
-  List<ChecklistItemEntity> get incompleteMandatoryItems => checklistItems
-      .where((i) => i.isMandatory && !i.isCompleted)
-      .toList();
+  List<ChecklistItemEntity> get incompleteMandatoryItems =>
+      checklistItems.where((i) => i.isMandatory && !i.isCompleted).toList();
 
   /// Sesuai Bagian 7 spesifikasi: "1 bukti wajib belum lengkap." -
   /// dipakai UI untuk menentukan apakah tombol "Kirim Tugas" aktif
   /// atau CTA sekunder "Lengkapi Bukti" yang harus ditampilkan.
   bool get isReadyToSubmit => incompleteMandatoryItems.isEmpty;
 
-  double get checklistProgress =>
-      checklistItems.isEmpty ? 0 : completedChecklistCount / checklistItems.length;
+  double get checklistProgress => checklistItems.isEmpty
+      ? 0
+      : completedChecklistCount / checklistItems.length;
 }
