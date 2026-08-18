@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../expense_ocr/domain/entities/expense_note_entity.dart';
 import '../../../expense_ocr/presentation/pages/receipt_scanner_entry_page.dart';
 import '../../../geotag_camera/presentation/pages/geotag_camera_entry_page.dart';
 import '../../domain/entities/task_entity.dart';
@@ -211,7 +212,7 @@ class TaskDetailPage extends StatelessWidget {
             label: 'Scan Nota',
             count: task.expenseNoteCount,
             onTap: () async {
-              final note = await Navigator.of(context).push(
+              final note = await Navigator.of(context).push<ExpenseNoteEntity>(
                 MaterialPageRoute(
                   builder: (_) => ReceiptScannerEntryPage(taskId: task.id),
                 ),
@@ -220,7 +221,13 @@ class TaskDetailPage extends StatelessWidget {
               await controller.loadTask();
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Nota berhasil disimpan.')),
+                SnackBar(
+                  content: Text(
+                    note.isPossibleDuplicate
+                        ? 'Nota tersimpan - nota ini tampaknya sudah pernah digunakan sebelumnya.'
+                        : 'Nota berhasil disimpan.',
+                  ),
+                ),
               );
             },
           ),

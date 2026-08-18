@@ -1,5 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../controllers/receipt_scanner_controller.dart';
@@ -72,30 +73,59 @@ class ReceiptScannerPage extends StatelessWidget {
                 left: 0,
                 right: 0,
                 bottom: 32,
-                child: Center(
-                  child: GestureDetector(
-                    onTap: state.status == ReceiptScanStatus.scanning
-                        ? null
-                        : controller.captureAndScan,
-                    child: Container(
-                      width: 76,
-                      height: 76,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 4),
-                        color: Colors.white.withOpacity(0.25),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (state.status == ReceiptScanStatus.scanning) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text(
+                          'Memproses nota...',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                      child: state.status == ReceiptScanStatus.scanning
-                          ? const Padding(
-                              padding: EdgeInsets.all(20),
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 3,
-                              ),
-                            )
-                          : null,
+                      const SizedBox(height: AppSpacing.md),
+                    ],
+                    Center(
+                      child: GestureDetector(
+                        onTap: state.status == ReceiptScanStatus.scanning
+                            ? null
+                            : () {
+                                HapticFeedback.mediumImpact();
+                                controller.captureAndScan();
+                              },
+                        child: Container(
+                          width: 76,
+                          height: 76,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 4),
+                            color: Colors.white.withOpacity(0.25),
+                          ),
+                          child: state.status == ReceiptScanStatus.scanning
+                              ? const Padding(
+                                  padding: EdgeInsets.all(20),
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 3,
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
 
