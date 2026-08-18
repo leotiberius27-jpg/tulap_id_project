@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../../domain/entities/task_entity.dart';
 import '../../domain/usecases/get_task_detail.dart';
+import '../../domain/usecases/start_task.dart';
 import '../../domain/usecases/submit_task_for_verification.dart';
 import '../../domain/usecases/toggle_checklist_item.dart';
 
@@ -43,6 +44,7 @@ class TaskDetailState {
 class TaskDetailController extends ChangeNotifier {
   final GetTaskDetail _getTaskDetail;
   final ToggleChecklistItem _toggleChecklistItem;
+  final StartTask _startTask;
   final SubmitTaskForVerification _submitForVerification;
   final String taskId;
 
@@ -52,10 +54,12 @@ class TaskDetailController extends ChangeNotifier {
   TaskDetailController({
     required GetTaskDetail getTaskDetail,
     required ToggleChecklistItem toggleChecklistItem,
+    required StartTask startTask,
     required SubmitTaskForVerification submitForVerification,
     required this.taskId,
   }) : _getTaskDetail = getTaskDetail,
        _toggleChecklistItem = toggleChecklistItem,
+       _startTask = startTask,
        _submitForVerification = submitForVerification {
     loadTask();
   }
@@ -129,10 +133,32 @@ class TaskDetailController extends ChangeNotifier {
     );
   }
 
-  Future<void> startTask() async {
-    // Dipanggil dari Detail Tugas saat status masih DRAFT dan pegawai
-    // menekan "Lanjutkan Tugas" pertama kali.
-    await loadTask(); // Refresh sederhana - detail startTask ada di repository
+  /// Dipanggil dari Detail Tugas saat status masih DRAFT dan pegawai
+  /// menekan "Mulai Tugas" pertama kali - memindahkan tugas ke ONGOING
+  /// di backend (bukan cuma refresh lokal).
+  Future<bool> startTask() async {
+    final currentTask = _state.task;
+    if (currentTask == null) return false;
+
+    _update(_state.copyWith(status: TaskDetailStatus.submitting));
+
+    final result = await _startTask(taskId);
+
+    return result.fold(
+      (failure) {
+        _update(
+          _state.copyWith(
+            status: TaskDetailStatus.loaded,
+            errorMessage: failure.message,
+          ),
+        );
+        return false;
+      },
+      (updatedTask) {
+        _update(TaskDetailState(status: TaskDetailStatus.loaded, task: updatedTask));
+        return true;
+      },
+    );
   }
 
   Future<bool> submitForVerification() async {

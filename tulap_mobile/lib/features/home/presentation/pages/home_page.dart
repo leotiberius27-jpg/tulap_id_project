@@ -13,6 +13,7 @@ import '../../../sync_queue/presentation/controllers/sync_center_controller.dart
 import '../../../sync_queue/presentation/pages/sync_center_page.dart';
 import '../../../task_detail/domain/usecases/get_active_tasks.dart';
 import '../../../task_detail/domain/usecases/get_task_detail.dart';
+import '../../../task_detail/domain/usecases/start_task.dart';
 import '../../../task_detail/domain/usecases/submit_task_for_verification.dart';
 import '../../../task_detail/domain/usecases/toggle_checklist_item.dart';
 import '../../../task_detail/presentation/controllers/task_detail_controller.dart';
@@ -231,6 +232,7 @@ class _HomeView extends StatelessWidget {
           create: (_) => TaskDetailController(
             getTaskDetail: sl<GetTaskDetail>(),
             toggleChecklistItem: sl<ToggleChecklistItem>(),
+            startTask: sl<StartTask>(),
             submitForVerification: sl<SubmitTaskForVerification>(),
             taskId: taskId,
           ),

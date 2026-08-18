@@ -217,8 +217,31 @@ class TaskDetailPage extends StatelessWidget {
   ) {
     if (task.status == TaskStatusEntity.draft) {
       return ElevatedButton(
-        onPressed: () async => controller.startTask(),
-        child: const Text('Lanjutkan Tugas'),
+        onPressed: state.status == TaskDetailStatus.submitting
+            ? null
+            : () async {
+                final success = await controller.startTask();
+                if (context.mounted && !success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        controller.state.errorMessage ??
+                            'Gagal memulai tugas.',
+                      ),
+                    ),
+                  );
+                }
+              },
+        child: state.status == TaskDetailStatus.submitting
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Text('Mulai Tugas'),
       );
     }
 
@@ -273,6 +296,34 @@ class TaskDetailPage extends StatelessWidget {
       );
     }
 
+    if (task.status == TaskStatusEntity.pendingVerification) {
+      return const _StatusInfoBanner(
+        icon: Icons.hourglass_top,
+        color: AppColors.warning,
+        background: AppColors.warningSoft,
+        message: 'Tugas sedang menunggu verifikasi atasan.',
+      );
+    }
+
+    if (task.status == TaskStatusEntity.verified ||
+        task.status == TaskStatusEntity.completed) {
+      return const _StatusInfoBanner(
+        icon: Icons.check_circle,
+        color: AppColors.success,
+        background: AppColors.successSoft,
+        message: 'Tugas ini sudah selesai dan terverifikasi.',
+      );
+    }
+
+    if (task.status == TaskStatusEntity.rejected) {
+      return const _StatusInfoBanner(
+        icon: Icons.cancel,
+        color: AppColors.danger,
+        background: AppColors.dangerSoft,
+        message: 'Tugas ini ditolak. Hubungi atasan untuk informasi lebih lanjut.',
+      );
+    }
+
     return const SizedBox.shrink();
   }
 
@@ -307,6 +358,46 @@ class TaskDetailPage extends StatelessWidget {
 
   String _formatDate(DateTime date) =>
       '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+}
+
+class _StatusInfoBanner extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final Color background;
+  final String message;
+
+  const _StatusInfoBanner({
+    required this.icon,
+    required this.color,
+    required this.background,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.base),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTypography.small.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _InfoRow extends StatelessWidget {
