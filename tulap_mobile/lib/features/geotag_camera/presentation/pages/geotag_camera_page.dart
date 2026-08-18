@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/usecases/validate_location_integrity.dart';
@@ -144,7 +145,10 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
           child: Center(
             child: GestureDetector(
               onTap: state.isCaptureEnabled
-                  ? controller.onCaptureButtonPressed
+                  ? () {
+                      HapticFeedback.mediumImpact();
+                      controller.onCaptureButtonPressed();
+                    }
                   : null,
               child: Container(
                 width: 76,
@@ -169,6 +173,11 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
             ),
           ),
         ),
+
+        if (state.captureStatus == CaptureViewStatus.error)
+          _ErrorBanner(
+            message: state.errorMessage ?? 'Gagal mengambil foto. Coba lagi.',
+          ),
       ],
     );
   }
@@ -226,6 +235,31 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  const _ErrorBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 90,
+      left: AppSpacing.base,
+      right: AppSpacing.base,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.dangerSoft,
+          borderRadius: BorderRadius.circular(AppRadius.small),
+        ),
+        child: Text(
+          message,
+          style: AppTypography.small.copyWith(color: AppColors.danger),
+        ),
+      ),
     );
   }
 }

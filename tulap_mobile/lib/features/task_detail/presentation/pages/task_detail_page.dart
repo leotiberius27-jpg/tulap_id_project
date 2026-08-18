@@ -57,7 +57,7 @@ class TaskDetailPage extends StatelessWidget {
                 const SizedBox(height: AppSpacing.lg),
                 _buildChecklistSection(context, controller, task),
                 const SizedBox(height: AppSpacing.lg),
-                _buildEvidenceSection(context, task),
+                _buildEvidenceSection(context, controller, task),
                 const SizedBox(height: AppSpacing.xl),
                 _buildPrimaryCta(context, controller, state, task),
               ],
@@ -171,7 +171,11 @@ class TaskDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildEvidenceSection(BuildContext context, TaskEntity task) {
+  Widget _buildEvidenceSection(
+    BuildContext context,
+    TaskDetailController controller,
+    TaskEntity task,
+  ) {
     return Row(
       children: [
         Expanded(
@@ -180,15 +184,23 @@ class TaskDetailPage extends StatelessWidget {
             iconBackground: AppColors.iconSoftBlue,
             label: 'Foto Kegiatan',
             count: task.geotagPhotoCount,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => GeotagCameraEntryPage(
-                  officerName: officerName,
-                  agencyName: agencyName,
-                  taskId: task.id,
+            onTap: () async {
+              final photo = await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => GeotagCameraEntryPage(
+                    officerName: officerName,
+                    agencyName: agencyName,
+                    taskId: task.id,
+                  ),
                 ),
-              ),
-            ),
+              );
+              if (photo == null || !context.mounted) return;
+              await controller.loadTask();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Foto berhasil disimpan.')),
+              );
+            },
           ),
         ),
         const SizedBox(width: AppSpacing.md),
@@ -198,11 +210,19 @@ class TaskDetailPage extends StatelessWidget {
             iconBackground: AppColors.iconSoftCyan,
             label: 'Scan Nota',
             count: task.expenseNoteCount,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ReceiptScannerEntryPage(taskId: task.id),
-              ),
-            ),
+            onTap: () async {
+              final note = await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ReceiptScannerEntryPage(taskId: task.id),
+                ),
+              );
+              if (note == null || !context.mounted) return;
+              await controller.loadTask();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Nota berhasil disimpan.')),
+              );
+            },
           ),
         ),
       ],
