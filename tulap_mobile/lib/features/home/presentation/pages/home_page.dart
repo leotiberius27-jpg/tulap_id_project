@@ -59,7 +59,15 @@ class _HomeView extends StatelessWidget {
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
-          child: Consumer<HomeController>(
+          // Padding bawah tetap (BUKAN cuma spacer di dalam ListView) agar
+          // tombol kamera tengah (FAB centerDocked di MainShell) tidak
+          // menutupi konten terakhir - ini mengecilkan viewport ListView
+          // itu sendiri, beda dengan padding di dalam scrollable yang
+          // hanya menambah area scroll dan tidak menggeser konten yang
+          // sudah muat tanpa scroll.
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 56),
+            child: Consumer<HomeController>(
             builder: (context, controller, _) {
               final state = controller.state;
 
@@ -165,6 +173,7 @@ class _HomeView extends StatelessWidget {
                 ),
               );
             },
+            ),
           ),
         ),
       ),

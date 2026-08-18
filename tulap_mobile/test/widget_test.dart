@@ -23,6 +23,9 @@ class _NoSessionAuthRepository implements AuthRepository {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> logout() async {}
 }
 
 void main() {

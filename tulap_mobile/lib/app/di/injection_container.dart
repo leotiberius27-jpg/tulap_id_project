@@ -19,6 +19,7 @@ import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/domain/usecases/get_current_session.dart';
 import '../../features/auth/domain/usecases/login.dart';
+import '../../features/auth/domain/usecases/logout.dart';
 
 import '../../features/expense_ocr/data/datasources/expense_ocr_local_datasource.dart';
 import '../../features/expense_ocr/data/repositories/expense_ocr_repository_impl.dart';
@@ -45,6 +46,7 @@ import '../../features/task_detail/data/repositories/task_repository_impl.dart';
 import '../../features/task_detail/domain/repositories/task_repository.dart';
 import '../../features/task_detail/domain/usecases/get_active_tasks.dart';
 import '../../features/task_detail/domain/usecases/get_task_detail.dart';
+import '../../features/task_detail/domain/usecases/pick_active_task.dart';
 import '../../features/task_detail/domain/usecases/submit_task_for_verification.dart';
 import '../../features/task_detail/domain/usecases/toggle_checklist_item.dart';
 
@@ -111,6 +113,7 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<Login>(() => Login(sl()));
   sl.registerLazySingleton<GetCurrentSession>(() => GetCurrentSession(sl()));
+  sl.registerLazySingleton<Logout>(() => Logout(sl()));
 
   // ============================================================
   // SYNC QUEUE - didaftarkan lebih dulu karena geotag_camera &
@@ -175,6 +178,7 @@ Future<void> initDependencies() async {
     () => SubmitTaskForVerification(sl()),
   );
   sl.registerLazySingleton<GetActiveTasks>(() => GetActiveTasks(sl()));
+  sl.registerLazySingleton<PickActiveTask>(() => PickActiveTask(sl()));
 }
 
 /// registerCameraSession

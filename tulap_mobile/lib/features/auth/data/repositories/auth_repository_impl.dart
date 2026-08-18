@@ -56,6 +56,11 @@ class AuthRepositoryImpl implements AuthRepository {
     return _localDataSource.getStoredUser();
   }
 
+  @override
+  Future<void> logout() {
+    return _localDataSource.clearSession();
+  }
+
   String _extractErrorMessage(DioException e) {
     final data = e.response?.data;
     if (data is Map && data['message'] is String) {

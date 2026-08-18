@@ -39,4 +39,13 @@ class AuthLocalDataSource {
       jsonDecode(raw) as Map<String, dynamic>,
     );
   }
+
+  /// Menghapus seluruh sesi tersimpan (logout) - setelah ini
+  /// `getStoredUser()` kembali mengembalikan null, sehingga `AuthGate`
+  /// mengarahkan user ke Login lagi.
+  Future<void> clearSession() async {
+    await _secureStorage.delete(key: _accessTokenKey);
+    await _secureStorage.delete(key: _refreshTokenKey);
+    await _secureStorage.delete(key: _userProfileKey);
+  }
 }

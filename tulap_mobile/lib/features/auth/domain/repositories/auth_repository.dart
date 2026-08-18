@@ -18,4 +18,8 @@ abstract class AuthRepository {
   /// apakah user diarahkan ke Login atau langsung ke Beranda, dan untuk
   /// mengisi header Beranda (nama, instansi).
   Future<AuthUserEntity?> getStoredUser();
+
+  /// Menghapus sesi tersimpan (logout) - tidak butuh panggilan network,
+  /// backend tidak menyimpan state sesi server-side untuk alur ini.
+  Future<void> logout();
 }
