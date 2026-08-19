@@ -127,6 +127,42 @@ export class TasksService {
     return task;
   }
 
+  /// GET /tasks/:id/evidence - dipakai Verification Workspace Web
+  /// Dashboard (Bagian 15) untuk menampilkan foto & nota sebelum
+  /// Verifikator memutuskan approve/revision/reject. Sebelum endpoint
+  /// ini ada, satu-satunya kode yang membaca relasi geotagPhotos/
+  /// expenseNotes adalah LpjService (generate PDF) - tidak ada jalan
+  /// bagi dashboard untuk menampilkannya ke Verifikator sebelum LPJ
+  /// dibuat. Aturan akses SAMA seperti findOne (PEGAWAI hanya boleh
+  /// lihat tugas miliknya sendiri).
+  async getEvidence(id: string, actor: AuthenticatedUser) {
+    const task = await this.prisma.task_SPPD.findUnique({
+      where: { id },
+      select: { assigneeId: true },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Tugas tidak ditemukan.');
+    }
+
+    if (actor.role === RoleName.PEGAWAI && task.assigneeId !== actor.id) {
+      throw new ForbiddenException('Anda tidak memiliki akses ke tugas ini.');
+    }
+
+    const [photos, expenseNotes] = await Promise.all([
+      this.prisma.geotag_Photo.findMany({
+        where: { taskId: id },
+        orderBy: { serverTimestamp: 'asc' },
+      }),
+      this.prisma.expense_Note.findMany({
+        where: { taskId: id },
+        orderBy: { transactionDate: 'asc' },
+      }),
+    ]);
+
+    return { photos, expenseNotes };
+  }
+
   async update(id: string, dto: UpdateTaskDto) {
     const task = await this._findOrThrow(id);
 

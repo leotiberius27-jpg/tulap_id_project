@@ -34,6 +34,15 @@ export class TasksController {
     return this.tasksService.findOne(id, actor);
   }
 
+  /// GET /tasks/:id/evidence - foto & nota tugas ini, dipakai
+  /// Verification Workspace Web Dashboard. Akses sama seperti
+  /// GET /tasks/:id (tidak dibatasi @Roles() tambahan - PEGAWAI boleh
+  /// lihat evidence tugasnya sendiri, pembatasan diterapkan di service).
+  @Get(':id/evidence')
+  getEvidence(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.tasksService.getEvidence(id, actor);
+  }
+
   @Roles(RoleName.ADMIN, RoleName.SUPER_ADMIN)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
