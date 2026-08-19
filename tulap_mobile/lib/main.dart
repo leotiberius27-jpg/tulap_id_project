@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'app/di/injection_container.dart';
@@ -18,20 +20,54 @@ import 'features/auth/presentation/pages/login_page.dart';
 ///      masih menumpuk dari sesi sebelumnya langsung diproses begitu
 ///      app dibuka dan online.
 ///   4. runApp()
+///
+/// Dibungkus `runZonedGuarded` + `ErrorWidget.builder` khusus rilis:
+/// TIDAK ada layanan crash-reporting terpasang (belum ada keputusan
+/// vendor), jadi ini murni jaring pengaman terakhir supaya pengguna
+/// asli di lapangan tidak pernah melihat red screen of death Flutter
+/// atau app yang diam-diam force-close - error tetap di-log ke
+/// `debugPrint` untuk sekarang, ganti dengan crash-reporting service
+/// sungguhan begitu ada.
 /// ----------------------------------------------------------------------
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  if (kReleaseMode) {
+    ErrorWidget.builder = (details) => const _ReleaseErrorFallback();
+  }
 
-  // WatermarkOverlay memformat tanggal dengan locale 'id_ID' - tanpa
-  // ini, DateFormat('...', 'id_ID') melempar LocaleDataException setiap
-  // kali overlay kamera geotag dibangun.
-  await initializeDateFormatting('id_ID', null);
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  await initDependencies();
+    // WatermarkOverlay memformat tanggal dengan locale 'id_ID' - tanpa
+    // ini, DateFormat('...', 'id_ID') melempar LocaleDataException setiap
+    // kali overlay kamera geotag dibangun.
+    await initializeDateFormatting('id_ID', null);
 
-  sl<BackgroundSyncService>().start();
+    await initDependencies();
 
-  runApp(const TulapApp());
+    sl<BackgroundSyncService>().start();
+
+    runApp(const TulapApp());
+  }, (error, stack) {
+    debugPrint('Uncaught error: $error\n$stack');
+  });
+}
+
+class _ReleaseErrorFallback extends StatelessWidget {
+  const _ReleaseErrorFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(24),
+      child: const Text(
+        'Terjadi kesalahan. Coba tutup dan buka ulang aplikasi.',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Colors.black54),
+      ),
+    );
+  }
 }
 
 class TulapApp extends StatelessWidget {
