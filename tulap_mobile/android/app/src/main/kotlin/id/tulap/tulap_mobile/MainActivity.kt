@@ -1,4 +1,4 @@
-package com.example.tulap_mobile
+package id.tulap.tulap_mobile
 
 import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
