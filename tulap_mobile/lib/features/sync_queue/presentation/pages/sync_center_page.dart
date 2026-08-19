@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_state_views.dart';
 import '../controllers/sync_center_controller.dart';
 import '../widgets/sync_status_row.dart';
 
@@ -25,15 +26,24 @@ class SyncCenterPage extends StatelessWidget {
       body: Consumer<SyncCenterController>(
         builder: (context, controller, _) {
           if (controller.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppLoadingView(label: 'Memuat data sinkronisasi...');
           }
 
           if (controller.records.isEmpty) {
-            return _buildEmptyState();
+            return const AppEmptyState(
+              icon: Icons.cloud_done_outlined,
+              title: 'Belum ada data yang perlu disinkronkan.',
+            );
           }
 
           if (controller.allSynced) {
-            return _buildAllSyncedState();
+            return const AppEmptyState(
+              icon: Icons.check_circle_outline,
+              title: 'Semua data sudah terkirim',
+              message: 'Data aman dan tersimpan di server.',
+              iconColor: AppColors.success,
+              iconBackground: AppColors.successSoft,
+            );
           }
 
           return RefreshIndicator(
@@ -120,76 +130,6 @@ class SyncCenterPage extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: AppColors.background,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.cloud_done_outlined,
-                color: AppColors.textSecondary,
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const Text(
-              'Belum ada data yang perlu disinkronkan.',
-              style: AppTypography.bodySecondary,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAllSyncedState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: AppColors.successSoft,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle_outline,
-                color: AppColors.success,
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const Text(
-              'Semua data sudah terkirim',
-              style: AppTypography.sectionTitle,
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Data aman dan tersimpan di server.',
-              style: AppTypography.bodySecondary,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _SectionHeader extends StatelessWidget {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_state_views.dart';
 import '../../../auth/domain/usecases/get_current_session.dart';
 import '../../../task_detail/domain/entities/task_entity.dart';
 import '../../../task_detail/domain/usecases/get_active_tasks.dart';
@@ -56,18 +57,22 @@ class _TaskListView extends StatelessWidget {
             final state = controller.state;
 
             if (state.status == TaskListStatus.loading) {
-              return const Center(child: CircularProgressIndicator());
+              return const AppLoadingView(label: 'Memuat tugas...');
             }
 
             if (state.status == TaskListStatus.error) {
-              return _ErrorState(
+              return AppErrorState(
                 message: state.errorMessage ?? 'Data belum berhasil dimuat.',
                 onRetry: controller.load,
               );
             }
 
             if (state.tasks.isEmpty) {
-              return const _EmptyState();
+              return const AppEmptyState(
+                icon: Icons.assignment_outlined,
+                title: 'Belum ada tugas aktif',
+                message: 'Tugas baru dari instansi akan muncul di sini.',
+              );
             }
 
             final officerName = state.user?.fullName ?? 'Pengguna';
@@ -227,72 +232,3 @@ class _TaskListCard extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: AppColors.background,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.assignment_outlined,
-                color: AppColors.textSecondary,
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const Text('Belum ada tugas aktif', style: AppTypography.sectionTitle),
-            const SizedBox(height: 4),
-            const Text(
-              'Tugas baru dari instansi akan muncul di sini.',
-              style: AppTypography.bodySecondary,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorState({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.cloud_off_outlined,
-              color: AppColors.textSecondary,
-              size: 40,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(message, style: AppTypography.bodySecondary, textAlign: TextAlign.center),
-            const SizedBox(height: AppSpacing.md),
-            OutlinedButton(onPressed: onRetry, child: const Text('Coba Lagi')),
-          ],
-        ),
-      ),
-    );
-  }
-}

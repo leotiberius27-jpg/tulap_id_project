@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
+import '../../../../core/widgets/app_state_views.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../main.dart';
 import '../../../auth/domain/usecases/get_current_session.dart';
@@ -47,7 +48,7 @@ class _AccountView extends StatelessWidget {
           builder: (context, controller, _) {
             final user = controller.state.user;
             if (user == null) {
-              return const Center(child: CircularProgressIndicator());
+              return const AppLoadingView(label: 'Memuat akun...');
             }
 
             return ListView(

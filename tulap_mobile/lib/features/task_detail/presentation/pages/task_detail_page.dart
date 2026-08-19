@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_state_views.dart';
 import '../../../expense_ocr/domain/entities/expense_note_entity.dart';
 import '../../../expense_ocr/presentation/pages/receipt_scanner_entry_page.dart';
 import '../../../geotag_camera/presentation/pages/geotag_camera_entry_page.dart';
@@ -40,7 +41,7 @@ class TaskDetailPage extends StatelessWidget {
           final state = controller.state;
 
           if (state.status == TaskDetailStatus.loading && state.task == null) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppLoadingView(label: 'Memuat detail tugas...');
           }
 
           if (state.status == TaskDetailStatus.error && state.task == null) {
@@ -359,27 +360,12 @@ class TaskDetailPage extends StatelessWidget {
     TaskDetailController controller,
     String? message,
   ) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, color: AppColors.danger, size: 48),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              message ?? 'Tugas belum bisa dimuat.',
-              style: AppTypography.bodySecondary,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            OutlinedButton(
-              onPressed: controller.loadTask,
-              child: const Text('Muat Ulang'),
-            ),
-          ],
-        ),
-      ),
+    return AppErrorState(
+      message: message ?? 'Tugas belum bisa dimuat.',
+      onRetry: controller.loadTask,
+      icon: Icons.error_outline,
+      iconColor: AppColors.danger,
+      retryLabel: 'Muat Ulang',
     );
   }
 
