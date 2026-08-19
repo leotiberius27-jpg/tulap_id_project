@@ -117,23 +117,32 @@ Buka `pubspec.yaml`, salin seluruh isi `pubspec_additions.yaml` ke bawah `depend
 flutter pub get
 ```
 
-**Sebelum `flutter run`**, edit satu baris di `lib/app/di/injection_container.dart`:
-```dart
-const String _kApiBaseUrl = 'https://api.tulap.id/v1';
-```
-Ganti jadi:
-```dart
-const String _kApiBaseUrl = 'http://10.0.2.2:3000';  // Android emulator -> localhost komputer
-// atau 'http://localhost:3000' jika menjalankan di iOS Simulator/Chrome
-// atau 'http://<IP_LAN_komputer_Anda>:3000' jika pakai HP fisik
+Base URL backend sudah otomatis benar untuk dev lokal (default `http://10.0.2.2:3000`, alias Android emulator ke localhost komputer host) — tidak perlu diedit untuk menjalankan di emulator. Untuk target lain, override lewat `--dart-define` saat `flutter run`, TIDAK perlu mengedit kode:
+```bash
+flutter run --dart-define=API_BASE_URL=http://localhost:3000   # iOS Simulator/Chrome
+flutter run --dart-define=API_BASE_URL=http://<IP_LAN_komputer_Anda>:3000   # HP fisik
 ```
 
-Jalankan:
+Tanpa flag di atas:
 ```bash
 flutter run
 ```
 
-**✅ Verifikasi realistis:** Karena `main.dart` masih mengarah ke halaman placeholder ("Tulap.id - Beranda menyusul"), yang Anda lihat HANYA layar putih dengan teks itu. **Ini normal** — belum ada layar Login/Beranda yang menghubungkan ke `TaskDetailPage` yang sudah kita bangun. Kalau app berhasil *compile dan tampil tanpa crash*, berarti seluruh dependency injection, migrasi SQLite, dan struktur kode sudah benar.
+**✅ Verifikasi:** app menampilkan Login, lalu Beranda dengan data tugas sungguhan setelah login. Login berhasil = seluruh dependency injection, migrasi SQLite, dan koneksi ke backend sudah benar.
+
+---
+
+## Build untuk rilis (APK produksi)
+
+`_kApiBaseUrl` di `lib/app/di/injection_container.dart` dibaca dari `--dart-define=API_BASE_URL=...` saat build — **wajib** disertakan untuk build rilis, kalau tidak app akan tetap menunjuk ke alamat dev lokal (`10.0.2.2`, tidak bisa dijangkau di luar emulator):
+
+```bash
+flutter build apk --release --dart-define=API_BASE_URL=https://api.tulap.id
+```
+
+Sebelum ini benar-benar dipakai user asli, masih ada beberapa hal yang perlu diselesaikan (belum dilakukan sesi ini):
+- **Signing config produksi** — `android/app/build.gradle.kts` `buildTypes.release` masih memakai debug signing key (`signingConfig = signingConfigs.getByName("debug")`), perlu keystore rilis asli sebelum publish ke Play Store.
+- **Backend produksi** — `S3_*`, `DATABASE_URL`, `JWT_SECRET`/`JWT_REFRESH_SECRET` di `.env` backend saat ini nilai dev lokal; deployment produksi butuh infrastruktur & secret sungguhan.
 
 ---
 
@@ -145,10 +154,10 @@ flutter run
 | `Role tidak terdaftar di master data` saat register | Lupa jalankan `npx prisma db seed` |
 | Mobile: `MissingPluginException` | Jalankan `flutter clean && flutter pub get` lalu restart |
 | Mobile: error kompilasi banyak sekali | Kemungkinan ada dependency di `pubspec_additions.yaml` yang belum tersalin ke `pubspec.yaml` |
-| `Connection refused` dari mobile ke backend | Base URL salah — emulator Android WAJIB `10.0.2.2`, bukan `localhost` |
+| `Connection refused` dari mobile ke backend | Base URL salah — default sudah `10.0.2.2` untuk emulator Android, override dengan `--dart-define=API_BASE_URL=...` untuk target lain (lihat TAHAP 3) |
 
 ---
 
 ## Setelah Tahap 3 Berhasil
 
-Baru masuk akal untuk melanjutkan fitur yang belum selesai (halaman untuk memicu LPJ Generator di mobile/web, Web Dashboard, RootDetector iOS) — karena sekarang Anda punya fondasi yang **terbukti jalan**, bukan cuma kode yang belum pernah dites end-to-end.
+Mobile app (login, tugas, kamera geotag, scan nota OCR, sync offline, Lokasi) dan Web Dashboard (`tulap_web` — antrean verifikasi, approve/reject/revisi, generate LPJ PDF; jalankan `npm install && npm run dev` di situ, lihat `.env.example`) sudah terbukti jalan end-to-end lawan backend lokal. Yang masih belum ada: RootDetector iOS (baru Android), UI buat-tugas-baru & manajemen user di Web Dashboard, dan signing/env produksi sungguhan (lihat "Build untuk rilis" di atas).
