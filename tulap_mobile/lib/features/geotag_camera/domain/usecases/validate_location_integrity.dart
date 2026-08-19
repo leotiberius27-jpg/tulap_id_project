@@ -68,7 +68,13 @@ class ValidateLocationIntegrity {
         ),
       );
     } catch (e) {
-      return const Left(LocationInvalidFailure());
+      // Pertahankan pesan asli dari MockLocationDetector (mis. "Layanan
+      // lokasi (GPS) perangkat tidak aktif.", "Izin lokasi ditolak.")
+      // alih-alih menimpa dengan pesan generik - pesan ini SUDAH ditulis
+      // dalam Bahasa Indonesia yang jelas & actionable (Bagian 17), jadi
+      // aman ditampilkan langsung ke user tanpa membocorkan detail teknis.
+      final message = e.toString().replaceFirst('Exception: ', '');
+      return Left(LocationInvalidFailure(message));
     }
   }
 }

@@ -5,9 +5,11 @@ import '../../../../app/di/injection_container.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/sync/background_sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_state_views.dart';
 import '../../../auth/domain/usecases/get_current_session.dart';
 import '../../../expense_ocr/presentation/pages/receipt_scanner_entry_page.dart';
 import '../../../geotag_camera/presentation/pages/geotag_camera_entry_page.dart';
+import '../../../location/presentation/pages/location_page.dart';
 import '../../../sync_queue/domain/repositories/sync_queue_repository.dart';
 import '../../../sync_queue/presentation/controllers/sync_center_controller.dart';
 import '../../../sync_queue/presentation/pages/sync_center_page.dart';
@@ -74,7 +76,7 @@ class _HomeView extends StatelessWidget {
               final state = controller.state;
 
               if (state.status == HomeStatus.loading) {
-                return const Center(child: CircularProgressIndicator());
+                return const AppLoadingView(label: 'Memuat beranda...');
               }
 
               final officerName = state.user?.fullName ?? 'Pengguna';
@@ -148,8 +150,15 @@ class _HomeView extends StatelessWidget {
                                       ),
                                     ),
                                   ),
-                            onLokasi: () =>
-                                _showNotAvailable(context, 'Peta lokasi'),
+                            onLokasi: activeTask == null
+                                ? null
+                                : () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => LocationPage(
+                                        taskDestination: activeTask.destination,
+                                      ),
+                                    ),
+                                  ),
                             onLihatLpj: () =>
                                 _showNotAvailable(context, 'Lihat LPJ'),
                           ),

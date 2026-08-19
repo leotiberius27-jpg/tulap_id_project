@@ -20,7 +20,7 @@ import '../../../../core/theme/app_theme.dart';
 class QuickActionGrid extends StatelessWidget {
   final VoidCallback? onFotoKegiatan;
   final VoidCallback? onScanNota;
-  final VoidCallback onLokasi;
+  final VoidCallback? onLokasi;
   final VoidCallback onLihatLpj;
 
   const QuickActionGrid({

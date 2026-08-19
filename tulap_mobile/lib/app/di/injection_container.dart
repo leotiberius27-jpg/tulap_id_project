@@ -181,6 +181,22 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<GetActiveTasks>(() => GetActiveTasks(sl()));
   sl.registerLazySingleton<PickActiveTask>(() => PickActiveTask(sl()));
+
+  // ============================================================
+  // LOCATION - ValidateLocationIntegrity TIDAK bergantung pada
+  // CameraController (hanya butuh MockLocationDetector & RootDetector,
+  // keduanya sudah singleton di atas), jadi didaftarkan global di sini
+  // agar tab "Lokasi" bisa dipakai TANPA harus membuka kamera dulu -
+  // sebelumnya usecase ini keliru dikelompokkan sebagai bagian dari
+  // sesi kamera (lihat registerCameraSession), padahal cuma numpang
+  // lewat karena secara historis dipakai dari layar kamera.
+  // ============================================================
+  sl.registerLazySingleton<ValidateLocationIntegrity>(
+    () => ValidateLocationIntegrity(
+      mockLocationDetector: sl(),
+      rootDetector: sl(),
+    ),
+  );
 }
 
 /// registerCameraSession
@@ -200,9 +216,6 @@ void registerCameraSession(CameraController controller) {
   }
   if (sl.isRegistered<CaptureGeotaggedPhoto>()) {
     sl.unregister<CaptureGeotaggedPhoto>();
-  }
-  if (sl.isRegistered<ValidateLocationIntegrity>()) {
-    sl.unregister<ValidateLocationIntegrity>();
   }
   if (sl.isRegistered<ExpenseOcrRepository>()) {
     sl.unregister<ExpenseOcrRepository>();
@@ -226,12 +239,6 @@ void registerCameraSession(CameraController controller) {
   sl.registerLazySingleton<CaptureGeotaggedPhoto>(
     () => CaptureGeotaggedPhoto(sl()),
   );
-  sl.registerLazySingleton<ValidateLocationIntegrity>(
-    () => ValidateLocationIntegrity(
-      mockLocationDetector: sl(),
-      rootDetector: sl(),
-    ),
-  );
 
   sl.registerLazySingleton<ExpenseOcrRepository>(
     () => ExpenseOcrRepositoryImpl(localDataSource: sl(), cameraController: controller),
@@ -250,9 +257,6 @@ void unregisterCameraSession() {
   }
   if (sl.isRegistered<CaptureGeotaggedPhoto>()) {
     sl.unregister<CaptureGeotaggedPhoto>();
-  }
-  if (sl.isRegistered<ValidateLocationIntegrity>()) {
-    sl.unregister<ValidateLocationIntegrity>();
   }
   if (sl.isRegistered<ExpenseOcrRepository>()) {
     sl.unregister<ExpenseOcrRepository>();

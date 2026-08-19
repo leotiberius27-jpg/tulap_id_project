@@ -1,4 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Lokasi (foreground SAJA - Bagian 72 spesifikasi: "Tidak ada
+         pelacakan berkelanjutan/background"). Dibutuhkan geolocator
+         untuk watermark geotag & indikator GPS di kamera, dan untuk
+         layar Lokasi mandiri. SENGAJA TIDAK menambahkan
+         ACCESS_BACKGROUND_LOCATION - aplikasi ini tidak pernah melacak
+         lokasi di latar belakang. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="tulap_mobile"
         android:name="${applicationName}"
