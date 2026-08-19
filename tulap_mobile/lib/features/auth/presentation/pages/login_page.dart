@@ -181,6 +181,9 @@ class _LoginViewState extends State<_LoginView> {
                                           ? Icons.visibility_off_outlined
                                           : Icons.visibility_outlined,
                                     ),
+                                    tooltip: _obscurePassword
+                                        ? 'Tampilkan password'
+                                        : 'Sembunyikan password',
                                     onPressed: () => setState(
                                       () => _obscurePassword =
                                           !_obscurePassword,

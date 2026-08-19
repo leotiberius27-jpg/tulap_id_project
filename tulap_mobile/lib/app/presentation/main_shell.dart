@@ -247,20 +247,25 @@ class _CameraFab extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: isLoading ? null : onPressed,
-          child: Center(
-            child: isLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.camera_alt, color: Colors.white, size: 24),
+        child: Semantics(
+          button: true,
+          label: 'Ambil bukti tugas',
+          enabled: !isLoading,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: isLoading ? null : onPressed,
+            child: Center(
+              child: isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.camera_alt, color: Colors.white, size: 24),
+            ),
           ),
         ),
       ),

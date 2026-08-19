@@ -120,11 +120,13 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
               children: [
                 _CircleIconButton(
                   icon: Icons.arrow_back,
+                  semanticLabel: 'Kembali',
                   onTap: () => Navigator.of(context).pop(),
                 ),
                 GpsStatusIndicator(status: state.locationStatus),
                 _CircleIconButton(
                   icon: _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                  semanticLabel: _isFlashOn ? 'Matikan flash' : 'Nyalakan flash',
                   onTap: () async {
                     setState(() => _isFlashOn = !_isFlashOn);
                     await widget.cameraController.setFlashMode(
@@ -143,7 +145,11 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
           right: 0,
           bottom: 32,
           child: Center(
-            child: GestureDetector(
+            child: Semantics(
+              button: true,
+              label: 'Ambil foto',
+              enabled: state.isCaptureEnabled,
+              child: GestureDetector(
               onTap: state.isCaptureEnabled
                   ? () {
                       HapticFeedback.mediumImpact();
@@ -169,6 +175,7 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                         ),
                       )
                     : null,
+              ),
               ),
             ),
           ),
@@ -267,21 +274,30 @@ class _ErrorBanner extends StatelessWidget {
 class _CircleIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
+  final String semanticLabel;
 
-  const _CircleIconButton({required this.icon, required this.onTap});
+  const _CircleIconButton({
+    required this.icon,
+    required this.onTap,
+    required this.semanticLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.4),
-          shape: BoxShape.circle,
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.4),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: Colors.white, size: 20),
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
       ),
     );
   }

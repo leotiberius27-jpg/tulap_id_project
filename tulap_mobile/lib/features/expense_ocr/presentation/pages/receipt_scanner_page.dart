@@ -55,6 +55,7 @@ class ReceiptScannerPage extends StatelessWidget {
                     children: [
                       _CircleIconButton(
                         icon: Icons.arrow_back,
+                        semanticLabel: 'Kembali',
                         onTap: () => Navigator.of(context).pop(),
                       ),
                       const Spacer(),
@@ -98,30 +99,35 @@ class ReceiptScannerPage extends StatelessWidget {
                       const SizedBox(height: AppSpacing.md),
                     ],
                     Center(
-                      child: GestureDetector(
-                        onTap: state.status == ReceiptScanStatus.scanning
-                            ? null
-                            : () {
-                                HapticFeedback.mediumImpact();
-                                controller.captureAndScan();
-                              },
-                        child: Container(
-                          width: 76,
-                          height: 76,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 4),
-                            color: Colors.white.withOpacity(0.25),
+                      child: Semantics(
+                        button: true,
+                        label: 'Ambil foto nota',
+                        enabled: state.status != ReceiptScanStatus.scanning,
+                        child: GestureDetector(
+                          onTap: state.status == ReceiptScanStatus.scanning
+                              ? null
+                              : () {
+                                  HapticFeedback.mediumImpact();
+                                  controller.captureAndScan();
+                                },
+                          child: Container(
+                            width: 76,
+                            height: 76,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 4),
+                              color: Colors.white.withOpacity(0.25),
+                            ),
+                            child: state.status == ReceiptScanStatus.scanning
+                                ? const Padding(
+                                    padding: EdgeInsets.all(20),
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 3,
+                                    ),
+                                  )
+                                : null,
                           ),
-                          child: state.status == ReceiptScanStatus.scanning
-                              ? const Padding(
-                                  padding: EdgeInsets.all(20),
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 3,
-                                  ),
-                                )
-                              : null,
                         ),
                       ),
                     ),
@@ -210,18 +216,27 @@ class _ReceiptFrameGuide extends StatelessWidget {
 class _CircleIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
+  final String semanticLabel;
 
-  const _CircleIconButton({required this.icon, required this.onTap});
+  const _CircleIconButton({
+    required this.icon,
+    required this.onTap,
+    required this.semanticLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(color: Colors.black.withOpacity(0.4), shape: BoxShape.circle),
-        child: Icon(icon, color: Colors.white, size: 20),
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(color: Colors.black.withOpacity(0.4), shape: BoxShape.circle),
+          child: Icon(icon, color: Colors.white, size: 20),
+        ),
       ),
     );
   }

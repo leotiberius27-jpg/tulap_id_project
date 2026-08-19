@@ -97,21 +97,25 @@ class _NotificationButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        width: 40,
-        height: 40,
-        alignment: Alignment.center,
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.notifications_outlined,
-          color: AppColors.primary,
-          size: 20,
+    return Semantics(
+      button: true,
+      label: 'Notifikasi',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.notifications_outlined,
+            color: AppColors.primary,
+            size: 20,
+          ),
         ),
       ),
     );
