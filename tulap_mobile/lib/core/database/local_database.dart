@@ -15,7 +15,7 @@ import 'package:sqflite/sqflite.dart';
 /// ----------------------------------------------------------------------
 class LocalDatabase {
   static const String _dbName = 'tulap_local.db';
-  static const int _dbVersion = 1;
+  static const int _dbVersion = 2;
 
   static Database? _database;
 
@@ -58,6 +58,7 @@ class LocalDatabase {
         integrityHash TEXT NOT NULL,
         isMockLocationDetected INTEGER NOT NULL DEFAULT 0,
         isRootedDeviceDetected INTEGER NOT NULL DEFAULT 0,
+        plusCode TEXT NOT NULL DEFAULT '',
         address TEXT,
         caption TEXT
       )
@@ -159,10 +160,11 @@ class LocalDatabase {
     int oldVersion,
     int newVersion,
   ) async {
-    // Contoh pola untuk migrasi masa depan:
-    // if (oldVersion < 2) {
-    //   await db.execute('ALTER TABLE expense_notes ADD COLUMN newField TEXT');
-    // }
+    if (oldVersion < 2) {
+      await db.execute(
+        "ALTER TABLE geotag_photos ADD COLUMN plusCode TEXT NOT NULL DEFAULT ''",
+      );
+    }
   }
 
   /// Dipakai HANYA untuk testing/debugging - menghapus seluruh data

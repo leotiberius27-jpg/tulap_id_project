@@ -4,6 +4,10 @@ import 'package:get_it/get_it.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../core/database/local_database.dart';
+import '../../core/geo/plus_code_generator.dart';
+import '../../core/geo/reverse_geocoder.dart';
+import '../../core/geo/static_map_thumbnail.dart';
+import '../../core/imaging/watermark_compositor.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/network/network_info.dart';
 import '../../core/ocr/receipt_ocr_engine.dart';
@@ -102,6 +106,10 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<MockLocationDetector>(() => MockLocationDetector());
   sl.registerLazySingleton<RootDetector>(() => RootDetector());
   sl.registerLazySingleton<HashGenerator>(() => HashGenerator());
+  sl.registerLazySingleton<PlusCodeGenerator>(() => PlusCodeGenerator());
+  sl.registerLazySingleton<ReverseGeocoder>(() => ReverseGeocoder());
+  sl.registerLazySingleton<StaticMapThumbnail>(() => StaticMapThumbnail());
+  sl.registerLazySingleton<WatermarkCompositor>(() => WatermarkCompositor());
 
   sl.registerLazySingleton<ReceiptOcrEngine>(() => ReceiptOcrEngine());
   sl.registerLazySingleton<ReceiptParser>(() => ReceiptParser());
@@ -162,7 +170,11 @@ Future<void> initDependencies() async {
   // didaftarkan di sini, repository menyusul saat sesi kamera dibuka.
   // ============================================================
   sl.registerLazySingleton<GeotagCameraLocalDataSource>(
-    () => GeotagCameraLocalDataSource(hashGenerator: sl(), database: sl()),
+    () => GeotagCameraLocalDataSource(
+      hashGenerator: sl(),
+      watermarkCompositor: sl(),
+      database: sl(),
+    ),
   );
 
   // ============================================================
@@ -240,6 +252,10 @@ void registerCameraSession(CameraController controller) {
       rootDetector: sl(),
       cameraController: controller,
       enqueueSyncItem: sl(),
+      getCurrentSession: sl(),
+      plusCodeGenerator: sl(),
+      reverseGeocoder: sl(),
+      staticMapThumbnail: sl(),
     ),
   );
   sl.registerLazySingleton<CaptureGeotaggedPhoto>(

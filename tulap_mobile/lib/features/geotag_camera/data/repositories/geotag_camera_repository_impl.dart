@@ -1,8 +1,16 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/geo/plus_code_generator.dart';
+import '../../../../core/geo/reverse_geocoder.dart';
+import '../../../../core/geo/static_map_thumbnail.dart';
+import '../../../../core/imaging/watermark_compositor.dart';
 import '../../../../core/security/mock_location_detector.dart';
 import '../../../../core/security/root_detector.dart';
+import '../../../auth/domain/usecases/get_current_session.dart';
 import '../../../sync_queue/domain/entities/sync_record_entity.dart';
 import '../../../sync_queue/domain/usecases/enqueue_sync_item.dart';
 import '../../domain/entities/geotag_photo_entity.dart';
@@ -27,6 +35,10 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
   final RootDetector _rootDetector;
   final CameraController _cameraController;
   final EnqueueSyncItem _enqueueSyncItem;
+  final GetCurrentSession _getCurrentSession;
+  final PlusCodeGenerator _plusCodeGenerator;
+  final ReverseGeocoder _reverseGeocoder;
+  final StaticMapThumbnail _staticMapThumbnail;
 
   GeotagCameraRepositoryImpl({
     required GeotagCameraLocalDataSource localDataSource,
@@ -34,11 +46,19 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
     required RootDetector rootDetector,
     required CameraController cameraController,
     required EnqueueSyncItem enqueueSyncItem,
+    required GetCurrentSession getCurrentSession,
+    required PlusCodeGenerator plusCodeGenerator,
+    required ReverseGeocoder reverseGeocoder,
+    required StaticMapThumbnail staticMapThumbnail,
   })  : _localDataSource = localDataSource,
         _mockLocationDetector = mockLocationDetector,
         _rootDetector = rootDetector,
         _cameraController = cameraController,
-        _enqueueSyncItem = enqueueSyncItem;
+        _enqueueSyncItem = enqueueSyncItem,
+        _getCurrentSession = getCurrentSession,
+        _plusCodeGenerator = plusCodeGenerator,
+        _reverseGeocoder = reverseGeocoder,
+        _staticMapThumbnail = staticMapThumbnail;
 
   @override
   Future<Either<Failure, GeotagPhotoEntity>> captureAndSavePhoto({
@@ -63,17 +83,56 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
       // ditandai untuk direkonsiliasi dengan jam server saat sinkronisasi
       // (lihat catatan di fitur sync_queue).
       final localTimestamp = DateTime.now().toUtc();
+      final lat = locationResult.position.latitude;
+      final lng = locationResult.position.longitude;
+
+      final plusCode = _plusCodeGenerator.generate(latitude: lat, longitude: lng);
+
+      // Identitas petugas untuk watermark - dibaca dari sesi lokal
+      // tersimpan (bukan dari parameter widget), murni pembacaan lokal
+      // secure storage, tidak butuh jaringan (lihat GetCurrentSession).
+      final currentUser = await _getCurrentSession();
+
+      // Alamat & thumbnail peta BEST-EFFORT - keduanya butuh jaringan,
+      // dan proses capture TIDAK BOLEH gagal hanya karena keduanya
+      // tidak berhasil (prinsip offline-first aplikasi ini). Kegagalan
+      // di sini menghasilkan null, bukan melempar exception ke atas.
+      final address = await _tryReverseGeocode(lat, lng);
+      final mapImageBytes = await _tryFetchStaticMap(lat, lng);
+
+      final auditQrPayload = jsonEncode({
+        'app': 'tulap.id',
+        'taskId': taskId,
+        'lat': lat,
+        'lng': lng,
+        'plusCode': plusCode,
+        'capturedAtUtc': localTimestamp.toIso8601String(),
+      });
 
       final model = await _localDataSource.captureAndPersist(
         controller: _cameraController,
         taskId: taskId,
-        latitude: locationResult.position.latitude,
-        longitude: locationResult.position.longitude,
+        latitude: lat,
+        longitude: lng,
         gpsAccuracyMeters: locationResult.accuracyInMeters,
         serverTimestamp: localTimestamp,
         isMockLocationDetected: locationResult.isMockLocationDetected,
         isRootedDeviceDetected: isCompromised,
+        address: address,
         caption: caption,
+        watermarkData: WatermarkData(
+          officerName: currentUser?.fullName ?? 'Pengguna',
+          nip: currentUser?.nip,
+          agencyName: currentUser?.instansiName ?? 'Instansi tidak diketahui',
+          taskId: taskId,
+          timestamp: localTimestamp,
+          latitude: lat,
+          longitude: lng,
+          plusCode: plusCode,
+          address: address,
+          auditQrPayload: auditQrPayload,
+          staticMapImageBytes: mapImageBytes,
+        ),
       );
 
       // Segera daftarkan ke antrian outbox begitu foto tersimpan lokal -
@@ -90,6 +149,41 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
       return const Left(CameraFailure());
     } catch (_) {
       return const Left(LocalStorageFailure());
+    }
+  }
+
+  /// Reverse-geocode BEST-EFFORT - timeout pendek & menelan semua
+  /// exception (tidak ada koneksi, layanan geocoding gagal, dst) karena
+  /// capture bukti TIDAK BOLEH gagal hanya gara-gara ini.
+  Future<String?> _tryReverseGeocode(double lat, double lng) async {
+    try {
+      return await _reverseGeocoder
+          .reverseGeocode(latitude: lat, longitude: lng)
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Unduh thumbnail peta statis BEST-EFFORT - sama seperti reverse
+  /// geocode di atas, kegagalan jaringan tidak boleh menghentikan
+  /// capture (Tulap.id offline-first).
+  Future<Uint8List?> _tryFetchStaticMap(double lat, double lng) async {
+    try {
+      final url = _staticMapThumbnail.buildUrl(latitude: lat, longitude: lng);
+      final response = await Dio().get<List<int>>(
+        url,
+        options: Options(
+          responseType: ResponseType.bytes,
+          sendTimeout: const Duration(seconds: 5),
+          receiveTimeout: const Duration(seconds: 5),
+        ),
+      );
+      final data = response.data;
+      if (data == null) return null;
+      return Uint8List.fromList(data);
+    } catch (_) {
+      return null;
     }
   }
 

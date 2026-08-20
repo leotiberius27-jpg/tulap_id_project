@@ -72,6 +72,7 @@ export class AuthService {
       ...tokens,
       user: {
         id: user.id,
+        nip: user.nip,
         fullName: user.fullName,
         email: user.email,
         role: user.role.name,

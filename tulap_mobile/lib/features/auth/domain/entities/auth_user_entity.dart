@@ -10,6 +10,7 @@ class AuthUserEntity {
   final String email;
   final String role;
   final String? instansiName;
+  final String? nip;
 
   const AuthUserEntity({
     required this.id,
@@ -17,5 +18,6 @@ class AuthUserEntity {
     required this.email,
     required this.role,
     this.instansiName,
+    this.nip,
   });
 }

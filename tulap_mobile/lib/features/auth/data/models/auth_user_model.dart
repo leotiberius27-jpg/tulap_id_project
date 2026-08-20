@@ -7,6 +7,7 @@ class AuthUserModel extends AuthUserEntity {
     required super.email,
     required super.role,
     super.instansiName,
+    super.nip,
   });
 
   /// Parsing dari objek `user` pada response `POST /auth/login` backend
@@ -18,6 +19,7 @@ class AuthUserModel extends AuthUserEntity {
       email: json['email'] as String,
       role: json['role'] as String,
       instansiName: json['instansiName'] as String?,
+      nip: json['nip'] as String?,
     );
   }
 
@@ -29,6 +31,7 @@ class AuthUserModel extends AuthUserEntity {
       'email': email,
       'role': role,
       'instansiName': instansiName,
+      'nip': nip,
     };
   }
 
@@ -39,6 +42,7 @@ class AuthUserModel extends AuthUserEntity {
       email: map['email'] as String,
       role: map['role'] as String,
       instansiName: map['instansiName'] as String?,
+      nip: map['nip'] as String?,
     );
   }
 }

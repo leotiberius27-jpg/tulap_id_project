@@ -52,6 +52,10 @@ dependencies:
   flutter_secure_storage: ^9.2.2  # Simpan JWT access/refresh token dengan aman
   google_mlkit_text_recognition: ^0.13.1  # OCR on-device untuk scan nota
   get_it: ^8.0.2                # Service locator untuk dependency injection
+  open_location_code: ^1.0.1
+  geocoding: ^5.0.0
+  qr_flutter: ^4.1.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

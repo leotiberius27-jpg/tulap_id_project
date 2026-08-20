@@ -139,6 +139,38 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
           ),
         ),
 
+        // Label "Mengunci GPS..." - muncul HANYA saat lokasi sudah lolos
+        // pemeriksaan mock/root (locationStatus valid) tapi akurasi
+        // belum cukup presisi untuk bukti resmi (belum <=15m, lihat
+        // GeotagCameraViewState.gpsLockAccuracyMeters). Kalau lokasi
+        // belum valid sama sekali, GpsStatusIndicator di top bar sudah
+        // cukup menjelaskan - tidak perlu dua pesan tumpang tindih.
+        if (state.locationStatus == LocationIntegrityStatus.valid &&
+            !state.isGpsLocked)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 118,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.55),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  state.accuracyMeters != null
+                      ? 'Mengunci GPS... (akurasi ${state.accuracyMeters!.round()}m)'
+                      : 'Mengunci GPS...',
+                  style: AppTypography.small.copyWith(color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+
         // Bottom bar - capture button
         Positioned(
           left: 0,

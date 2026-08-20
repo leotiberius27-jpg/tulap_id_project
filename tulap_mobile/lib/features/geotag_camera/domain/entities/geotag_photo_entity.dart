@@ -16,6 +16,7 @@ class GeotagPhotoEntity {
   final double longitude;
   final String? address; // Hasil reverse-geocoding, bisa null jika gagal
   final double gpsAccuracyMeters;
+  final String plusCode; // Open Location Code - selalu tersedia (murni matematis, tidak butuh jaringan)
 
   final DateTime serverTimestamp; // Wajib dari server, bukan jam device
   final String integrityHash; // SHA-256 dari file foto mentah
@@ -32,6 +33,7 @@ class GeotagPhotoEntity {
     required this.latitude,
     required this.longitude,
     required this.gpsAccuracyMeters,
+    required this.plusCode,
     required this.serverTimestamp,
     required this.integrityHash,
     required this.isMockLocationDetected,

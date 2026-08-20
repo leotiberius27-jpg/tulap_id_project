@@ -15,6 +15,7 @@ class GeotagCameraViewState {
   final LocationIntegrityStatus locationStatus;
   final double? latitude;
   final double? longitude;
+  final double? accuracyMeters;
   final CaptureViewStatus captureStatus;
   final GeotagPhotoEntity? lastCapturedPhoto;
   final String? errorMessage;
@@ -23,22 +24,38 @@ class GeotagCameraViewState {
     this.locationStatus = LocationIntegrityStatus.checking,
     this.latitude,
     this.longitude,
+    this.accuracyMeters,
     this.captureStatus = CaptureViewStatus.idle,
     this.lastCapturedPhoto,
     this.errorMessage,
   });
 
-  /// Tombol capture HANYA aktif jika lokasi valid dan tidak sedang
-  /// memproses capture sebelumnya - mencegah mock location lolos dan
-  /// mencegah double-tap menghasilkan foto ganda.
+  /// Ambang akurasi "GPS terkunci" untuk mengaktifkan tombol jepret -
+  /// LEBIH KETAT dari ambang 50m di MockLocationDetector (yang menandai
+  /// lokasi valid/tidak-valid). Dua ambang ini sengaja terpisah: 50m
+  /// adalah batas "lokasi bisa dipercaya sama sekali", 15m adalah batas
+  /// "cukup presisi untuk bukti resmi" - fix asli GPS satelit biasanya
+  /// bisa mencapai ini dalam beberapa detik di luar ruangan, sedangkan
+  /// fix awal dari jaringan/WiFi jarang bisa.
+  static const double gpsLockAccuracyMeters = 15.0;
+
+  bool get isGpsLocked =>
+      accuracyMeters != null && accuracyMeters! <= gpsLockAccuracyMeters;
+
+  /// Tombol capture HANYA aktif jika lokasi valid (lolos pemeriksaan
+  /// mock-location & root di ValidateLocationIntegrity - TIDAK diubah
+  /// oleh penambahan ini), akurasi sudah cukup presisi ("terkunci"),
+  /// dan tidak sedang memproses capture sebelumnya.
   bool get isCaptureEnabled =>
       locationStatus == LocationIntegrityStatus.valid &&
+      isGpsLocked &&
       captureStatus != CaptureViewStatus.capturing;
 
   GeotagCameraViewState copyWith({
     LocationIntegrityStatus? locationStatus,
     double? latitude,
     double? longitude,
+    double? accuracyMeters,
     CaptureViewStatus? captureStatus,
     GeotagPhotoEntity? lastCapturedPhoto,
     String? errorMessage,
@@ -47,6 +64,7 @@ class GeotagCameraViewState {
       locationStatus: locationStatus ?? this.locationStatus,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      accuracyMeters: accuracyMeters ?? this.accuracyMeters,
       captureStatus: captureStatus ?? this.captureStatus,
       lastCapturedPhoto: lastCapturedPhoto ?? this.lastCapturedPhoto,
       errorMessage: errorMessage,
@@ -117,6 +135,7 @@ class GeotagCameraController extends ChangeNotifier {
           locationStatus: checkResult.status,
           latitude: checkResult.latitude,
           longitude: checkResult.longitude,
+          accuracyMeters: checkResult.accuracyMeters,
           errorMessage: null,
         ),
       ),
