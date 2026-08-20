@@ -22,11 +22,15 @@ class TaskListState {
 
 /// TaskListController
 /// ----------------------------------------------------------------------
-/// Data untuk tab "Tugas" - menampilkan SEMUA tugas aktif pegawai (bukan
+/// Data untuk tab "Tugas" - menampilkan SEMUA tugas AKTIF pegawai (bukan
 /// hanya satu prioritas tertinggi seperti Kartu Tugas Aktif di Beranda),
 /// sesuai Bagian 21/23 master prompt: "Task List... jika domain/API bisa
-/// menyediakan banyak tugas". `GetActiveTasks` sudah mengembalikan daftar
-/// penuh - tab ini menampilkannya apa adanya tanpa filter prioritas.
+/// menyediakan banyak tugas". `GetActiveTasks` sebenarnya mengembalikan
+/// SELURUH tugas pegawai tanpa filter status (nama usecase agak
+/// menyesatkan) - filter `!isFinal` di sini yang membuat tab ini benar-
+/// benar hanya berisi tugas yang masih butuh tindakan; tugas yang sudah
+/// tuntas (verified/rejected/completed) ditampilkan di tab "Riwayat"
+/// (lihat HistoryController) alih-alih bercampur di sini.
 /// ----------------------------------------------------------------------
 class TaskListController extends ChangeNotifier {
   final GetActiveTasks _getActiveTasks;
@@ -63,7 +67,7 @@ class TaskListController extends ChangeNotifier {
       (tasks) => _update(TaskListState(
         status: TaskListStatus.loaded,
         user: user,
-        tasks: tasks,
+        tasks: tasks.where((t) => !t.status.isFinal).toList(),
       )),
     );
   }

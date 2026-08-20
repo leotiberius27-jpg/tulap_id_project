@@ -12,6 +12,17 @@ enum TaskStatusEntity {
   completed,
 }
 
+/// Status akhir yang tidak lagi butuh tindakan pegawai - dipakai untuk
+/// memisahkan tab "Tugas" (aktif/butuh tindakan) dari "Riwayat" (sudah
+/// tuntas), lihat TaskListController & HistoryController. Satu sumber
+/// kebenaran agar definisi "selesai" tidak drift antara kedua tab.
+extension TaskStatusEntityX on TaskStatusEntity {
+  bool get isFinal =>
+      this == TaskStatusEntity.verified ||
+      this == TaskStatusEntity.rejected ||
+      this == TaskStatusEntity.completed;
+}
+
 class ChecklistItemEntity {
   final String id;
   final String taskId;

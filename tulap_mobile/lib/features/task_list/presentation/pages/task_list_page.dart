@@ -3,9 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_state_views.dart';
-import '../../../auth/domain/usecases/get_current_session.dart';
 import '../../../task_detail/domain/entities/task_entity.dart';
-import '../../../task_detail/domain/usecases/get_active_tasks.dart';
 import '../../../task_detail/domain/usecases/get_task_detail.dart';
 import '../../../task_detail/domain/usecases/start_task.dart';
 import '../../../task_detail/domain/usecases/submit_task_for_verification.dart';
@@ -21,20 +19,17 @@ import '../controllers/task_list_controller.dart';
 /// pegawai (Bagian 21/23 master prompt), bukan hanya satu yang disorot
 /// di Beranda. Setiap kartu membuka Detail Tugas yang sama persis
 /// dengan yang dipakai dari Beranda.
+///
+/// Tidak lagi membuat `TaskListController` sendiri - controller-nya
+/// dibuat & dipegang oleh `MainShell` (di luar `IndexedStack`) supaya
+/// bisa dipanggil `.load()` ulang saat tab ini dipilih, lihat catatan
+/// di MainShell soal kenapa itu perlu.
 /// ----------------------------------------------------------------------
 class TaskListPage extends StatelessWidget {
   const TaskListPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider<TaskListController>(
-      create: (_) => TaskListController(
-        getActiveTasks: sl<GetActiveTasks>(),
-        getCurrentSession: sl<GetCurrentSession>(),
-      ),
-      child: const _TaskListView(),
-    );
-  }
+  Widget build(BuildContext context) => const _TaskListView();
 }
 
 class _TaskListView extends StatelessWidget {
@@ -68,10 +63,24 @@ class _TaskListView extends StatelessWidget {
             }
 
             if (state.tasks.isEmpty) {
-              return const AppEmptyState(
-                icon: Icons.assignment_outlined,
-                title: 'Belum ada tugas aktif',
-                message: 'Tugas baru dari instansi akan muncul di sini.',
+              // Dibungkus RefreshIndicator + ListView (bukan langsung
+              // AppEmptyState) supaya tetap bisa ditarik-refresh saat
+              // kosong - status tugas bisa berubah dari perangkat lain
+              // (verifikasi lewat web dashboard) tanpa ada notifikasi
+              // apa pun ke tab ini, lihat catatan refresh di MainShell.
+              return RefreshIndicator(
+                onRefresh: controller.load,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(height: 120),
+                    AppEmptyState(
+                      icon: Icons.assignment_outlined,
+                      title: 'Belum ada tugas aktif',
+                      message: 'Tugas baru dari instansi akan muncul di sini.',
+                    ),
+                  ],
+                ),
               );
             }
 

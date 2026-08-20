@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/account/presentation/pages/account_page.dart';
 import '../../features/auth/domain/entities/auth_user_entity.dart';
 import '../../features/auth/domain/usecases/get_current_session.dart';
 import '../../features/geotag_camera/presentation/pages/geotag_camera_entry_page.dart';
+import '../../features/history/presentation/controllers/history_controller.dart';
 import '../../features/history/presentation/pages/history_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/task_detail/domain/usecases/get_active_tasks.dart';
 import '../../features/task_detail/domain/usecases/pick_active_task.dart';
+import '../../features/task_list/presentation/controllers/task_list_controller.dart';
 import '../../features/task_list/presentation/pages/task_list_page.dart';
 import '../di/injection_container.dart';
 
@@ -23,6 +27,18 @@ import '../di/injection_container.dart';
 /// aktif Beranda - keduanya memakai `PickActiveTask` yang sama (lihat
 /// domain usecase itu) agar aturan prioritas tugas satu sumber
 /// kebenaran.
+///
+/// `TaskListController`/`HistoryController` sengaja dibuat & dipegang
+/// DI SINI (bukan di dalam TaskListPage/HistoryPage sendiri seperti
+/// sebelumnya) - karena `IndexedStack` memuat setiap tab hanya SEKALI
+/// seumur hidup widget-nya, `load()` bawaan constructor cuma jalan
+/// sekali di awal. Tanpa ini, tab Tugas/Riwayat tidak akan pernah
+/// menunjukkan perubahan status yang terjadi dari sisi lain (mis.
+/// Verifikator approve lewat web dashboard) sampai app di-restart -
+/// ditemukan nyata saat uji coba live, bukan cuma dugaan. Fix-nya:
+/// panggil ulang `.load()` tiap kali tab itu DIPILIH (bukan tiap
+/// rebuild - itu akan sia-sia mem-flash spinner tiap switch tab yang
+/// sama berulang).
 /// ----------------------------------------------------------------------
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -36,17 +52,41 @@ class _MainShellState extends State<MainShell> {
   AuthUserEntity? _user;
   bool _isResolvingTask = false;
 
-  static const _pages = [
-    HomePage(),
-    TaskListPage(),
-    HistoryPage(),
-    AccountPage(),
-  ];
+  late final TaskListController _taskListController;
+  late final HistoryController _historyController;
+  late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
+    _taskListController = TaskListController(
+      getActiveTasks: sl<GetActiveTasks>(),
+      getCurrentSession: sl<GetCurrentSession>(),
+    );
+    _historyController = HistoryController(
+      getActiveTasks: sl<GetActiveTasks>(),
+      getCurrentSession: sl<GetCurrentSession>(),
+    );
+    _pages = [
+      const HomePage(),
+      ChangeNotifierProvider<TaskListController>.value(
+        value: _taskListController,
+        child: const TaskListPage(),
+      ),
+      ChangeNotifierProvider<HistoryController>.value(
+        value: _historyController,
+        child: const HistoryPage(),
+      ),
+      const AccountPage(),
+    ];
     _loadUser();
+  }
+
+  @override
+  void dispose() {
+    _taskListController.dispose();
+    _historyController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUser() async {
@@ -103,7 +143,11 @@ class _MainShellState extends State<MainShell> {
         currentIndex: _index,
         onTap: (i) {
           HapticFeedback.selectionClick();
+          final isSwitchingTab = i != _index;
           setState(() => _index = i);
+          if (!isSwitchingTab) return;
+          if (i == 1) _taskListController.load();
+          if (i == 2) _historyController.load();
         },
       ),
     );
