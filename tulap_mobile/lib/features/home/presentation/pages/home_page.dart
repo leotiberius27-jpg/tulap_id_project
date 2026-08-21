@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_state_views.dart';
 import '../../../auth/domain/usecases/get_current_session.dart';
 import '../../../expense_ocr/presentation/pages/receipt_scanner_entry_page.dart';
+import '../../../geotag_camera/domain/usecases/get_task_photo_previews.dart';
 import '../../../geotag_camera/presentation/pages/geotag_camera_entry_page.dart';
 import '../../../location/presentation/pages/location_page.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
@@ -21,9 +22,12 @@ import '../../../task_detail/domain/usecases/submit_task_for_verification.dart';
 import '../../../task_detail/domain/usecases/toggle_checklist_item.dart';
 import '../../../task_detail/presentation/controllers/task_detail_controller.dart';
 import '../../../task_detail/presentation/pages/task_detail_page.dart';
+import '../../domain/home_category.dart';
 import '../controllers/home_controller.dart';
-import '../widgets/active_task_card.dart';
-import '../widgets/home_header.dart';
+import '../widgets/activity_carousel_card.dart';
+import '../widgets/category_pill_bar.dart';
+import '../widgets/hero_home_header.dart';
+import '../widgets/my_activity_tile.dart';
 import '../widgets/quick_action_grid.dart';
 import '../widgets/sync_status_banner.dart';
 
@@ -84,15 +88,19 @@ class _HomeView extends StatelessWidget {
               final agencyName =
                   state.user?.instansiName ?? 'Instansi tidak diketahui';
               final activeTask = state.activeTask;
+              final urgentTasks = state.urgentTasks;
+              final myTasks = state.filteredTasks;
 
               return RefreshIndicator(
                 onRefresh: controller.loadHome,
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: [
-                    HomeHeader(
+                    HeroHomeHeader(
                       fullName: officerName,
                       agencyName: agencyName,
+                      pendingSyncCount: state.pendingSyncCount,
+                      isOffline: state.isOffline,
                       onNotificationTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => NotificationsPage(
@@ -102,6 +110,55 @@ class _HomeView extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.base),
+                    CategoryPillBar(
+                      selected: state.selectedCategory,
+                      onChanged: controller.setCategory,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.base,
+                      ),
+                      child: Text(
+                        'Aktivitas Berjalan',
+                        style: AppTypography.sectionLabel.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(
+                      height: 216,
+                      child: urgentTasks.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.base,
+                              ),
+                              child: _buildEmptyTaskState(),
+                            )
+                          : ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.base,
+                              ),
+                              itemCount: urgentTasks.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(width: AppSpacing.sm),
+                              itemBuilder: (context, index) {
+                                final task = urgentTasks[index];
+                                return ActivityCarouselCard(
+                                  task: task,
+                                  onTap: () => _openTaskDetail(
+                                    context,
+                                    taskId: task.id,
+                                    officerName: officerName,
+                                    agencyName: agencyName,
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.base,
@@ -109,25 +166,6 @@ class _HomeView extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: AppSpacing.lg),
-                          Text(
-                            'Tugas Aktif',
-                            style: AppTypography.sectionLabel.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          activeTask != null
-                              ? ActiveTaskCard(
-                                  task: activeTask,
-                                  onContinue: () => _openTaskDetail(
-                                    context,
-                                    taskId: activeTask.id,
-                                    officerName: officerName,
-                                    agencyName: agencyName,
-                                  ),
-                                )
-                              : _buildEmptyTaskState(),
                           const SizedBox(height: AppSpacing.lg),
                           Text(
                             'Aksi Cepat',
@@ -170,6 +208,50 @@ class _HomeView extends StatelessWidget {
                                 _showNotAvailable(context, 'Lihat LPJ'),
                           ),
                           const SizedBox(height: AppSpacing.lg),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Kegiatan Saya',
+                                style: AppTypography.sectionLabel.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                '${myTasks.length} tugas',
+                                style: AppTypography.small,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          if (myTasks.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: AppSpacing.lg,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  state.selectedCategory == HomeCategory.semua
+                                      ? 'Belum ada kegiatan.'
+                                      : 'Tidak ada kegiatan pada kategori ini.',
+                                  style: AppTypography.bodySecondary,
+                                ),
+                              ),
+                            )
+                          else
+                            for (final task in myTasks) ...[
+                              MyActivityTile(
+                                task: task,
+                                onTap: () => _openTaskDetail(
+                                  context,
+                                  taskId: task.id,
+                                  officerName: officerName,
+                                  agencyName: agencyName,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                            ],
+                          const SizedBox(height: AppSpacing.sm),
                           Text(
                             'Status Data',
                             style: AppTypography.sectionLabel.copyWith(
@@ -252,6 +334,7 @@ class _HomeView extends StatelessWidget {
             toggleChecklistItem: sl<ToggleChecklistItem>(),
             startTask: sl<StartTask>(),
             submitForVerification: sl<SubmitTaskForVerification>(),
+            getTaskPhotoPreviews: sl<GetTaskPhotoPreviews>(),
             taskId: taskId,
           ),
           child: TaskDetailPage(

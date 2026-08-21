@@ -1,21 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_state_views.dart';
 import '../../../expense_ocr/domain/entities/expense_note_entity.dart';
 import '../../../expense_ocr/presentation/pages/receipt_scanner_entry_page.dart';
 import '../../../geotag_camera/presentation/pages/geotag_camera_entry_page.dart';
+import '../../../location/presentation/pages/location_page.dart';
 import '../../domain/entities/task_entity.dart';
 import '../controllers/task_detail_controller.dart';
+import '../widgets/add_evidence_sheet.dart';
 import '../widgets/checklist_item_tile.dart';
-import '../widgets/task_status_banner.dart';
+import '../widgets/task_gallery_hero.dart';
+import '../widgets/task_status_timeline.dart';
 
 /// TaskDetailPage
 /// ----------------------------------------------------------------------
 /// Layar Detail Tugas sesuai Bagian 11.2 spesifikasi - pusat kendali
-/// satu tugas: instruksi, checklist, bukti, status. Halaman inilah
-/// yang menyatukan seluruh fitur yang sudah dibangun sebelumnya:
-/// GeotagCameraEntryPage, ReceiptScannerEntryPage, dan checklist lokal.
+/// satu tugas: instruksi, checklist, bukti, status. Redesain mengadopsi
+/// pola komposisi "galeri hero + identitas + progres + aksi + sticky
+/// CTA" ala aplikasi referensi, dengan konten & data 100% Tulap.id -
+/// tidak ada field yang dipaksakan (mis. tim/peta sungguhan) yang belum
+/// benar-benar didukung backend.
 /// ----------------------------------------------------------------------
 class TaskDetailPage extends StatelessWidget {
   final String officerName;
@@ -31,11 +37,7 @@ class TaskDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Detail Tugas'),
-        backgroundColor: AppColors.background,
-        surfaceTintColor: Colors.transparent,
-      ),
+      extendBodyBehindAppBar: true,
       body: Consumer<TaskDetailController>(
         builder: (context, controller, _) {
           final state = controller.state;
@@ -53,16 +55,88 @@ class TaskDetailPage extends StatelessWidget {
           return RefreshIndicator(
             onRefresh: controller.loadTask,
             child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.base),
+              padding: EdgeInsets.zero,
               children: [
-                _buildHeader(task),
-                const SizedBox(height: AppSpacing.lg),
-                _buildChecklistSection(context, controller, task),
-                const SizedBox(height: AppSpacing.lg),
-                _buildEvidenceSection(context, controller, task),
-                const SizedBox(height: AppSpacing.xl),
-                _buildPrimaryCta(context, controller, state, task),
+                TaskGalleryHero(
+                  photos: state.photos,
+                  task: task,
+                  onBack: () => Navigator.of(context).pop(),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.base),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildIdentityCard(task),
+                      const SizedBox(height: AppSpacing.lg),
+                      _buildChecklistSection(context, controller, task),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(
+                        'BUKTI KEGIATAN',
+                        style: AppTypography.sectionLabel,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      _buildEvidenceSection(context, controller, task),
+                      const SizedBox(height: AppSpacing.lg),
+                      _buildLocationCard(context, task),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text('PROGRES TUGAS', style: AppTypography.sectionLabel),
+                      const SizedBox(height: AppSpacing.sm),
+                      _buildTimelineCard(task),
+                      // Ruang kosong ekstra di bawah supaya konten
+                      // terakhir tidak ketiban sticky CTA (lihat
+                      // bottomNavigationBar) atau FAB "Tambah Bukti".
+                      const SizedBox(height: AppSpacing.huge),
+                    ],
+                  ),
+                ),
               ],
+            ),
+          );
+        },
+      ),
+      floatingActionButton: Consumer<TaskDetailController>(
+        builder: (context, controller, _) {
+          final task = controller.state.task;
+          if (task == null || task.status.isFinal) {
+            return const SizedBox.shrink();
+          }
+          return FloatingActionButton.extended(
+            onPressed: () => _openAddEvidenceSheet(context, controller, task),
+            backgroundColor: AppColors.action,
+            icon: const Icon(Icons.add_a_photo_outlined, size: 20),
+            label: const Text('Tambah Bukti'),
+          );
+        },
+      ),
+      bottomNavigationBar: Consumer<TaskDetailController>(
+        builder: (context, controller, _) {
+          final state = controller.state;
+          final task = state.task;
+          if (task == null) return const SizedBox.shrink();
+
+          final cta = _buildPrimaryCta(context, controller, state, task);
+          if (cta is SizedBox) return const SizedBox.shrink();
+
+          return SafeArea(
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.base,
+                AppSpacing.sm,
+                AppSpacing.base,
+                AppSpacing.sm,
+              ),
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.shadowSoft,
+                    blurRadius: 20,
+                    offset: Offset(0, -6),
+                  ),
+                ],
+              ),
+              child: cta,
             ),
           );
         },
@@ -70,7 +144,52 @@ class TaskDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(TaskEntity task) {
+  Future<void> _openAddEvidenceSheet(
+    BuildContext context,
+    TaskDetailController controller,
+    TaskEntity task,
+  ) async {
+    final choice = await showAddEvidenceSheet(context);
+    if (choice == null || !context.mounted) return;
+
+    if (choice == 'foto') {
+      final photo = await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => GeotagCameraEntryPage(
+            officerName: officerName,
+            agencyName: agencyName,
+            taskId: task.id,
+          ),
+        ),
+      );
+      if (photo == null || !context.mounted) return;
+      await controller.loadTask();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto berhasil disimpan.')),
+      );
+    } else if (choice == 'nota') {
+      final note = await Navigator.of(context).push<ExpenseNoteEntity>(
+        MaterialPageRoute(
+          builder: (_) => ReceiptScannerEntryPage(taskId: task.id),
+        ),
+      );
+      if (note == null || !context.mounted) return;
+      await controller.loadTask();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            note.isPossibleDuplicate
+                ? 'Nota tersimpan - nota ini tampaknya sudah pernah digunakan sebelumnya.'
+                : 'Nota berhasil disimpan.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildIdentityCard(TaskEntity task) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
@@ -87,15 +206,7 @@ class TaskDetailPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(task.taskName, style: AppTypography.pageTitle),
-              ),
-              TaskStatusBanner(status: task.status),
-            ],
-          ),
+          Text(task.taskName, style: AppTypography.pageTitle.copyWith(fontSize: 21)),
           const SizedBox(height: 4),
           Text('#${task.taskCode}', style: AppTypography.small),
           const SizedBox(height: AppSpacing.md),
@@ -106,12 +217,97 @@ class TaskDetailPage extends StatelessWidget {
             text:
                 '${_formatDate(task.startDate)} - ${_formatDate(task.endDate)}',
           ),
+          const SizedBox(height: AppSpacing.sm),
+          _InfoRow(icon: Icons.person_outline, text: task.assigneeName),
           if (task.description != null && task.description!.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.md),
+            const Divider(height: AppSpacing.lg, color: AppColors.border),
+            Text('Deskripsi Tugas', style: AppTypography.sectionLabel),
+            const SizedBox(height: 6),
             Text(task.description!, style: AppTypography.bodySecondary),
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildLocationCard(BuildContext context, TaskEntity task) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => LocationPage(taskDestination: task.destination),
+          ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.base),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadowSoft,
+                blurRadius: 16,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const CircleAvatar(
+                radius: 20,
+                backgroundColor: AppColors.iconSoftTeal,
+                child: Icon(
+                  Icons.location_on_outlined,
+                  color: AppColors.action,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Lokasi Tugas', style: AppTypography.sectionLabel),
+                    const SizedBox(height: 2),
+                    Text(
+                      task.destination,
+                      style: AppTypography.body.copyWith(fontSize: 14),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimelineCard(TaskEntity task) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.base),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadowSoft,
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: TaskStatusTimeline(task: task),
     );
   }
 
@@ -152,11 +348,16 @@ class TaskDetailPage extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: task.checklistProgress,
-              backgroundColor: AppColors.background,
-              color: AppColors.success,
-              minHeight: 6,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: task.checklistProgress),
+              duration: AppMotion.card,
+              curve: AppMotion.standard,
+              builder: (context, value, _) => LinearProgressIndicator(
+                value: value,
+                backgroundColor: AppColors.background,
+                color: AppColors.success,
+                minHeight: 6,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -248,6 +449,7 @@ class TaskDetailPage extends StatelessWidget {
         onPressed: state.status == TaskDetailStatus.submitting
             ? null
             : () async {
+                HapticFeedback.mediumImpact();
                 final success = await controller.startTask();
                 if (context.mounted && !success) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -288,6 +490,7 @@ class TaskDetailPage extends StatelessWidget {
       if (!task.isReadyToSubmit) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
             if (revisionBanner != null) ...[
               revisionBanner,
@@ -311,6 +514,7 @@ class TaskDetailPage extends StatelessWidget {
         onPressed: state.status == TaskDetailStatus.submitting
             ? null
             : () async {
+                HapticFeedback.mediumImpact();
                 final success = await controller.submitForVerification();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -341,6 +545,7 @@ class TaskDetailPage extends StatelessWidget {
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
           revisionBanner,
           const SizedBox(height: AppSpacing.sm),

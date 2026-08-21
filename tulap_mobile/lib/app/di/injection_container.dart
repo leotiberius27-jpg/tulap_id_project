@@ -42,6 +42,7 @@ import '../../features/geotag_camera/data/datasources/geotag_camera_local_dataso
 import '../../features/geotag_camera/data/repositories/geotag_camera_repository_impl.dart';
 import '../../features/geotag_camera/domain/repositories/geotag_camera_repository.dart';
 import '../../features/geotag_camera/domain/usecases/capture_geotagged_photo.dart';
+import '../../features/geotag_camera/domain/usecases/get_task_photo_previews.dart';
 import '../../features/geotag_camera/domain/usecases/validate_location_integrity.dart';
 
 import '../../features/sync_queue/data/datasources/sync_local_datasource.dart';
@@ -206,6 +207,9 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<GetActiveTasks>(() => GetActiveTasks(sl()));
   sl.registerLazySingleton<PickActiveTask>(() => PickActiveTask(sl()));
+  sl.registerLazySingleton<GetTaskPhotoPreviews>(
+    () => GetTaskPhotoPreviews(sl()),
+  );
 
   // ============================================================
   // NOTIFICATIONS - murni baca dari server, tidak ada dependency

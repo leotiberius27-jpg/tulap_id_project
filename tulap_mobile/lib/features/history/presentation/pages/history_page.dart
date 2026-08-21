@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_state_views.dart';
+import '../../../geotag_camera/domain/usecases/get_task_photo_previews.dart';
 import '../../../task_detail/domain/entities/task_entity.dart';
 import '../../../task_detail/domain/usecases/get_task_detail.dart';
 import '../../../task_detail/domain/usecases/start_task.dart';
@@ -129,6 +130,7 @@ class _HistoryView extends StatelessWidget {
             toggleChecklistItem: sl<ToggleChecklistItem>(),
             startTask: sl<StartTask>(),
             submitForVerification: sl<SubmitTaskForVerification>(),
+            getTaskPhotoPreviews: sl<GetTaskPhotoPreviews>(),
             taskId: taskId,
           ),
           child: TaskDetailPage(

@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import '../../../geotag_camera/domain/entities/geotag_photo_entity.dart';
+import '../../../geotag_camera/domain/usecases/get_task_photo_previews.dart';
 import '../../domain/entities/task_entity.dart';
 import '../../domain/usecases/get_task_detail.dart';
 import '../../domain/usecases/start_task.dart';
@@ -10,12 +12,14 @@ enum TaskDetailStatus { loading, loaded, submitting, error }
 class TaskDetailState {
   final TaskDetailStatus status;
   final TaskEntity? task;
+  final List<GeotagPhotoEntity> photos;
   final String? errorMessage;
   final List<String>? incompleteItemLabels;
 
   const TaskDetailState({
     this.status = TaskDetailStatus.loading,
     this.task,
+    this.photos = const [],
     this.errorMessage,
     this.incompleteItemLabels,
   });
@@ -23,12 +27,14 @@ class TaskDetailState {
   TaskDetailState copyWith({
     TaskDetailStatus? status,
     TaskEntity? task,
+    List<GeotagPhotoEntity>? photos,
     String? errorMessage,
     List<String>? incompleteItemLabels,
   }) {
     return TaskDetailState(
       status: status ?? this.status,
       task: task ?? this.task,
+      photos: photos ?? this.photos,
       errorMessage: errorMessage,
       incompleteItemLabels: incompleteItemLabels,
     );
@@ -46,6 +52,7 @@ class TaskDetailController extends ChangeNotifier {
   final ToggleChecklistItem _toggleChecklistItem;
   final StartTask _startTask;
   final SubmitTaskForVerification _submitForVerification;
+  final GetTaskPhotoPreviews _getTaskPhotoPreviews;
   final String taskId;
 
   TaskDetailState _state = const TaskDetailState();
@@ -56,11 +63,13 @@ class TaskDetailController extends ChangeNotifier {
     required ToggleChecklistItem toggleChecklistItem,
     required StartTask startTask,
     required SubmitTaskForVerification submitForVerification,
+    required GetTaskPhotoPreviews getTaskPhotoPreviews,
     required this.taskId,
   }) : _getTaskDetail = getTaskDetail,
        _toggleChecklistItem = toggleChecklistItem,
        _startTask = startTask,
-       _submitForVerification = submitForVerification {
+       _submitForVerification = submitForVerification,
+       _getTaskPhotoPreviews = getTaskPhotoPreviews {
     loadTask();
   }
 
@@ -73,6 +82,12 @@ class TaskDetailController extends ChangeNotifier {
     _update(_state.copyWith(status: TaskDetailStatus.loading));
 
     final result = await _getTaskDetail(taskId);
+    final photosResult = await _getTaskPhotoPreviews(taskId);
+    final photos = photosResult.fold(
+      (_) => const <GeotagPhotoEntity>[],
+      (photos) => photos,
+    );
+
     result.fold(
       (failure) => _update(
         TaskDetailState(
@@ -80,8 +95,13 @@ class TaskDetailController extends ChangeNotifier {
           errorMessage: failure.message,
         ),
       ),
-      (task) =>
-          _update(TaskDetailState(status: TaskDetailStatus.loaded, task: task)),
+      (task) => _update(
+        TaskDetailState(
+          status: TaskDetailStatus.loaded,
+          task: task,
+          photos: photos,
+        ),
+      ),
     );
   }
 
@@ -155,7 +175,9 @@ class TaskDetailController extends ChangeNotifier {
         return false;
       },
       (updatedTask) {
-        _update(TaskDetailState(status: TaskDetailStatus.loaded, task: updatedTask));
+        _update(
+          _state.copyWith(status: TaskDetailStatus.loaded, task: updatedTask),
+        );
         return true;
       },
     );
@@ -178,7 +200,7 @@ class TaskDetailController extends ChangeNotifier {
               .toList();
         }
         _update(
-          TaskDetailState(
+          _state.copyWith(
             status: TaskDetailStatus.loaded,
             task: currentTask,
             errorMessage: failure.message,
@@ -189,7 +211,7 @@ class TaskDetailController extends ChangeNotifier {
       },
       (updatedTask) {
         _update(
-          TaskDetailState(status: TaskDetailStatus.loaded, task: updatedTask),
+          _state.copyWith(status: TaskDetailStatus.loaded, task: updatedTask),
         );
         return true;
       },

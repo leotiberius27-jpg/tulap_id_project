@@ -8,6 +8,7 @@ import '../../../sync_queue/domain/repositories/sync_queue_repository.dart';
 import '../../../task_detail/domain/entities/task_entity.dart';
 import '../../../task_detail/domain/usecases/get_active_tasks.dart';
 import '../../../task_detail/domain/usecases/get_task_detail.dart';
+import '../../domain/home_category.dart';
 
 enum HomeStatus { loading, loaded, error }
 
@@ -15,6 +16,13 @@ class HomeState {
   final HomeStatus status;
   final AuthUserEntity? user;
   final TaskEntity? activeTask;
+
+  /// SEMUA tugas belum final (draft/ongoing/revisionNeeded/pendingVerification)
+  /// milik pegawai - sumber data untuk carousel "Aktivitas Berjalan" dan
+  /// daftar "Kegiatan Saya", supaya Beranda tidak lagi hanya menyorot SATU
+  /// tugas seperti sebelumnya.
+  final List<TaskEntity> allActiveTasks;
+  final HomeCategory selectedCategory;
   final bool isOffline;
   final int pendingSyncCount;
   final bool allSynced;
@@ -25,6 +33,8 @@ class HomeState {
     this.status = HomeStatus.loading,
     this.user,
     this.activeTask,
+    this.allActiveTasks = const [],
+    this.selectedCategory = HomeCategory.semua,
     this.isOffline = false,
     this.pendingSyncCount = 0,
     this.allSynced = false,
@@ -32,10 +42,35 @@ class HomeState {
     this.errorMessage,
   });
 
+  /// Tugas yang sedang berjalan atau butuh perbaikan segera - ditampilkan
+  /// di carousel "Aktivitas Berjalan" (prioritas tertinggi, lihat juga
+  /// `_pickActiveTask`), sudah difilter kategori pill yang aktif.
+  List<TaskEntity> get urgentTasks => allActiveTasks
+      .where(
+        (t) =>
+            (t.status == TaskStatusEntity.ongoing ||
+                t.status == TaskStatusEntity.revisionNeeded) &&
+            _matchesCategory(t),
+      )
+      .toList()
+    ..sort((a, b) => a.startDate.compareTo(b.startDate));
+
+  /// SEMUA tugas belum final, sudah difilter kategori pill yang aktif -
+  /// dipakai daftar vertikal "Kegiatan Saya".
+  List<TaskEntity> get filteredTasks =>
+      allActiveTasks.where(_matchesCategory).toList()
+        ..sort((a, b) => a.startDate.compareTo(b.startDate));
+
+  bool _matchesCategory(TaskEntity task) =>
+      selectedCategory == HomeCategory.semua ||
+      categorizeTask(task) == selectedCategory;
+
   HomeState copyWith({
     HomeStatus? status,
     AuthUserEntity? user,
     TaskEntity? activeTask,
+    List<TaskEntity>? allActiveTasks,
+    HomeCategory? selectedCategory,
     bool? isOffline,
     int? pendingSyncCount,
     bool? allSynced,
@@ -46,6 +81,8 @@ class HomeState {
       status: status ?? this.status,
       user: user ?? this.user,
       activeTask: activeTask ?? this.activeTask,
+      allActiveTasks: allActiveTasks ?? this.allActiveTasks,
+      selectedCategory: selectedCategory ?? this.selectedCategory,
       isOffline: isOffline ?? this.isOffline,
       pendingSyncCount: pendingSyncCount ?? this.pendingSyncCount,
       allSynced: allSynced ?? this.allSynced,
@@ -145,6 +182,7 @@ class HomeController extends ChangeNotifier {
     final isOnline = await _networkInfo.isConnected;
 
     TaskEntity? activeTask;
+    List<TaskEntity> allActiveTasks = const [];
     final tasksResult = await _getActiveTasks();
     await tasksResult.fold(
       (_) async {
@@ -155,6 +193,7 @@ class HomeController extends ChangeNotifier {
         activeTask = null;
       },
       (tasks) async {
+        allActiveTasks = tasks;
         final candidate = _pickActiveTask(tasks);
         if (candidate == null) return;
 
@@ -175,10 +214,18 @@ class HomeController extends ChangeNotifier {
       status: HomeStatus.loaded,
       user: user,
       activeTask: activeTask,
+      allActiveTasks: allActiveTasks,
+      selectedCategory: _state.selectedCategory,
       isOffline: !isOnline,
       pendingSyncCount: pendingCount,
       allSynced: records.isNotEmpty && pendingCount == 0,
     ));
+  }
+
+  /// Ganti pill kategori aktif di Beranda - murni filter lokal terhadap
+  /// data yang sudah dimuat, TIDAK memicu fetch ulang ke server/cache.
+  void setCategory(HomeCategory category) {
+    _update(_state.copyWith(selectedCategory: category));
   }
 
   /// Memilih SATU tugas untuk ditampilkan di ActiveTaskCard, diprioritaskan
