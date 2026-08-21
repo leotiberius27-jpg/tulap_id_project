@@ -61,7 +61,13 @@ class _ReceiptScannerEntryPageState extends State<ReceiptScannerEntryPage> {
 
       final controller = CameraController(
         backCamera,
-        ResolutionPreset.high,
+        // .medium, bukan .high - lihat catatan detail di
+        // geotag_camera_entry_page.dart (bug preview pecah di chipset
+        // kelas bawah karena camera_android_camerax membuka 3 stream
+        // sekaligus). Sama-sama berlaku di sini karena OCR juga hanya
+        // butuh gambar cukup jelas untuk dibaca teks, bukan resolusi
+        // maksimal.
+        ResolutionPreset.medium,
         enableAudio: false, // Bukti nota tidak butuh audio
       );
 

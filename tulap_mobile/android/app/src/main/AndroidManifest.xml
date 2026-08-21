@@ -28,6 +28,20 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- Impeller (renderer default Flutter sejak versi terbaru) punya
+                 bug kompatibilitas yang sudah dikenal luas dengan preview
+                 kamera (camera_android_camerax) di sejumlah GPU/driver Android
+                 tertentu - preview live tampil hitam/terpotong jadi
+                 sepotong kecil di atas, PADAHAL foto yang benar-benar
+                 diambil tetap tersimpan dengan benar (capture jalur lain,
+                 tidak lewat pipeline render preview). Dikonfirmasi persis
+                 kasus ini di perangkat fisik Realme RMX3834. Skia (renderer
+                 lama) tidak punya masalah ini - dimatikan di sini per
+                 rekomendasi resmi Flutter untuk app yang pakai kamera berat. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.EnableImpeller"
+              android:value="false"
+              />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

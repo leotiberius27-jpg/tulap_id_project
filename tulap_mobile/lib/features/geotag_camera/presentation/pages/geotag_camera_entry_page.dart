@@ -61,7 +61,17 @@ class _GeotagCameraEntryPageState extends State<GeotagCameraEntryPage> {
 
       final controller = CameraController(
         backCamera,
-        ResolutionPreset.high,
+        // ResolutionPreset.medium, BUKAN .high - camera_android_camerax
+        // membuka 3 use case sekaligus (Preview+ImageCapture+ImageAnalysis).
+        // Di chipset kelas bawah (dikonfirmasi di perangkat fisik Realme
+        // RMX3834, Unisoc/Spreadtrum) HAL kamera tidak sanggup negosiasi
+        // 3 stream bersamaan di resolusi .high - hasilnya preview LIVE
+        // pecah jadi potongan kecil di atas + hitam di sisanya, padahal
+        // ISP tetap mengalirkan frame normal (dikonfirmasi lewat logcat)
+        // dan hasil capture foto tetap tersimpan benar. .medium cukup
+        // untuk bukti foto lapangan (bukan fotografi profesional) dan
+        // sesuai rentang resolusi yang lebih luas didukung HAL kelas bawah.
+        ResolutionPreset.medium,
         enableAudio: false, // Bukti foto tidak butuh audio
       );
 
