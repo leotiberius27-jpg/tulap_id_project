@@ -275,10 +275,24 @@ class TaskDetailPage extends StatelessWidget {
 
     if (task.status == TaskStatusEntity.ongoing ||
         task.status == TaskStatusEntity.revisionNeeded) {
+      final revisionBanner = task.status == TaskStatusEntity.revisionNeeded
+          ? _StatusInfoBanner(
+              icon: Icons.edit_note,
+              color: AppColors.warning,
+              background: AppColors.warningSoft,
+              message: task.latestRevisionNote ??
+                  'Perlu diperbaiki. Hubungi atasan untuk rincian.',
+            )
+          : null;
+
       if (!task.isReadyToSubmit) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (revisionBanner != null) ...[
+              revisionBanner,
+              const SizedBox(height: AppSpacing.sm),
+            ],
             Text(
               '${task.incompleteMandatoryItems.length} bukti wajib belum lengkap.',
               style: AppTypography.small.copyWith(color: AppColors.warning),
@@ -293,7 +307,7 @@ class TaskDetailPage extends StatelessWidget {
         );
       }
 
-      return ElevatedButton(
+      final submitButton = ElevatedButton(
         onPressed: state.status == TaskDetailStatus.submitting
             ? null
             : () async {
@@ -322,6 +336,17 @@ class TaskDetailPage extends StatelessWidget {
               )
             : const Text('Kirim Tugas'),
       );
+
+      if (revisionBanner == null) return submitButton;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          revisionBanner,
+          const SizedBox(height: AppSpacing.sm),
+          submitButton,
+        ],
+      );
     }
 
     if (task.status == TaskStatusEntity.pendingVerification) {
@@ -344,11 +369,12 @@ class TaskDetailPage extends StatelessWidget {
     }
 
     if (task.status == TaskStatusEntity.rejected) {
-      return const _StatusInfoBanner(
+      return _StatusInfoBanner(
         icon: Icons.cancel,
         color: AppColors.danger,
         background: AppColors.dangerSoft,
-        message: 'Tugas ini ditolak. Hubungi atasan untuk informasi lebih lanjut.',
+        message: task.latestRevisionNote ??
+            'Tugas ini ditolak. Hubungi atasan untuk informasi lebih lanjut.',
       );
     }
 

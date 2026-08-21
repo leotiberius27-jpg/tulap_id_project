@@ -140,9 +140,27 @@ flutter run
 flutter build apk --release --dart-define=API_BASE_URL=https://api.tulap.id
 ```
 
-Sebelum ini benar-benar dipakai user asli, masih ada beberapa hal yang perlu diselesaikan (belum dilakukan sesi ini):
-- **Signing config produksi** — `android/app/build.gradle.kts` `buildTypes.release` masih memakai debug signing key (`signingConfig = signingConfigs.getByName("debug")`), perlu keystore rilis asli sebelum publish ke Play Store.
-- **Backend produksi** — `S3_*`, `DATABASE_URL`, `JWT_SECRET`/`JWT_REFRESH_SECRET` di `.env` backend saat ini nilai dev lokal; deployment produksi butuh infrastruktur & secret sungguhan.
+**Signing config sudah nyata (bukan debug key lagi).** `android/key.properties` (digitignore, tidak dikomit) menunjuk ke `android/upload-keystore.jks` (juga digitignore) — keduanya sudah ada di mesin dev ini. `flutter build apk --release` sekarang menghasilkan APK yang ditandatangani dengan keystore rilis sungguhan, bukan debug key. **Kalau clone baru di mesin lain** (atau keystore ini hilang), generate ulang:
+
+```bash
+keytool -genkeypair -v -keystore android/upload-keystore.jks \
+  -alias tulap_upload -keyalg RSA -keysize 2048 -validity 10000 \
+  -dname "CN=Tulap.id, OU=Mobile, O=Tulap.id, L=Jayapura, ST=Papua, C=ID"
+```
+
+lalu buat `android/key.properties`:
+```
+storePassword=<password yang tadi diketik ke keytool>
+keyPassword=<sama dengan storePassword - PKCS12 tidak mendukung beda password>
+keyAlias=tulap_upload
+storeFile=upload-keystore.jks
+```
+
+**Simpan `upload-keystore.jks` + passwordnya di tempat aman di luar repo** (mis. password manager) — kalau hilang, update APK yang sudah pernah dipublish ke Play Store tidak bisa dilakukan lagi (harus rilis sebagai app baru). Tanpa `key.properties`, build otomatis fallback ke debug signing (tetap bisa `flutter build apk --release` untuk testing, hanya saja hasilnya tidak bisa dipakai untuk update rilis Play Store yang sudah ada.
+
+Yang masih belum diselesaikan sesi ini:
+- **Play Console** — keystore ini baru "siap tanda tangan", belum ada akun Google Play Console / listing app yang sebenarnya (itu keputusan & biaya di luar kendali kode).
+- **Backend produksi** — `S3_*`, `DATABASE_URL`, `JWT_SECRET`/`JWT_REFRESH_SECRET` di `.env` backend saat ini nilai dev lokal; deployment produksi butuh infrastruktur & secret sungguhan (server, domain, TLS, dsb).
 
 ---
 
@@ -160,4 +178,4 @@ Sebelum ini benar-benar dipakai user asli, masih ada beberapa hal yang perlu dis
 
 ## Setelah Tahap 3 Berhasil
 
-Mobile app (login, tugas, kamera geotag, scan nota OCR, sync offline, Lokasi) dan Web Dashboard (`tulap_web` — antrean verifikasi, approve/reject/revisi, generate LPJ PDF; jalankan `npm install && npm run dev` di situ, lihat `.env.example`) sudah terbukti jalan end-to-end lawan backend lokal. Yang masih belum ada: RootDetector iOS (baru Android), UI buat-tugas-baru & manajemen user di Web Dashboard, dan signing/env produksi sungguhan (lihat "Build untuk rilis" di atas).
+Mobile app (login, tugas, kamera geotag, scan nota OCR, sync offline, Lokasi, notifikasi) dan Web Dashboard (`tulap_web` — antrean verifikasi, approve/reject/revisi dengan catatan wajib, generate LPJ PDF, buat tugas baru, kelola pegawai; jalankan `npm install && npm run dev` di situ, lihat `.env.example`) sudah terbukti jalan end-to-end lawan backend lokal. Backend juga sudah punya Audit Trail (`GET /audit-logs`), Notifikasi, dan rate limiting. Yang masih belum ada: RootDetector iOS (baru Android), halaman Peta/Keuangan/Laporan/Pengaturan di Web Dashboard (di luar cakupan MVP per `docs/tulap_product_spec.md` Bagian 38-39), automated test suite (0 test di ketiga codebase), dan env produksi backend sungguhan (lihat "Build untuk rilis" di atas untuk status signing mobile, yang sudah selesai).

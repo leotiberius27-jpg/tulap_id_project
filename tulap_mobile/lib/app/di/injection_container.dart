@@ -31,6 +31,13 @@ import '../../features/expense_ocr/domain/repositories/expense_ocr_repository.da
 import '../../features/expense_ocr/domain/usecases/save_expense_note.dart';
 import '../../features/expense_ocr/domain/usecases/scan_receipt.dart';
 
+import '../../features/notifications/data/datasources/notifications_remote_datasource.dart';
+import '../../features/notifications/data/repositories/notifications_repository_impl.dart';
+import '../../features/notifications/domain/repositories/notifications_repository.dart';
+import '../../features/notifications/domain/usecases/get_notifications.dart';
+import '../../features/notifications/domain/usecases/mark_all_notifications_read.dart';
+import '../../features/notifications/domain/usecases/mark_notification_read.dart';
+
 import '../../features/geotag_camera/data/datasources/geotag_camera_local_datasource.dart';
 import '../../features/geotag_camera/data/repositories/geotag_camera_repository_impl.dart';
 import '../../features/geotag_camera/domain/repositories/geotag_camera_repository.dart';
@@ -199,6 +206,22 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<GetActiveTasks>(() => GetActiveTasks(sl()));
   sl.registerLazySingleton<PickActiveTask>(() => PickActiveTask(sl()));
+
+  // ============================================================
+  // NOTIFICATIONS - murni baca dari server, tidak ada dependency
+  // lain di luar DioClient, jadi seluruhnya global di sini.
+  // ============================================================
+  sl.registerLazySingleton<NotificationsRemoteDataSource>(
+    () => NotificationsRemoteDataSource(sl()),
+  );
+  sl.registerLazySingleton<NotificationsRepository>(
+    () => NotificationsRepositoryImpl(remoteDataSource: sl()),
+  );
+  sl.registerLazySingleton<GetNotifications>(() => GetNotifications(sl()));
+  sl.registerLazySingleton<MarkNotificationRead>(() => MarkNotificationRead(sl()));
+  sl.registerLazySingleton<MarkAllNotificationsRead>(
+    () => MarkAllNotificationsRead(sl()),
+  );
 
   // ============================================================
   // LOCATION - ValidateLocationIntegrity TIDAK bergantung pada

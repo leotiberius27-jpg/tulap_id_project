@@ -10,6 +10,7 @@ import '../../../auth/domain/usecases/get_current_session.dart';
 import '../../../expense_ocr/presentation/pages/receipt_scanner_entry_page.dart';
 import '../../../geotag_camera/presentation/pages/geotag_camera_entry_page.dart';
 import '../../../location/presentation/pages/location_page.dart';
+import '../../../notifications/presentation/pages/notifications_page.dart';
 import '../../../sync_queue/domain/repositories/sync_queue_repository.dart';
 import '../../../sync_queue/presentation/controllers/sync_center_controller.dart';
 import '../../../sync_queue/presentation/pages/sync_center_page.dart';
@@ -92,8 +93,14 @@ class _HomeView extends StatelessWidget {
                     HomeHeader(
                       fullName: officerName,
                       agencyName: agencyName,
-                      onNotificationTap: () =>
-                          _showNotAvailable(context, 'Notifikasi'),
+                      onNotificationTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => NotificationsPage(
+                            officerName: officerName,
+                            agencyName: agencyName,
+                          ),
+                        ),
+                      ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(

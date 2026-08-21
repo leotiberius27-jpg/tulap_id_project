@@ -89,16 +89,20 @@ class TaskModel extends TaskEntity {
     required super.geotagPhotoCount,
     required super.expenseNoteCount,
     super.description,
+    super.latestRevisionNote,
   });
 
   /// Parsing dari response `GET /tasks/:id` backend - backend
   /// mengembalikan relasi `assignee` sebagai object, bukan hanya ID.
+  /// `revisionNotes` (jika ada) diurutkan terbaru-dulu oleh backend
+  /// (TasksService._defaultInclude) - ambil elemen pertama saja.
   factory TaskModel.fromApiJson(
     Map<String, dynamic> json, {
     List<ChecklistItemModel> checklistItems = const [],
     int geotagPhotoCount = 0,
     int expenseNoteCount = 0,
   }) {
+    final revisionNotes = json['revisionNotes'] as List?;
     return TaskModel(
       id: json['id'] as String,
       taskCode: json['taskCode'] as String,
@@ -115,6 +119,9 @@ class TaskModel extends TaskEntity {
       checklistItems: checklistItems,
       geotagPhotoCount: geotagPhotoCount,
       expenseNoteCount: expenseNoteCount,
+      latestRevisionNote: (revisionNotes != null && revisionNotes.isNotEmpty)
+          ? (revisionNotes.first as Map<String, dynamic>)['note'] as String?
+          : null,
     );
   }
 

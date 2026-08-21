@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/.kotlin/
+
+# Release signing secrets - NEVER commit the keystore or its passwords.
+# See RUNBOOK.md for how to generate your own before a real release.
+/android/key.properties
+/android/*.jks
+/android/*.keystore

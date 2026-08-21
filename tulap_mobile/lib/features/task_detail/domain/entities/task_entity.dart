@@ -74,6 +74,12 @@ class TaskEntity {
   final int geotagPhotoCount;
   final int expenseNoteCount;
 
+  /// Catatan Verifikator paling baru saat status revisionNeeded/rejected
+  /// (Bagian 22 spesifikasi: "Nota BBM - Nominal kurang jelas") - null
+  /// untuk status lain, atau untuk data lama dari cache lokal sebelum
+  /// field ini ada.
+  final String? latestRevisionNote;
+
   const TaskEntity({
     required this.id,
     required this.taskCode,
@@ -89,6 +95,7 @@ class TaskEntity {
     required this.geotagPhotoCount,
     required this.expenseNoteCount,
     this.description,
+    this.latestRevisionNote,
   });
 
   int get completedChecklistCount =>
