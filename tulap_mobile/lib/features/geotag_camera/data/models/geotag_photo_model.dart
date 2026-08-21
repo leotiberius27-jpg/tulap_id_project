@@ -34,8 +34,19 @@ class GeotagPhotoModel extends GeotagPhotoEntity {
       plusCode: json['plusCode'] as String? ?? '',
       serverTimestamp: DateTime.parse(json['serverTimestamp'] as String),
       integrityHash: json['integrityHash'] as String,
-      isMockLocationDetected: json['isMockLocationDetected'] as bool,
-      isRootedDeviceDetected: json['isRootedDeviceDetected'] as bool,
+      // SQLite tidak punya tipe boolean native - kolom ini tersimpan
+      // sebagai INTEGER (0/1), jadi sqflite mengembalikannya sebagai
+      // Dart int, BUKAN bool. Cast `as bool` langsung akan selalu
+      // throw TypeError saat baris ini dibaca dari database (baru
+      // aman kalau row berasal dari sumber lain yang memang sudah
+      // bool, mis. respons API). Pola sama seperti
+      // ChecklistItemModel.fromJson - dicek eksplisit dulu.
+      isMockLocationDetected: json['isMockLocationDetected'] is bool
+          ? json['isMockLocationDetected'] as bool
+          : json['isMockLocationDetected'] == 1,
+      isRootedDeviceDetected: json['isRootedDeviceDetected'] is bool
+          ? json['isRootedDeviceDetected'] as bool
+          : json['isRootedDeviceDetected'] == 1,
       address: json['address'] as String?,
       caption: json['caption'] as String?,
     );
