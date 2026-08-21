@@ -56,6 +56,9 @@ dependencies:
   geocoding: ^5.0.0
   qr_flutter: ^4.1.0
   url_launcher: ^6.3.2
+  local_auth: ^2.3.0          # Masuk cepat biometrik (sidik jari/wajah)
+  google_sign_in: ^6.2.2      # Tombol "Lanjutkan dengan Google"
+  sign_in_with_apple: ^6.1.4  # Tombol "Lanjutkan dengan Apple" (iOS)
 
 dev_dependencies:
   flutter_test:

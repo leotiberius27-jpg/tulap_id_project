@@ -14,6 +14,13 @@ class AuthLocalDataSource {
   static const String _refreshTokenKey = 'refresh_token';
   static const String _userProfileKey = 'user_profile';
 
+  /// Salinan sesi TERPISAH khusus untuk "Masuk Cepat dengan Biometrik" -
+  /// SENGAJA tidak ikut terhapus oleh `clearSession()` (logout biasa),
+  /// supaya WelcomePage tetap bisa menyapa nama pegawai & menawarkan
+  /// tombol sidik jari setelah logout, sampai user eksplisit menonaktifkan
+  /// fitur ini lewat AccountPage (lihat `clearBiometricBackup()`).
+  static const String _biometricBackupKey = 'biometric_session_backup';
+
   final FlutterSecureStorage _secureStorage;
 
   AuthLocalDataSource({FlutterSecureStorage? secureStorage})
@@ -47,5 +54,69 @@ class AuthLocalDataSource {
     await _secureStorage.delete(key: _accessTokenKey);
     await _secureStorage.delete(key: _refreshTokenKey);
     await _secureStorage.delete(key: _userProfileKey);
+  }
+
+  /// Menyalin sesi aktif saat ini ke slot biometrik terpisah - dipanggil
+  /// saat user mengaktifkan "Masuk Cepat dengan Biometrik" di AccountPage
+  /// (harus sudah login). Tanpa salinan aktif untuk disalin, tidak
+  /// melakukan apa pun (biarkan caller memvalidasi ada sesi aktif dulu).
+  Future<void> saveBiometricBackup() async {
+    final accessToken = await _secureStorage.read(key: _accessTokenKey);
+    final refreshToken = await _secureStorage.read(key: _refreshTokenKey);
+    final userRaw = await _secureStorage.read(key: _userProfileKey);
+    if (accessToken == null || refreshToken == null || userRaw == null) return;
+
+    await _secureStorage.write(
+      key: _biometricBackupKey,
+      value: jsonEncode({
+        'accessToken': accessToken,
+        'refreshToken': refreshToken,
+        'user': jsonDecode(userRaw),
+      }),
+    );
+  }
+
+  Future<bool> hasBiometricBackup() async {
+    return (await _secureStorage.read(key: _biometricBackupKey)) != null;
+  }
+
+  /// Nama pegawai dari salinan biometrik (jika ada) - dipakai WelcomePage
+  /// untuk sapaan personal SEBELUM user benar-benar login lagi. Sengaja
+  /// tidak mengembalikan seluruh AuthUserModel dari sini untuk membuat
+  /// jelas ini HANYA salam, bukan sesi aktif (harus lewat
+  /// `restoreBiometricSession()` dulu untuk benar-benar masuk).
+  Future<AuthUserModel?> getBiometricBackupUser() async {
+    final raw = await _secureStorage.read(key: _biometricBackupKey);
+    if (raw == null) return null;
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    return AuthUserModel.fromStorageMap(map['user'] as Map<String, dynamic>);
+  }
+
+  /// Menyalin token dari slot biometrik KEMBALI ke slot sesi aktif -
+  /// dipanggil setelah `local_auth` berhasil memverifikasi
+  /// sidik jari/wajah, memulihkan sesi tanpa perlu memasukkan password.
+  Future<AuthUserModel?> restoreBiometricSession() async {
+    final raw = await _secureStorage.read(key: _biometricBackupKey);
+    if (raw == null) return null;
+
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    await _secureStorage.write(
+      key: _accessTokenKey,
+      value: map['accessToken'] as String,
+    );
+    await _secureStorage.write(
+      key: _refreshTokenKey,
+      value: map['refreshToken'] as String,
+    );
+    await _secureStorage.write(
+      key: _userProfileKey,
+      value: jsonEncode(map['user']),
+    );
+
+    return AuthUserModel.fromStorageMap(map['user'] as Map<String, dynamic>);
+  }
+
+  Future<void> clearBiometricBackup() async {
+    await _secureStorage.delete(key: _biometricBackupKey);
   }
 }

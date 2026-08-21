@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
+import '../../../../core/security/biometric_auth_service.dart';
 import '../../../../core/widgets/app_state_views.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../main.dart';
+import '../../../auth/domain/usecases/disable_biometric_login.dart';
+import '../../../auth/domain/usecases/enable_biometric_login.dart';
 import '../../../auth/domain/usecases/get_current_session.dart';
+import '../../../auth/domain/usecases/is_biometric_login_enabled.dart';
 import '../../../auth/domain/usecases/logout.dart';
 import '../controllers/account_controller.dart';
 
@@ -23,6 +27,10 @@ class AccountPage extends StatelessWidget {
       create: (_) => AccountController(
         getCurrentSession: sl<GetCurrentSession>(),
         logout: sl<Logout>(),
+        isBiometricLoginEnabled: sl<IsBiometricLoginEnabled>(),
+        enableBiometricLogin: sl<EnableBiometricLogin>(),
+        disableBiometricLogin: sl<DisableBiometricLogin>(),
+        biometricAuthService: sl<BiometricAuthService>(),
       ),
       child: const _AccountView(),
     );
@@ -123,6 +131,62 @@ class _AccountView extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (controller.state.biometricHardwareAvailable) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.base,
+                      vertical: AppSpacing.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: AppColors.shadowSoft,
+                          blurRadius: 16,
+                          offset: Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.fingerprint, color: AppColors.primary, size: 22),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Masuk Cepat dengan Biometrik',
+                                style: AppTypography.body.copyWith(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                'Gunakan sidik jari/wajah untuk masuk tanpa kata sandi.',
+                                style: AppTypography.small.copyWith(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        controller.state.isTogglingBiometric
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Switch(
+                                value: controller.state.biometricLoginEnabled,
+                                onChanged: (value) =>
+                                    controller.toggleBiometricLogin(value),
+                                activeTrackColor: AppColors.primary,
+                              ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.lg),
                 OutlinedButton.icon(
                   onPressed: controller.state.isLoggingOut

@@ -32,7 +32,10 @@ android {
         applicationId = "id.tulap.tulap_mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // minSdk dinaikkan ke 23 (dari default Flutter) - wajib untuk
+        // local_auth_android (Masuk Cepat dengan Biometrik), yang tidak
+        // bisa berjalan di bawah Android 6.0 (API 23).
+        minSdk = maxOf(flutter.minSdkVersion, 23)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

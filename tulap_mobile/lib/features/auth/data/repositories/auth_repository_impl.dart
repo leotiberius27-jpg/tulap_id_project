@@ -61,6 +61,140 @@ class AuthRepositoryImpl implements AuthRepository {
     return _localDataSource.clearSession();
   }
 
+  @override
+  Future<Either<Failure, AuthUserEntity>> selfRegister({
+    required String fullName,
+    required String email,
+    required String password,
+    required String instansiName,
+    String? phoneNumber,
+  }) async {
+    try {
+      final json = await _remoteDataSource.registerSelf(
+        fullName: fullName,
+        email: email,
+        password: password,
+        instansiName: instansiName,
+        phoneNumber: phoneNumber,
+      );
+
+      final user = AuthUserModel.fromLoginJson(
+        json['user'] as Map<String, dynamic>,
+      );
+
+      await _localDataSource.saveSession(
+        accessToken: json['accessToken'] as String,
+        refreshToken: json['refreshToken'] as String,
+        user: user,
+      );
+
+      return Right(user);
+    } on DioException catch (e) {
+      return Left(AuthFailure(_extractErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> forgotPassword(String email) async {
+    try {
+      await _remoteDataSource.forgotPassword(email);
+      return const Right(
+        'Jika email terdaftar, kode reset telah dikirim. Periksa kotak masuk Anda.',
+      );
+    } on DioException catch (e) {
+      return Left(AuthFailure(_extractErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      await _remoteDataSource.resetPassword(
+        email: email,
+        code: code,
+        newPassword: newPassword,
+      );
+      // Reset password TIDAK mengembalikan token (Bagian keamanan: user
+      // harus login ulang secara sadar dengan password barunya).
+      return const Right(
+        'Kata sandi berhasil diganti. Silakan masuk dengan kata sandi baru.',
+      );
+    } on DioException catch (e) {
+      return Left(AuthFailure(_extractErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<Either<Failure, AuthUserEntity>> loginWithGoogle(String idToken) async {
+    try {
+      final json = await _remoteDataSource.loginWithGoogle(idToken);
+      final user = AuthUserModel.fromLoginJson(
+        json['user'] as Map<String, dynamic>,
+      );
+      await _localDataSource.saveSession(
+        accessToken: json['accessToken'] as String,
+        refreshToken: json['refreshToken'] as String,
+        user: user,
+      );
+      return Right(user);
+    } on DioException catch (e) {
+      return Left(AuthFailure(_extractErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<Either<Failure, AuthUserEntity>> loginWithApple({
+    required String identityToken,
+    String? fullName,
+  }) async {
+    try {
+      final json = await _remoteDataSource.loginWithApple(
+        identityToken: identityToken,
+        fullName: fullName,
+      );
+      final user = AuthUserModel.fromLoginJson(
+        json['user'] as Map<String, dynamic>,
+      );
+      await _localDataSource.saveSession(
+        accessToken: json['accessToken'] as String,
+        refreshToken: json['refreshToken'] as String,
+        user: user,
+      );
+      return Right(user);
+    } on DioException catch (e) {
+      return Left(AuthFailure(_extractErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<bool> isBiometricLoginEnabled() {
+    return _localDataSource.hasBiometricBackup();
+  }
+
+  @override
+  Future<void> enableBiometricLogin() {
+    return _localDataSource.saveBiometricBackup();
+  }
+
+  @override
+  Future<void> disableBiometricLogin() {
+    return _localDataSource.clearBiometricBackup();
+  }
+
+  @override
+  Future<AuthUserEntity?> getBiometricGreetingUser() {
+    return _localDataSource.getBiometricBackupUser();
+  }
+
+  @override
+  Future<AuthUserEntity?> restoreBiometricSession() {
+    return _localDataSource.restoreBiometricSession();
+  }
+
   String _extractErrorMessage(DioException e) {
     final data = e.response?.data;
     if (data is Map && data['message'] is String) {

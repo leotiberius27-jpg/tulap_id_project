@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -60,9 +61,29 @@ class DioClient {
 
       await _secureStorage.write(key: 'access_token', value: newAccessToken);
       await _secureStorage.write(key: 'refresh_token', value: newRefreshToken);
+      await _refreshBiometricBackupTokensIfEnabled(newAccessToken, newRefreshToken);
       return true;
     } catch (_) {
       return false;
     }
+  }
+
+  /// Menjaga salinan token "Masuk Cepat dengan Biometrik" (lihat
+  /// AuthLocalDataSource.saveBiometricBackup) tetap segar setiap kali
+  /// sesi aktif di-refresh - tanpa ini, salinan biometrik akan
+  /// kedaluwarsa persis JWT_REFRESH_EXPIRES_IN (7 hari) sejak terakhir
+  /// login manual walau user membuka app tiap hari.
+  Future<void> _refreshBiometricBackupTokensIfEnabled(
+    String accessToken,
+    String refreshToken,
+  ) async {
+    const backupKey = 'biometric_session_backup';
+    final raw = await _secureStorage.read(key: backupKey);
+    if (raw == null) return;
+
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    map['accessToken'] = accessToken;
+    map['refreshToken'] = refreshToken;
+    await _secureStorage.write(key: backupKey, value: jsonEncode(map));
   }
 }

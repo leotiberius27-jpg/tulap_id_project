@@ -21,5 +21,50 @@ abstract class AuthRepository {
 
   /// Menghapus sesi tersimpan (logout) - tidak butuh panggilan network,
   /// backend tidak menyimpan state sesi server-side untuk alur ini.
+  /// TIDAK menghapus salinan biometrik (lihat `disableBiometricLogin`
+  /// untuk itu) - sengaja terpisah, lihat AuthLocalDataSource.
   Future<void> logout();
+
+  /// Registrasi mandiri (layar "Daftar") - langsung login otomatis jika
+  /// berhasil, sama seperti alur `login()`.
+  Future<Either<Failure, AuthUserEntity>> selfRegister({
+    required String fullName,
+    required String email,
+    required String password,
+    required String instansiName,
+    String? phoneNumber,
+  });
+
+  Future<Either<Failure, String>> forgotPassword(String email);
+
+  Future<Either<Failure, String>> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  });
+
+  Future<Either<Failure, AuthUserEntity>> loginWithGoogle(String idToken);
+
+  Future<Either<Failure, AuthUserEntity>> loginWithApple({
+    required String identityToken,
+    String? fullName,
+  });
+
+  /// Apakah "Masuk Cepat dengan Biometrik" sedang aktif di perangkat ini.
+  Future<bool> isBiometricLoginEnabled();
+
+  /// Mengaktifkan biometrik - menyalin sesi AKTIF saat ini (harus sudah
+  /// login) ke slot biometrik terpisah.
+  Future<void> enableBiometricLogin();
+
+  Future<void> disableBiometricLogin();
+
+  /// Nama pegawai dari salinan biometrik, untuk sapaan WelcomePage -
+  /// null jika biometrik belum pernah diaktifkan di perangkat ini.
+  Future<AuthUserEntity?> getBiometricGreetingUser();
+
+  /// Memulihkan sesi dari salinan biometrik (dipanggil SETELAH
+  /// `local_auth` berhasil memverifikasi) - null jika tidak ada salinan
+  /// tersimpan.
+  Future<AuthUserEntity?> restoreBiometricSession();
 }

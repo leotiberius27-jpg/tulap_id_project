@@ -15,15 +15,27 @@ import '../../core/ocr/receipt_parser.dart';
 import '../../core/security/hash_generator.dart';
 import '../../core/security/mock_location_detector.dart';
 import '../../core/security/root_detector.dart';
+import '../../core/security/biometric_auth_service.dart';
+import '../../core/security/oauth_sign_in_service.dart';
 import '../../core/sync/background_sync_service.dart';
 
 import '../../features/auth/data/datasources/auth_local_datasource.dart';
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
+import '../../features/auth/domain/usecases/disable_biometric_login.dart';
+import '../../features/auth/domain/usecases/enable_biometric_login.dart';
+import '../../features/auth/domain/usecases/forgot_password.dart';
+import '../../features/auth/domain/usecases/get_biometric_greeting_user.dart';
 import '../../features/auth/domain/usecases/get_current_session.dart';
+import '../../features/auth/domain/usecases/is_biometric_login_enabled.dart';
 import '../../features/auth/domain/usecases/login.dart';
+import '../../features/auth/domain/usecases/login_with_apple.dart';
+import '../../features/auth/domain/usecases/login_with_google.dart';
 import '../../features/auth/domain/usecases/logout.dart';
+import '../../features/auth/domain/usecases/reset_password.dart';
+import '../../features/auth/domain/usecases/restore_biometric_session.dart';
+import '../../features/auth/domain/usecases/self_register.dart';
 
 import '../../features/expense_ocr/data/datasources/expense_ocr_local_datasource.dart';
 import '../../features/expense_ocr/data/repositories/expense_ocr_repository_impl.dart';
@@ -137,6 +149,28 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<Login>(() => Login(sl()));
   sl.registerLazySingleton<GetCurrentSession>(() => GetCurrentSession(sl()));
   sl.registerLazySingleton<Logout>(() => Logout(sl()));
+  sl.registerLazySingleton<SelfRegister>(() => SelfRegister(sl()));
+  sl.registerLazySingleton<ForgotPassword>(() => ForgotPassword(sl()));
+  sl.registerLazySingleton<ResetPassword>(() => ResetPassword(sl()));
+  sl.registerLazySingleton<LoginWithGoogle>(() => LoginWithGoogle(sl()));
+  sl.registerLazySingleton<LoginWithApple>(() => LoginWithApple(sl()));
+  sl.registerLazySingleton<IsBiometricLoginEnabled>(
+    () => IsBiometricLoginEnabled(sl()),
+  );
+  sl.registerLazySingleton<EnableBiometricLogin>(
+    () => EnableBiometricLogin(sl()),
+  );
+  sl.registerLazySingleton<DisableBiometricLogin>(
+    () => DisableBiometricLogin(sl()),
+  );
+  sl.registerLazySingleton<GetBiometricGreetingUser>(
+    () => GetBiometricGreetingUser(sl()),
+  );
+  sl.registerLazySingleton<RestoreBiometricSession>(
+    () => RestoreBiometricSession(sl()),
+  );
+  sl.registerLazySingleton<BiometricAuthService>(() => BiometricAuthService());
+  sl.registerLazySingleton<OAuthSignInService>(() => OAuthSignInService());
 
   // ============================================================
   // SYNC QUEUE - didaftarkan lebih dulu karena geotag_camera &

@@ -7,6 +7,10 @@
          lokasi di latar belakang. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Masuk Cepat dengan Biometrik (local_auth) - dialog sidik jari/wajah
+         bawaan Android, murni gerbang lokal sebelum memulihkan sesi yang
+         sudah tersimpan (lihat AuthLocalDataSource.restoreBiometricSession). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <application
         android:label="Tulap.id"
         android:name="${applicationName}"

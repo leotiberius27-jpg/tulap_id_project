@@ -7,7 +7,7 @@ import 'app/presentation/main_shell.dart';
 import 'core/sync/background_sync_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/domain/usecases/get_current_session.dart';
-import 'features/auth/presentation/pages/login_page.dart';
+import 'features/auth/presentation/pages/welcome_page.dart';
 
 /// main.dart
 /// ----------------------------------------------------------------------
@@ -113,10 +113,11 @@ class AuthGate extends StatelessWidget {
           return const MainShell();
         }
 
-        return LoginPage(
+        return WelcomePage(
           onLoginSuccess: (_) {
-            Navigator.of(context).pushReplacement(
+            Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(builder: (_) => const MainShell()),
+              (route) => false,
             );
           },
         );

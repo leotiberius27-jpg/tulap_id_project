@@ -1,7 +1,7 @@
 package id.tulap.tulap_mobile
 
 import android.os.Build
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
@@ -15,8 +15,14 @@ import java.io.File
 /// untuk menaikkan usaha yang dibutuhkan pemalsu GPS, sejalan dengan
 /// catatan RootDetector.dart bahwa sumber deteksi bisa diganti kapan
 /// pun (mis. `safe_device`) tanpa mengubah kode pemanggil.
+///
+/// PENTING: FlutterFragmentActivity (bukan FlutterActivity biasa) -
+/// package `local_auth` (Masuk Cepat dengan Biometrik) MEWAJIBKAN
+/// androidx.fragment.app.FragmentActivity untuk menampilkan dialog
+/// prompt biometrik Android; dengan FlutterActivity biasa method
+/// `authenticate()`-nya crash di runtime.
 /// ----------------------------------------------------------------------
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val CHANNEL = "id.tulap.security/device_integrity"
 
     private val ROOT_INDICATOR_PATHS = arrayOf(
