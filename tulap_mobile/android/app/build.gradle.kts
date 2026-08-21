@@ -43,7 +43,12 @@ android {
             create("release") {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
+                // rootProject.file (BUKAN file()) - key.properties &
+                // upload-keystore.jks sama-sama di android/ (rootProject),
+                // bukan di android/app/ (project modul ini) - file() polos
+                // resolve relatif ke android/app/ dan gagal menemukan
+                // keystore-nya (dikonfirmasi lewat build yang gagal).
+                storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
                 storePassword = keystoreProperties["storePassword"] as String
             }
         }
@@ -60,6 +65,10 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
