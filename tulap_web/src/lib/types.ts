@@ -24,6 +24,17 @@ export type Task = {
   updatedAt: string;
   assignee: { id: string; fullName: string; email: string; instansiName: string };
   creator: { id: string; fullName: string; email: string };
+  revisionNotes: RevisionNote[];
+};
+
+export type RevisionNote = {
+  id: string;
+  taskId: string;
+  actorId: string;
+  note: string;
+  status: TaskStatus;
+  createdAt: string;
+  actor: { id: string; fullName: string };
 };
 
 export type ChecklistItem = {
@@ -79,4 +90,55 @@ export type TaskEvidence = {
 export type TaskListResponse = {
   items: Task[];
   meta: { page: number; pageSize: number; total: number; totalPages: number };
+};
+
+export type RoleName = 'PEGAWAI' | 'VERIFIKATOR' | 'ADMIN' | 'SUPER_ADMIN';
+
+export type Employee = {
+  id: string;
+  nip: string | null;
+  fullName: string;
+  email: string;
+  phoneNumber: string | null;
+  instansiName: string | null;
+  unitKerja: string | null;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  role: { id: string; name: RoleName };
+};
+
+export type EmployeeListResponse = {
+  items: Employee[];
+  meta: { page: number; pageSize: number; total: number; totalPages: number };
+};
+
+export type NotificationType =
+  | 'TASK_ASSIGNED'
+  | 'REVISION_NEEDED'
+  | 'TASK_APPROVED'
+  | 'TASK_REJECTED'
+  | 'LPJ_READY';
+
+export type AppNotification = {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  relatedTaskId: string | null;
+  isRead: boolean;
+  createdAt: string;
+};
+
+export type NotificationListResponse = {
+  items: AppNotification[];
+  meta: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    unreadCount: number;
+  };
 };

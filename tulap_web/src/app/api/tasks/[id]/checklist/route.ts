@@ -8,11 +8,11 @@ export async function POST(
   const { id } = await params;
   const body = await request.json();
   try {
-    const task = await apiFetch(`/tasks/${id}/reject`, {
+    const items = await apiFetch(`/tasks/${id}/checklist`, {
       method: 'POST',
       body: JSON.stringify(body),
     });
-    return NextResponse.json(task);
+    return NextResponse.json(items, { status: 201 });
   } catch (error) {
     if (error instanceof ApiError) {
       return NextResponse.json({ message: error.message }, { status: error.status });

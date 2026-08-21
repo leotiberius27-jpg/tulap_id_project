@@ -170,6 +170,23 @@ export default async function TaskDetailPage({
         )}
       </div>
 
+      {task.revisionNotes.length > 0 && (
+        <div className="rounded-card bg-surface p-5 shadow-card">
+          <p className="mb-3 text-small font-semibold text-text-primary">Riwayat Catatan Revisi</p>
+          <ul className="flex flex-col gap-3">
+            {task.revisionNotes.map((entry) => (
+              <li key={entry.id} className="border-l-2 border-warning pl-3 text-small">
+                <p className="text-text-primary">{entry.note}</p>
+                <p className="mt-0.5 text-text-secondary">
+                  {entry.actor.fullName} · {dateTimeFormatter.format(new Date(entry.createdAt))} ·{' '}
+                  {entry.status === 'REJECTED' ? 'Ditolak' : 'Perlu Diperbaiki'}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {canVerify && <VerificationActions taskId={task.id} />}
       {canGenerateLpj && <GenerateLpjButton taskId={task.id} taskCode={task.taskCode} />}
     </div>

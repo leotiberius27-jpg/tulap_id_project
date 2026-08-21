@@ -2,12 +2,16 @@ import { NextResponse } from 'next/server';
 import { apiFetch, ApiError } from '@/lib/api';
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const body = await request.json();
   try {
-    const task = await apiFetch(`/tasks/${id}/request-revision`, { method: 'POST' });
+    const task = await apiFetch(`/tasks/${id}/request-revision`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
     return NextResponse.json(task);
   } catch (error) {
     if (error instanceof ApiError) {

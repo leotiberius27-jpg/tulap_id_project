@@ -12,7 +12,7 @@ export function middleware(request: NextRequest) {
   const hasSession = request.cookies.has(ACCESS_TOKEN_COOKIE);
   const { pathname } = request.nextUrl;
 
-  if (!hasSession && pathname.startsWith('/tasks')) {
+  if (!hasSession && (pathname.startsWith('/tasks') || pathname.startsWith('/employees'))) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
@@ -24,5 +24,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/tasks/:path*', '/login'],
+  matcher: ['/tasks/:path*', '/employees/:path*', '/login'],
 };

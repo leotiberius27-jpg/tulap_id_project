@@ -1,11 +1,13 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { RoleName } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -89,6 +91,15 @@ export class AuthService {
    * melakukan pengecekan role pemanggil, itu tanggung jawab RolesGuard.
    */
   async register(dto: RegisterDto, actor: AuthenticatedUser) {
+    // Cegah eskalasi privilege: ADMIN (non-SUPER_ADMIN) tidak boleh
+    // membuat akun ber-role SUPER_ADMIN. Mencerminkan aturan yang sama
+    // di UsersService.update untuk perubahan role user yang sudah ada.
+    if (dto.roleName === RoleName.SUPER_ADMIN && actor.role !== RoleName.SUPER_ADMIN) {
+      throw new ForbiddenException(
+        'Hanya Super Admin yang dapat mendaftarkan akun Super Admin.',
+      );
+    }
+
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
