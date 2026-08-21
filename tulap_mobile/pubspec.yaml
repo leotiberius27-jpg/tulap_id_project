@@ -37,7 +37,7 @@ dependencies:
 
   # --- Dependency tambahan dari pubspec_additions.yaml (lihat file itu
   # untuk catatan implementasi per fitur) ---
-  camera: ^0.11.0            # Akses hardware kamera lintas platform
+  camera: ^0.12.0            # Akses hardware kamera lintas platform
   geolocator: ^13.0.1        # GPS, akurasi lokasi, deteksi mock location (Android)
   flutter_image_compress: ^2.3.0  # Kompresi foto ke target ~300KB
   path_provider: ^2.1.4      # Lokasi direktori penyimpanan lokal aplikasi
