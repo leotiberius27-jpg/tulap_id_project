@@ -102,29 +102,54 @@ class SyncQueueRepositoryImpl implements SyncQueueRepository {
       return Right(synced);
     } on DioException catch (e) {
       final errorMessage = _mapDioErrorToUserMessage(e);
-
-      final failedRecord = SyncRecordModel.fromEntity(
-        record.copyWith(
-          status: SyncStatus.failed,
-          attemptCount: record.attemptCount + 1,
-          lastAttemptAt: DateTime.now(),
-          lastErrorMessage: errorMessage,
-        ),
-      );
-      await _localDataSource.updateRecord(failedRecord);
-      return Right(failedRecord);
+      final result = await _recordAttemptFailure(record, errorMessage);
+      return Right(result);
     } catch (e) {
-      final failedRecord = SyncRecordModel.fromEntity(
-        record.copyWith(
-          status: SyncStatus.failed,
-          attemptCount: record.attemptCount + 1,
-          lastAttemptAt: DateTime.now(),
-          lastErrorMessage: 'Data belum berhasil dikirim.',
-        ),
+      final result = await _recordAttemptFailure(
+        record,
+        'Data belum berhasil dikirim.',
       );
-      await _localDataSource.updateRecord(failedRecord);
-      return Right(failedRecord);
+      return Right(result);
     }
+  }
+
+  /// _recordAttemptFailure
+  /// ----------------------------------------------------------------------
+  /// SEBELUM perbaikan ini, kegagalan APA PUN (termasuk kegagalan
+  /// sesaat/transien - mis. file lokal belum selesai ditulis OS tepat
+  /// saat percobaan sinkronisasi otomatis pertama terjadi, dikonfirmasi
+  /// nyata lewat testing langsung di perangkat fisik) langsung menandai
+  /// item `failed` pada percobaan PERTAMA, memaksa user membuka Sync
+  /// Center dan menekan "Coba Lagi" secara manual setiap kali - padahal
+  /// SyncRecordEntity.maxAutoRetryAttempts (5) sudah ada di layer domain
+  /// justru untuk mendukung retry otomatis, tapi tidak pernah benar-benar
+  /// dipakai di sini.
+  ///
+  /// Sekarang: selama attemptCount belum mencapai batas, item ditandai
+  /// `waitingForInternet` (BUKAN `failed`) - ProcessSyncQueue.call()
+  /// sudah lama mem-filter status ini sebagai kandidat percobaan
+  /// otomatis berikutnya (polling background tiap 2 menit atau saat
+  /// konektivitas pulih), jadi kegagalan transien kini bisa pulih
+  /// sendiri tanpa aksi user. `failed` (butuh retry manual lewat Sync
+  /// Center) kini betul-betul berarti "sudah dicoba otomatis 5x dan
+  /// tetap gagal", bukan "gagal sekali".
+  Future<SyncRecordModel> _recordAttemptFailure(
+    SyncRecordEntity record,
+    String errorMessage,
+  ) async {
+    final newAttemptCount = record.attemptCount + 1;
+    final willAutoRetry = newAttemptCount < SyncRecordEntity.maxAutoRetryAttempts;
+
+    final updated = SyncRecordModel.fromEntity(
+      record.copyWith(
+        status: willAutoRetry ? SyncStatus.waitingForInternet : SyncStatus.failed,
+        attemptCount: newAttemptCount,
+        lastAttemptAt: DateTime.now(),
+        lastErrorMessage: errorMessage,
+      ),
+    );
+    await _localDataSource.updateRecord(updated);
+    return updated;
   }
 
   @override
