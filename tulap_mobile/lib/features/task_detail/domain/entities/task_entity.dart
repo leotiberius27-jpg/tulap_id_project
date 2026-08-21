@@ -98,6 +98,32 @@ class TaskEntity {
     this.latestRevisionNote,
   });
 
+  /// Dipakai TaskRepositoryImpl untuk menempelkan `latestRevisionNote`
+  /// dari hasil fetch server ke atas entity hasil gabungan cache lokal
+  /// (cache TIDAK menyimpan field ini, lihat catatan di TaskModel) -
+  /// tanpa ini catatan revisi asli akan selalu hilang tertimpa null
+  /// setiap kali online, karena getTaskDetail mengembalikan versi cache
+  /// demi geotagPhotoCount/expenseNoteCount yang dihitung lokal.
+  TaskEntity withLatestRevisionNote(String? note) {
+    return TaskEntity(
+      id: id,
+      taskCode: taskCode,
+      taskName: taskName,
+      destination: destination,
+      description: description,
+      startDate: startDate,
+      endDate: endDate,
+      budgetAmount: budgetAmount,
+      status: status,
+      assigneeId: assigneeId,
+      assigneeName: assigneeName,
+      checklistItems: checklistItems,
+      geotagPhotoCount: geotagPhotoCount,
+      expenseNoteCount: expenseNoteCount,
+      latestRevisionNote: note,
+    );
+  }
+
   int get completedChecklistCount =>
       checklistItems.where((i) => i.isCompleted).length;
 

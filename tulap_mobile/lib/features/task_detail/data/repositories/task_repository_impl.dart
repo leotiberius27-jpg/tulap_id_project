@@ -60,9 +60,16 @@ class TaskRepositoryImpl implements TaskRepository {
               .toList(),
         );
         // Re-fetch dari cache agar geotagPhotoCount/expenseNoteCount
-        // (dihitung dari tabel lokal) ikut terisi konsisten.
+        // (dihitung dari tabel lokal) ikut terisi konsisten. Cache TIDAK
+        // menyimpan latestRevisionNote (lihat TaskModel.toCacheMap), jadi
+        // tempelkan nilai dari remoteTask di atas hasil cache - tanpa ini
+        // catatan revisi Verifikator akan selalu hilang tertimpa null.
         final merged = await _localDataSource.getCachedTask(taskId);
-        return Right(merged ?? remoteTask);
+        return Right(
+          (merged ?? remoteTask).withLatestRevisionNote(
+            remoteTask.latestRevisionNote,
+          ),
+        );
       } on DioException {
         // Gagal online meski status konektivitas "terhubung" (mis.
         // server down) - fallback ke cache lokal alih-alih error total.
