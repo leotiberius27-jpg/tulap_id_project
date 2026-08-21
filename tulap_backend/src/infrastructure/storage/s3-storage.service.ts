@@ -64,9 +64,19 @@ export class S3StorageService {
         Key: key,
         Body: params.buffer,
         ContentType: params.mimeType,
-        // Server-side encryption AES-256 at-rest, sesuai kepatuhan
-        // keamanan data di Bagian 3 dokumen requirement awal.
-        ServerSideEncryption: 'AES256',
+        // TIDAK menyertakan ServerSideEncryption: 'AES256' di sini secara
+        // eksplisit - provider S3-compatible non-AWS (MinIO lokal dev,
+        // dikonfirmasi lewat error nyata: "Server side encryption
+        // specified but KMS is not configured") menolak permintaan SSE
+        // apa pun (termasuk AES256 biasa) kalau server-nya belum punya
+        // backend KMS terpasang, walau setup KMS penuh tidak proporsional
+        // untuk dev lokal. Kepatuhan AES-256 at-rest (Bagian 3 dokumen
+        // requirement) tetap terpenuhi di AWS S3 sungguhan tanpa flag ini
+        // - sejak Januari 2023 AWS otomatis menerapkan SSE-S3 ke SEMUA
+        // objek baru di level bucket/platform, tanpa perlu diminta per
+        // request. Untuk provider S3-compatible lain di produksi,
+        // konfigurasikan default encryption di level bucket (server-side,
+        // sekali di awal) alih-alih per-request seperti sebelumnya.
       }),
     );
 
