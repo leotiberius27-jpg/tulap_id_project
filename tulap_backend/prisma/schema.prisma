@@ -49,9 +49,31 @@ model User {
   fullName     String   @map("full_name")
   email        String   @unique
   phoneNumber  String?  @map("phone_number")
-  passwordHash String   @map("password_hash")
+  // Nullable: akun yang dibuat lewat Google/Apple Sign-In tidak pernah
+  // punya password lokal - login().checkPassword() menolak login
+  // email/password untuk akun semacam ini dan mengarahkan ke tombol
+  // OAuth yang sesuai (lihat AuthService.login).
+  passwordHash String?  @map("password_hash")
   instansiName String?  @map("instansi_name") // Nama dinas/instansi
   unitKerja    String?  @map("unit_kerja") // Unit kerja/bagian
+
+  // Registrasi mandiri (self-registration, Bagian baru: "Daftar" di
+  // mobile) - dibedakan dari akun yang diprovisioning Admin lewat
+  // POST /auth/register, murni untuk audit trail asal-usul akun.
+  isSelfRegistered Boolean @default(false) @map("is_self_registered")
+
+  // Sign-In with Google/Apple - id unik dari provider, dipakai mencari
+  // akun yang sudah ditautkan tanpa bergantung ke email (email Google/
+  // Apple bisa saja berubah, id provider tidak).
+  googleId String? @unique @map("google_id")
+  appleId  String? @unique @map("apple_id")
+
+  // Lupa Kata Sandi (Bagian baru mobile) - kode OTP 6-digit + waktu
+  // kedaluwarsa, BUKAN token panjang, karena mobile belum punya deep
+  // link/app-link setup - user menyalin kode dari email lalu
+  // memasukkannya manual di app.
+  passwordResetCodeHash String?   @map("password_reset_code_hash")
+  passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
 
   roleId String @map("role_id")
   role   Role   @relation(fields: [roleId], references: [id], onDelete: Restrict)

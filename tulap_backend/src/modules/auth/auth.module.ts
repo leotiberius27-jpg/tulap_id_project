@@ -3,13 +3,16 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuditModule } from '../audit/audit.module';
+import { MailerModule } from '../../infrastructure/mailer/mailer.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { OAuthVerifierService } from './oauth-verifier.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
   imports: [
     AuditModule,
+    MailerModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     // Registrasi async agar JWT_SECRET dibaca dari ConfigService,
     // bukan hardcode — mendukung env terpisah per environment
@@ -26,7 +29,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, OAuthVerifierService],
   exports: [AuthService],
 })
 export class AuthModule {}

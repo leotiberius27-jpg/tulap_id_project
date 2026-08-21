@@ -9,13 +9,22 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { RoleName } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { MailerService } from '../../infrastructure/mailer/mailer.service';
 import { AuditService } from '../audit/audit.service';
+import { AppleAuthDto } from './dto/apple-auth.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { SelfRegisterDto } from './dto/self-register.dto';
 import { AuthenticatedUser, JwtPayload } from './interfaces/authenticated-user.interface';
+import { OAuthVerifierService, VerifiedOAuthProfile } from './oauth-verifier.service';
 
 const SALT_ROUNDS = 12; // Cost factor bcrypt - seimbang antara keamanan & performa
+const RESET_CODE_TTL_MINUTES = 15;
 
 @Injectable()
 export class AuthService {
@@ -25,6 +34,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly audit: AuditService,
+    private readonly mailer: MailerService,
+    private readonly oauthVerifier: OAuthVerifierService,
   ) {}
 
   /**
@@ -46,6 +57,15 @@ export class AuthService {
     if (!user.isActive) {
       throw new UnauthorizedException(
         'Akun Anda telah dinonaktifkan. Hubungi Admin instansi.',
+      );
+    }
+
+    if (!user.passwordHash) {
+      // Akun ini dibuat lewat Google/Apple Sign-In dan tidak pernah
+      // punya password lokal - arahkan ke tombol OAuth yang sesuai
+      // alih-alih pesan generik yang membingungkan.
+      throw new UnauthorizedException(
+        'Akun ini terdaftar lewat Google/Apple. Gunakan tombol "Lanjutkan dengan Google/Apple" untuk masuk.',
       );
     }
 
@@ -201,5 +221,261 @@ export class AuthService {
         'Refresh token tidak valid atau telah kedaluwarsa. Silakan login kembali.',
       );
     }
+  }
+
+  /**
+   * Registrasi mandiri (self-registration) dari mobile app - endpoint
+   * PUBLIK (Public()), berbeda dari `register()` yang hanya bisa
+   * dipanggil Admin. SELALU membuat akun ber-role PEGAWAI dan aktif
+   * langsung (Bagian "Daftar" mobile - user dapat langsung memakai
+   * akunnya begitu mendaftar, tanpa menunggu persetujuan Admin).
+   */
+  async selfRegister(dto: SelfRegisterDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Email sudah terdaftar di sistem.');
+    }
+
+    const pegawaiRole = await this.prisma.role.findUnique({
+      where: { name: RoleName.PEGAWAI },
+    });
+
+    if (!pegawaiRole) {
+      throw new NotFoundException('Role PEGAWAI belum terdaftar di master data.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+
+    const newUser = await this.prisma.user.create({
+      data: {
+        fullName: dto.fullName,
+        email: dto.email,
+        passwordHash,
+        phoneNumber: dto.phoneNumber,
+        instansiName: dto.instansiName,
+        isSelfRegistered: true,
+        roleId: pegawaiRole.id,
+      },
+      include: { role: true },
+    });
+
+    this.logger.log(`Registrasi mandiri baru: ${newUser.email}`);
+
+    await this.audit.log({
+      actorId: newUser.id,
+      action: 'USER_SELF_REGISTERED',
+      entity: 'User',
+      entityId: newUser.id,
+      metadata: { email: newUser.email },
+    });
+
+    const tokens = await this.generateTokens({
+      sub: newUser.id,
+      email: newUser.email,
+      role: newUser.role.name,
+    });
+
+    return {
+      ...tokens,
+      user: {
+        id: newUser.id,
+        nip: newUser.nip,
+        fullName: newUser.fullName,
+        email: newUser.email,
+        role: newUser.role.name,
+        instansiName: newUser.instansiName,
+      },
+    };
+  }
+
+  /**
+   * Langkah 1 Lupa Kata Sandi: generate kode OTP 6-digit, simpan HASH-nya
+   * (bukan kode mentah - sama seperti password) + waktu kedaluwarsa, lalu
+   * kirim via MailerService. Respons SELALU sama persis baik email
+   * terdaftar maupun tidak (cegah user enumeration, sama seperti login).
+   */
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+
+    if (user && user.isActive) {
+      const code = crypto.randomInt(100000, 999999).toString();
+      const codeHash = await bcrypt.hash(code, SALT_ROUNDS);
+      const expiresAt = new Date(Date.now() + RESET_CODE_TTL_MINUTES * 60_000);
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordResetCodeHash: codeHash,
+          passwordResetExpiresAt: expiresAt,
+        },
+      });
+
+      try {
+        await this.mailer.sendPasswordResetCode(user.email, code);
+      } catch (error) {
+        this.logger.error(`Gagal mengirim email reset ke ${user.email}: ${error}`);
+      }
+    }
+
+    return {
+      message:
+        'Jika email terdaftar, kode reset kata sandi telah dikirim. Periksa kotak masuk Anda.',
+    };
+  }
+
+  /**
+   * Langkah 2 Lupa Kata Sandi: validasi kode OTP terhadap hash tersimpan
+   * + belum kedaluwarsa, lalu ganti password dan hapus kode (sekali pakai).
+   */
+  async resetPassword(dto: ResetPasswordDto) {
+    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+
+    if (
+      !user ||
+      !user.passwordResetCodeHash ||
+      !user.passwordResetExpiresAt ||
+      user.passwordResetExpiresAt < new Date()
+    ) {
+      throw new UnauthorizedException('Kode reset tidak valid atau telah kedaluwarsa.');
+    }
+
+    const isCodeValid = await bcrypt.compare(dto.code, user.passwordResetCodeHash);
+    if (!isCodeValid) {
+      throw new UnauthorizedException('Kode reset tidak valid atau telah kedaluwarsa.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetCodeHash: null,
+        passwordResetExpiresAt: null,
+      },
+    });
+
+    await this.audit.log({
+      actorId: user.id,
+      action: 'PASSWORD_RESET',
+      entity: 'User',
+      entityId: user.id,
+      metadata: {},
+    });
+
+    this.logger.log(`Password direset via kode OTP: ${user.email}`);
+
+    return { message: 'Kata sandi berhasil diganti. Silakan masuk dengan kata sandi baru.' };
+  }
+
+  async loginWithGoogle(dto: GoogleAuthDto) {
+    const profile = await this.oauthVerifier.verifyGoogleIdToken(dto.idToken);
+    return this.loginOrCreateFromOAuth(profile, 'googleId');
+  }
+
+  async loginWithApple(dto: AppleAuthDto) {
+    const profile = await this.oauthVerifier.verifyAppleIdentityToken(
+      dto.identityToken,
+      dto.fullName,
+    );
+    return this.loginOrCreateFromOAuth(profile, 'appleId');
+  }
+
+  /**
+   * Dipakai bersama oleh Google & Apple Sign-In: cari akun via id
+   * provider dulu (sumber kebenaran utama - email bisa berubah/kosong
+   * di login Apple berikutnya), baru fallback ke email untuk MENAUTKAN
+   * akun password yang sudah ada, baru terakhir membuat akun PEGAWAI
+   * baru jika benar-benar belum pernah terdaftar sama sekali.
+   */
+  private async loginOrCreateFromOAuth(
+    profile: VerifiedOAuthProfile,
+    providerIdField: 'googleId' | 'appleId',
+  ) {
+    let user = await this.prisma.user.findFirst({
+      where: { [providerIdField]: profile.providerId },
+      include: { role: true },
+    });
+
+    if (!user && profile.email) {
+      const existingByEmail = await this.prisma.user.findUnique({
+        where: { email: profile.email },
+        include: { role: true },
+      });
+
+      if (existingByEmail) {
+        user = await this.prisma.user.update({
+          where: { id: existingByEmail.id },
+          data: { [providerIdField]: profile.providerId },
+          include: { role: true },
+        });
+      }
+    }
+
+    if (!user) {
+      if (!profile.email) {
+        throw new UnauthorizedException(
+          'Tidak dapat membuat akun baru tanpa email. Coba masuk dengan email/password atau hubungi Admin.',
+        );
+      }
+
+      const pegawaiRole = await this.prisma.role.findUnique({
+        where: { name: RoleName.PEGAWAI },
+      });
+      if (!pegawaiRole) {
+        throw new NotFoundException('Role PEGAWAI belum terdaftar di master data.');
+      }
+
+      user = await this.prisma.user.create({
+        data: {
+          fullName: profile.fullName || profile.email.split('@')[0],
+          email: profile.email,
+          isSelfRegistered: true,
+          roleId: pegawaiRole.id,
+          [providerIdField]: profile.providerId,
+        },
+        include: { role: true },
+      });
+
+      await this.audit.log({
+        actorId: user.id,
+        action: 'USER_SELF_REGISTERED',
+        entity: 'User',
+        entityId: user.id,
+        metadata: { email: user.email, via: providerIdField },
+      });
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException(
+        'Akun Anda telah dinonaktifkan. Hubungi Admin instansi.',
+      );
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    const tokens = await this.generateTokens({
+      sub: user.id,
+      email: user.email,
+      role: user.role.name,
+    });
+
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        nip: user.nip,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role.name,
+        instansiName: user.instansiName,
+      },
+    };
   }
 }

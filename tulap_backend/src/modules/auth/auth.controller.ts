@@ -9,9 +9,14 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { RoleName } from '@prisma/client';
 import { AuthService } from './auth.service';
+import { AppleAuthDto } from './dto/apple-auth.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { SelfRegisterDto } from './dto/self-register.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -69,5 +74,72 @@ export class AuthController {
   @Get('profile')
   getProfile(@CurrentUser() user: AuthenticatedUser) {
     return user;
+  }
+
+  /**
+   * POST /auth/register-self
+   * Endpoint publik - pendaftaran mandiri dari mobile app (layar
+   * "Daftar"). SELALU membuat akun ber-role PEGAWAI, berbeda dari
+   * POST /auth/register yang hanya bisa dipanggil Admin.
+   */
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @Public()
+  @Post('register-self')
+  @HttpCode(HttpStatus.CREATED)
+  registerSelf(@Body() dto: SelfRegisterDto) {
+    return this.authService.selfRegister(dto);
+  }
+
+  /**
+   * POST /auth/forgot-password
+   * Langkah 1 alur "Lupa Kata Sandi" - kirim kode OTP 6-digit ke email
+   * jika terdaftar. Rate limit ketat mencegah spam pengiriman email.
+   */
+  @Throttle({ default: { ttl: 60_000, limit: 3 } })
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  /**
+   * POST /auth/reset-password
+   * Langkah 2 alur "Lupa Kata Sandi" - tukar kode OTP dengan password
+   * baru.
+   */
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
+  }
+
+  /**
+   * POST /auth/google
+   * Masuk/daftar otomatis lewat Google Sign-In - idToken diverifikasi
+   * di server (lihat OAuthVerifierService), tidak pernah dipercaya
+   * mentah-mentah dari mobile.
+   */
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Public()
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  loginWithGoogle(@Body() dto: GoogleAuthDto) {
+    return this.authService.loginWithGoogle(dto);
+  }
+
+  /**
+   * POST /auth/apple
+   * Masuk/daftar otomatis lewat Sign In with Apple - identityToken
+   * diverifikasi di server via JWKS Apple.
+   */
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Public()
+  @Post('apple')
+  @HttpCode(HttpStatus.OK)
+  loginWithApple(@Body() dto: AppleAuthDto) {
+    return this.authService.loginWithApple(dto);
   }
 }
