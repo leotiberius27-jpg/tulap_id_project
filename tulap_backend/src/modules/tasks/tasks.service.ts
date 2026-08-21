@@ -8,15 +8,24 @@ import { RoleName, TaskStatus } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { ChecklistService } from '../checklist/checklist.service';
+import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { RevisionNoteDto } from './dto/revision-note.dto';
 
 /// Peta transisi status yang SAH - state machine sederhana untuk
 /// mencegah lompatan status yang tidak masuk akal (mis. DRAFT langsung
 /// ke VERIFIED tanpa melalui submit & review). Selaras dengan alur
 /// "Terima Tugas -> ... -> Verifikasi -> Revisi -> Disetujui" di
 /// dokumen requirement awal.
+const notificationDateFormatter = new Intl.DateTimeFormat('id-ID', {
+  day: '2-digit',
+  month: 'long',
+  year: 'numeric',
+});
+
 const ALLOWED_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   DRAFT: ['ONGOING'],
   ONGOING: ['PENDING_VERIFICATION'],
@@ -32,6 +41,8 @@ export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly checklistService: ChecklistService,
+    private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /// Membuat tugas baru. `taskCode` dibuat otomatis dengan format
@@ -57,7 +68,7 @@ export class TasksService {
 
     const taskCode = await this._generateTaskCode();
 
-    return this.prisma.task_SPPD.create({
+    const task = await this.prisma.task_SPPD.create({
       data: {
         taskCode,
         taskName: dto.taskName,
@@ -72,6 +83,24 @@ export class TasksService {
       },
       include: this._defaultInclude(),
     });
+
+    await this.audit.log({
+      actorId: creator.id,
+      action: 'TASK_CREATED',
+      entity: 'Task_SPPD',
+      entityId: task.id,
+      metadata: { taskCode: task.taskCode, assigneeId: task.assigneeId },
+    });
+
+    await this.notifications.notify({
+      userId: task.assigneeId,
+      type: 'TASK_ASSIGNED',
+      title: 'Tugas baru ditugaskan',
+      body: `Tugas baru: ${task.taskName} — ${notificationDateFormatter.format(task.startDate)}`,
+      relatedTaskId: task.id,
+    });
+
+    return task;
   }
 
   async findAll(query: QueryTasksDto, actor: AuthenticatedUser) {
@@ -263,15 +292,82 @@ export class TasksService {
   /// Dipanggil VERIFIKATOR/SUPER_ADMIN - lihat Verification Workspace
   /// (Bagian 15 dokumen spesifikasi).
   async approve(id: string, actor: AuthenticatedUser) {
-    return this.transitionStatus(id, 'VERIFIED', actor);
+    const task = await this.transitionStatus(id, 'VERIFIED', actor);
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'TASK_APPROVED',
+      entity: 'Task_SPPD',
+      entityId: task.id,
+    });
+
+    await this.notifications.notify({
+      userId: task.assigneeId,
+      type: 'TASK_APPROVED',
+      title: 'Tugas disetujui',
+      body: `Tugas ${task.taskName} telah disetujui.`,
+      relatedTaskId: task.id,
+    });
+
+    return task;
   }
 
-  async requestRevision(id: string, actor: AuthenticatedUser) {
-    return this.transitionStatus(id, 'REVISION_NEEDED', actor);
+  /// requestRevision
+  /// ----------------------------------------------------------------------
+  /// WAJIB disertai catatan spesifik (Bagian 22: "Nota BBM - Nominal
+  /// kurang jelas") - tanpa ini Pegawai tidak tahu apa yang perlu
+  /// diperbaiki, hanya melihat status berubah. Catatan disimpan permanen
+  /// di Task_Revision_Note (riwayat, bukan cuma field tunggal yang
+  /// tertimpa jika direvisi berkali-kali) dan diikutsertakan di
+  /// notifikasi ke Pegawai.
+  /// ----------------------------------------------------------------------
+  async requestRevision(id: string, dto: RevisionNoteDto, actor: AuthenticatedUser) {
+    const task = await this.transitionStatus(id, 'REVISION_NEEDED', actor);
+    await this._recordRevisionNote(task.id, dto.note, 'REVISION_NEEDED', actor);
+
+    await this.notifications.notify({
+      userId: task.assigneeId,
+      type: 'REVISION_NEEDED',
+      title: 'Perlu diperbaiki',
+      body: `Ada bagian yang perlu diperbaiki pada tugas ${task.taskName}: ${dto.note}`,
+      relatedTaskId: task.id,
+    });
+
+    return this.findOne(task.id, actor);
   }
 
-  async reject(id: string, actor: AuthenticatedUser) {
-    return this.transitionStatus(id, 'REJECTED', actor);
+  async reject(id: string, dto: RevisionNoteDto, actor: AuthenticatedUser) {
+    const task = await this.transitionStatus(id, 'REJECTED', actor);
+    await this._recordRevisionNote(task.id, dto.note, 'REJECTED', actor);
+
+    await this.notifications.notify({
+      userId: task.assigneeId,
+      type: 'TASK_REJECTED',
+      title: 'Tugas ditolak',
+      body: `Tugas ${task.taskName} ditolak: ${dto.note}`,
+      relatedTaskId: task.id,
+    });
+
+    return this.findOne(task.id, actor);
+  }
+
+  private async _recordRevisionNote(
+    taskId: string,
+    note: string,
+    status: TaskStatus,
+    actor: AuthenticatedUser,
+  ) {
+    await this.prisma.task_Revision_Note.create({
+      data: { taskId, actorId: actor.id, note, status },
+    });
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: status === 'REJECTED' ? 'TASK_REJECTED' : 'TASK_REVISION_REQUESTED',
+      entity: 'Task_SPPD',
+      entityId: taskId,
+      metadata: { note },
+    });
   }
 
   /// Dipanggil PEGAWAI setelah REVISION_NEEDED, mengirim ulang untuk
@@ -290,7 +386,16 @@ export class TasksService {
   /// Dipanggil BENDAHARA/ADMIN setelah LPJ terbit - lihat LPJ Generator
   /// (menyusul, modul documents).
   async complete(id: string, actor: AuthenticatedUser) {
-    return this.transitionStatus(id, 'COMPLETED', actor);
+    const task = await this.transitionStatus(id, 'COMPLETED', actor);
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'TASK_COMPLETED',
+      entity: 'Task_SPPD',
+      entityId: task.id,
+    });
+
+    return task;
   }
 
   private async _findOrThrow(id: string) {
@@ -326,6 +431,10 @@ export class TasksService {
       },
       creator: {
         select: { id: true, fullName: true, email: true },
+      },
+      revisionNotes: {
+        orderBy: { createdAt: 'desc' as const },
+        include: { actor: { select: { id: true, fullName: true } } },
       },
     };
   }

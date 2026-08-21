@@ -10,6 +10,7 @@ import { ExpenseCategory } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { S3StorageService } from '../../infrastructure/storage/s3-storage.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { AuditService } from '../audit/audit.service';
 import { UploadPhotoDto } from './dto/upload-photo.dto';
 import { UploadReceiptDto } from './dto/upload-receipt.dto';
 
@@ -20,6 +21,7 @@ export class EvidenceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: S3StorageService,
+    private readonly audit: AuditService,
   ) {}
 
   /// uploadPhoto
@@ -84,6 +86,14 @@ export class EvidenceService {
       },
     });
 
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'EVIDENCE_PHOTO_UPLOADED',
+      entity: 'Geotag_Photo',
+      entityId: photo.id,
+      metadata: { taskId: dto.taskId, hashVerified: hashMatches },
+    });
+
     return {
       id: photo.id,
       photoUrl: photo.photoUrl,
@@ -144,6 +154,14 @@ export class EvidenceService {
         ocrConfidence: dto.ocrConfidence,
         verificationStatus: 'PENDING',
       },
+    });
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'EVIDENCE_RECEIPT_UPLOADED',
+      entity: 'Expense_Note',
+      entityId: note.id,
+      metadata: { taskId: dto.taskId, totalAmount: dto.totalAmount },
     });
 
     return {

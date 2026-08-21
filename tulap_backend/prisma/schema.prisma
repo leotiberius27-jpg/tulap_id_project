@@ -68,6 +68,9 @@ model User {
   geotagPhotos    Geotag_Photo[]
   expenseNotes    Expense_Note[]   @relation("ExpenseOwner")
   verifiedNotes   Expense_Note[]   @relation("ExpenseVerifier")
+  auditLogs       Audit_Log[]
+  notifications   Notification[]
+  revisionNotes   Task_Revision_Note[]
 
   @@index([roleId])
   @@index([email])
@@ -124,6 +127,7 @@ model Task_SPPD {
   geotagPhotos Geotag_Photo[]
   expenseNotes Expense_Note[]
   checklistItems Task_Checklist_Item[]
+  revisionNotes Task_Revision_Note[]
 
   @@index([assigneeId])
   @@index([creatorId])
@@ -268,4 +272,92 @@ model Expense_Note {
   @@index([transactionDate]) // Optimasi rekap laporan per periode
   @@index([category])
   @@map("expense_notes")
+}
+
+// =====================================================================
+// 5. MODUL AUDIT TRAIL
+// =====================================================================
+
+/// Log tindakan penting - append-only (Bagian 31 dokumen spesifikasi).
+/// Tidak ada endpoint update/delete untuk model ini di mana pun -
+/// hanya ditulis lewat AuditService.log(), tidak pernah diubah/dihapus.
+model Audit_Log {
+  id String @id @default(uuid())
+
+  actorId String? @map("actor_id")
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  action   String // Contoh: "TASK_CREATED", "TASK_APPROVED", "EVIDENCE_PHOTO_UPLOADED"
+  entity   String // Contoh: "Task_SPPD", "Geotag_Photo"
+  entityId String @map("entity_id")
+
+  metadata Json? // Detail tambahan bebas bentuk per action (mis. catatan revisi)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// =====================================================================
+// 6. MODUL NOTIFIKASI
+// =====================================================================
+
+/// Sesuai tabel Notification System Bagian 25 dokumen spesifikasi.
+enum NotificationType {
+  TASK_ASSIGNED
+  REVISION_NEEDED
+  TASK_APPROVED
+  TASK_REJECTED
+  LPJ_READY
+
+  @@map("notification_type")
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type  NotificationType
+  title String
+  body  String
+
+  relatedTaskId String? @map("related_task_id")
+
+  isRead Boolean @default(false) @map("is_read")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// =====================================================================
+// 7. MODUL CATATAN REVISI
+// =====================================================================
+
+/// Catatan spesifik Verifikator saat mengembalikan/menolak tugas -
+/// mengisi kekosongan yang sebelumnya membuat Pegawai tidak tahu APA
+/// yang perlu diperbaiki (Bagian 22: "Nota BBM - Nominal kurang jelas").
+model Task_Revision_Note {
+  id String @id @default(uuid())
+
+  taskId String    @map("task_id")
+  task   Task_SPPD @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  actorId String @map("actor_id")
+  actor   User   @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  note   String
+  status TaskStatus // Snapshot status pada saat catatan dibuat (REVISION_NEEDED / REJECTED)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([taskId])
+  @@map("task_revision_notes")
 }

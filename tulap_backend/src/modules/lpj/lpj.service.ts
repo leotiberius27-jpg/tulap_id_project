@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import PDFDocument = require('pdfkit');
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { GenerateLpjDto } from './dto/generate-lpj.dto';
 
 const rupiahFormatter = new Intl.NumberFormat('id-ID', {
@@ -30,13 +33,21 @@ const dateFormatter = new Intl.DateTimeFormat('id-ID', {
 /// ----------------------------------------------------------------------
 @Injectable()
 export class LpjService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
-  async generate(dto: GenerateLpjDto): Promise<{ buffer: Buffer; fileName: string }> {
+  async generate(
+    dto: GenerateLpjDto,
+    actor: AuthenticatedUser,
+  ): Promise<{ buffer: Buffer; fileName: string }> {
     const task = await this.prisma.task_SPPD.findUnique({
       where: { id: dto.taskId },
       include: {
-        assignee: { select: { fullName: true, instansiName: true, unitKerja: true } },
+        assignee: { select: { id: true, fullName: true, instansiName: true, unitKerja: true } },
+        creator: { select: { id: true } },
         checklistItems: { orderBy: { order: 'asc' } },
         expenseNotes: { orderBy: { transactionDate: 'asc' } },
         geotagPhotos: { orderBy: { serverTimestamp: 'asc' } },
@@ -57,7 +68,31 @@ export class LpjService {
     }
 
     const buffer = await this._renderPdf(task);
-    return { buffer, fileName: `LPJ-${task.taskCode}.pdf` };
+    const fileName = `LPJ-${task.taskCode}.pdf`;
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'LPJ_GENERATED',
+      entity: 'Task_SPPD',
+      entityId: task.id,
+      metadata: { fileName },
+    });
+
+    // Notifikasi ke Petugas (Bagian 25: "LPJ untuk [Judul] sudah bisa
+    // diunduh") - dan ke pembuat tugas jika berbeda dari yang generate,
+    // supaya Admin yang membuat penugasan juga tahu LPJ-nya sudah terbit.
+    const recipientIds = new Set([task.assignee.id, task.creator.id]);
+    for (const userId of recipientIds) {
+      await this.notifications.notify({
+        userId,
+        type: 'LPJ_READY',
+        title: 'LPJ siap diunduh',
+        body: `LPJ untuk ${task.taskName} sudah bisa diunduh.`,
+        relatedTaskId: task.id,
+      });
+    }
+
+    return { buffer, fileName };
   }
 
   private _renderPdf(task: any): Promise<Buffer> {

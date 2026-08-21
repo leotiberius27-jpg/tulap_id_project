@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Post,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { RoleName } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -25,6 +26,9 @@ export class AuthController {
    * Endpoint publik (tidak butuh token) — titik masuk utama mobile app
    * & web dashboard untuk mendapatkan Access Token + Refresh Token.
    */
+  // Rate limit ketat khusus login (5x/menit per IP) - mencegah brute
+  // force credential guessing (Bagian 30 dokumen spesifikasi).
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -41,8 +45,8 @@ export class AuthController {
   @Roles(RoleName.ADMIN, RoleName.SUPER_ADMIN)
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  register(@Body() dto: RegisterDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.authService.register(dto, actor);
   }
 
   /**

@@ -6,6 +6,7 @@ import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interfa
 import { CreateTaskDto } from './dto/create-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { RevisionNoteDto } from './dto/revision-note.dto';
 import { TasksService } from './tasks.service';
 
 @Controller('tasks')
@@ -88,14 +89,22 @@ export class TasksController {
 
   @Roles(RoleName.VERIFIKATOR, RoleName.SUPER_ADMIN)
   @Post(':id/request-revision')
-  requestRevision(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
-    return this.tasksService.requestRevision(id, actor);
+  requestRevision(
+    @Param('id') id: string,
+    @Body() dto: RevisionNoteDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.tasksService.requestRevision(id, dto, actor);
   }
 
   @Roles(RoleName.VERIFIKATOR, RoleName.SUPER_ADMIN)
   @Post(':id/reject')
-  reject(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
-    return this.tasksService.reject(id, actor);
+  reject(
+    @Param('id') id: string,
+    @Body() dto: RevisionNoteDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.tasksService.reject(id, dto, actor);
   }
 
   // CATATAN: dokumen spesifikasi produk (Bagian 6) menyebut role

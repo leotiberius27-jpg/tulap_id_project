@@ -2,6 +2,8 @@ import { Body, Controller, Post, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { RoleName } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { GenerateLpjDto } from './dto/generate-lpj.dto';
 import { LpjService } from './lpj.service';
 
@@ -18,8 +20,12 @@ export class LpjController {
 
   @Roles(RoleName.VERIFIKATOR, RoleName.ADMIN, RoleName.SUPER_ADMIN)
   @Post('generate')
-  async generate(@Body() dto: GenerateLpjDto, @Res() res: Response) {
-    const { buffer, fileName } = await this.lpjService.generate(dto);
+  async generate(
+    @Body() dto: GenerateLpjDto,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Res() res: Response,
+  ) {
+    const { buffer, fileName } = await this.lpjService.generate(dto, actor);
 
     res.set({
       'Content-Type': 'application/pdf',

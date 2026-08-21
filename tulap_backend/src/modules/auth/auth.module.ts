@@ -2,12 +2,14 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuditModule } from '../audit/audit.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
   imports: [
+    AuditModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     // Registrasi async agar JWT_SECRET dibaca dari ConfigService,
     // bukan hardcode — mendukung env terpisah per environment

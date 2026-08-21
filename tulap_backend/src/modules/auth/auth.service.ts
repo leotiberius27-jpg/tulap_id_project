@@ -8,9 +8,10 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { JwtPayload } from './interfaces/authenticated-user.interface';
+import { AuthenticatedUser, JwtPayload } from './interfaces/authenticated-user.interface';
 
 const SALT_ROUNDS = 12; // Cost factor bcrypt - seimbang antara keamanan & performa
 
@@ -21,6 +22,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -86,7 +88,7 @@ export class AuthService {
    * ADMIN/SUPER_ADMIN via @Roles() di controller — service ini tidak
    * melakukan pengecekan role pemanggil, itu tanggung jawab RolesGuard.
    */
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, actor: AuthenticatedUser) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -124,6 +126,14 @@ export class AuthService {
     this.logger.log(
       `User baru terdaftar: ${newUser.email} dengan role ${newUser.role.name}`,
     );
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'USER_CREATED',
+      entity: 'User',
+      entityId: newUser.id,
+      metadata: { email: newUser.email, role: newUser.role.name },
+    });
 
     // Tidak mengembalikan passwordHash ke response demi keamanan.
     const { passwordHash: _omit, ...safeUser } = newUser;
