@@ -119,7 +119,14 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const TulapApp());
-    await tester.pumpAndSettle();
+    // WelcomePage has continuously-repeating animations (pulsing "Online"
+    // dot, floating decorative icons), so `pumpAndSettle()` never
+    // terminates here - pump a few fixed frames instead: one to flush the
+    // WelcomeController's async `_load()` microtasks, one past the
+    // one-shot entrance animation.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 600));
 
     expect(find.text('Masuk'), findsOneWidget);
   });

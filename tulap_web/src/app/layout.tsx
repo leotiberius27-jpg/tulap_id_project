@@ -17,8 +17,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="id" className={plusJakartaSans.variable}>
-      <body className="min-h-screen font-sans antialiased">{children}</body>
+    <html lang="id" className={plusJakartaSans.variable} suppressHydrationWarning>
+      <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

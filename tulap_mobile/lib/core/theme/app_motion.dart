@@ -23,6 +23,9 @@ class AppMotion {
   /// Transisi antar layar/tab.
   static const Duration screen = Duration(milliseconds: 260);
 
+  /// Entrance sekali-jalan: kartu/headline muncul pertama kali di layar.
+  static const Duration entrance = Duration(milliseconds: 550);
+
   static const Curve standard = Curves.easeOutCubic;
   static const Curve emphasized = Curves.easeOutCirc;
 }

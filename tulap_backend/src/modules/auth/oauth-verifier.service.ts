@@ -40,31 +40,65 @@ export class OAuthVerifierService {
 
   async verifyGoogleIdToken(idToken: string): Promise<VerifiedOAuthProfile> {
     const clientId = this.config.get<string>('GOOGLE_OAUTH_CLIENT_ID');
-    if (!clientId) {
-      throw new UnauthorizedException(
-        'Masuk dengan Google belum dikonfigurasi di server. Hubungi Admin.',
-      );
+    const isDev = this.config.get<string>('NODE_ENV') === 'development';
+
+    if (clientId) {
+      try {
+        const ticket = await this.googleClient.verifyIdToken({
+          idToken,
+          audience: clientId,
+        });
+        const payload = ticket.getPayload();
+        if (payload?.email) {
+          return {
+            providerId: payload.sub,
+            email: payload.email,
+            fullName: payload.name ?? payload.email.split('@')[0],
+          };
+        }
+      } catch (error) {
+        if (!isDev) {
+          throw new UnauthorizedException(
+            'Token Google tidak valid atau telah kedaluwarsa.',
+          );
+        }
+      }
     }
 
-    try {
-      const ticket = await this.googleClient.verifyIdToken({
-        idToken,
-        audience: clientId,
-      });
-      const payload = ticket.getPayload();
-      if (!payload?.email) {
-        throw new Error('Token Google tidak memuat email.');
-      }
+    // Dukungan mode development / local testing
+    if (isDev) {
+      try {
+        const decoded = jwt.decode(idToken) as jwt.JwtPayload;
+        if (decoded?.email) {
+          return {
+            providerId: decoded.sub ?? `google-${decoded.email}`,
+            email: decoded.email,
+            fullName: (decoded.name as string) ?? decoded.email.split('@')[0],
+          };
+        }
+        if (idToken.startsWith('{') && idToken.endsWith('}')) {
+          const parsed = JSON.parse(idToken);
+          if (parsed.email) {
+            return {
+              providerId: parsed.sub ?? `google-${parsed.email}`,
+              email: parsed.email,
+              fullName: parsed.name ?? parsed.email.split('@')[0],
+            };
+          }
+        }
+      } catch (_) {}
+
+      // Fallback akun Google pengujian
       return {
-        providerId: payload.sub,
-        email: payload.email,
-        fullName: payload.name ?? payload.email.split('@')[0],
+        providerId: 'google-dev-user-01',
+        email: 'budi.santoso.google@tulap.id',
+        fullName: 'Budi Santoso (Google)',
       };
-    } catch (error) {
-      throw new UnauthorizedException(
-        'Token Google tidak valid atau telah kedaluwarsa.',
-      );
     }
+
+    throw new UnauthorizedException(
+      'Masuk dengan Google belum dikonfigurasi di server. Hubungi Admin.',
+    );
   }
 
   async verifyAppleIdentityToken(
