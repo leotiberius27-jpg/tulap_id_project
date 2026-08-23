@@ -5,6 +5,6 @@
 @tailwind utilities;
 
 body {
-  background-color: var(--color-background);
-  color: var(--color-text-primary);
+  background-color: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
 }

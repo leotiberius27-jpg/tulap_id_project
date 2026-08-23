@@ -260,10 +260,19 @@ class _LoginViewState extends State<_LoginView> with SingleTickerProviderStateMi
 
                               // Logo Resmi Tulap.id
                               Center(
-                                child: Image.asset(
-                                  'assets/images/logo.png',
-                                  width: 58,
-                                  height: 58,
+                                child: Container(
+                                  width: 76,
+                                  height: 76,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE8F1FF),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Image.asset(
+                                    'assets/images/logo.png',
+                                    width: 42,
+                                    height: 42,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 12),

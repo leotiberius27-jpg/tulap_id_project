@@ -16,9 +16,53 @@ import {
   CloudUpload,
   CheckCircle2,
   ArrowUpRight,
+  X,
 } from 'lucide-react';
 import { ForgotPasswordModal } from '@/components/forgot-password-modal';
 import { SocialLoginButtons } from '@/components/social-login-buttons';
+
+const HELP_TEXT =
+  'Jika Anda mengalami kendala saat masuk (lupa email terdaftar, akun belum diaktivasi, atau kendala teknis lainnya), silakan hubungi Administrator instansi Anda atau kirim email ke support@tulap.id.';
+const REGISTER_TEXT =
+  'Pendaftaran akun mandiri hanya tersedia untuk Pegawai lapangan melalui aplikasi mobile Tulap.id. Akun Verifikator dan Admin di Dashboard ini dibuat oleh Administrator instansi Anda — hubungi Admin jika Anda belum memiliki akun.';
+const TERMS_TEXT =
+  'Tulap.id digunakan oleh pegawai instansi untuk pelaporan tugas lapangan secara akurat dan terverifikasi. Data lokasi, waktu, dan bukti foto dilindungi dengan enkripsi dan integritas anti-manipulasi.';
+const PRIVACY_TEXT =
+  'Data pribadi dan dokumentasi kegiatan lapangan diproses sesuai UU PDP No. 27/2022 dan hanya diakses oleh verifikator instansi yang berwenang.';
+
+function InfoModal({
+  title,
+  body,
+  onClose,
+}: {
+  title: string;
+  body: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-sm rounded-card bg-surface p-6 shadow-dropdown">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-body font-bold text-text-primary">{title}</h3>
+          <button
+            onClick={onClose}
+            className="rounded-button p-1 text-text-secondary transition hover:bg-background hover:text-text-primary"
+            aria-label="Tutup"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="text-small leading-relaxed text-text-secondary">{body}</p>
+        <button
+          onClick={onClose}
+          className="mt-5 w-full rounded-button bg-primary py-2.5 text-small font-semibold text-white shadow-sm transition hover:bg-primary-hover"
+        >
+          Mengerti
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,6 +72,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [infoModal, setInfoModal] = useState<{ title: string; body: string } | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -150,6 +195,16 @@ export default function LoginPage() {
             <p className="mt-1 text-small text-text-secondary">
               Masuk untuk melanjutkan tugas lapangan Anda.
             </p>
+            <p className="mt-1 text-[11px] text-text-secondary">
+              Belum memiliki akun?{' '}
+              <button
+                type="button"
+                onClick={() => setInfoModal({ title: 'Daftar Akun', body: REGISTER_TEXT })}
+                className="font-semibold text-primary hover:underline"
+              >
+                Daftar
+              </button>
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -228,7 +283,7 @@ export default function LoginPage() {
           <div className="mt-6 text-center">
             <button
               type="button"
-              onClick={() => setShowForgotPassword(true)}
+              onClick={() => setInfoModal({ title: 'Bantuan Masuk', body: HELP_TEXT })}
               className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
             >
               Butuh bantuan masuk?
@@ -238,8 +293,23 @@ export default function LoginPage() {
 
           <div className="mt-6 border-t border-border/80 pt-5 text-center">
             <p className="text-[11px] leading-relaxed text-text-secondary">
-              Gunakan akun yang telah didaftarkan oleh admin instansi Anda. Sistem Informasi
-              Penugasan &amp; Verifikasi Akuntabilitas Lapangan Resmi.
+              Dengan masuk, Anda menyetujui{' '}
+              <button
+                type="button"
+                onClick={() => setInfoModal({ title: 'Syarat Penggunaan', body: TERMS_TEXT })}
+                className="font-semibold text-primary hover:underline"
+              >
+                Syarat Penggunaan
+              </button>{' '}
+              dan{' '}
+              <button
+                type="button"
+                onClick={() => setInfoModal({ title: 'Kebijakan Privasi', body: PRIVACY_TEXT })}
+                className="font-semibold text-primary hover:underline"
+              >
+                Kebijakan Privasi
+              </button>{' '}
+              Tulap.id.
             </p>
           </div>
         </div>
@@ -247,6 +317,13 @@ export default function LoginPage() {
 
       {showForgotPassword && (
         <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />
+      )}
+      {infoModal && (
+        <InfoModal
+          title={infoModal.title}
+          body={infoModal.body}
+          onClose={() => setInfoModal(null)}
+        />
       )}
     </div>
   );

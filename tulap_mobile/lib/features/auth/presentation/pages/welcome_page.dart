@@ -176,27 +176,16 @@ class _WelcomeViewState extends State<_WelcomeView> with SingleTickerProviderSta
                               position: _headlineSlide,
                               child: Column(
                                 children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Image.asset(
-                                        'assets/images/logo.png',
-                                        width: 36,
-                                        height: 36,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Text(
-                                        'Tulap.id',
-                                        style: TextStyle(
-                                          fontFamily: AppTypography.fontFamily,
-                                          fontSize: 36,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.white,
-                                          letterSpacing: -0.6,
-                                          height: 1.1,
-                                        ),
-                                      ),
-                                    ],
+                                  const Text(
+                                    'Tulap.id',
+                                    style: TextStyle(
+                                      fontFamily: AppTypography.fontFamily,
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      letterSpacing: -0.6,
+                                      height: 1.1,
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(

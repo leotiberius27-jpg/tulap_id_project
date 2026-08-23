@@ -10,6 +10,19 @@
  * ----------------------------------------------------------------------
  */
 
+/**
+ * design-tokens.css stores each color as "R G B" channels (not #hex) so
+ * this can wrap it in rgba(var(--color-x), <alpha>) - that's what lets
+ * Tailwind's opacity modifiers (bg-primary/10, border-danger/20, ...)
+ * actually compute a color instead of silently rendering transparent.
+ */
+function withOpacity(variableName) {
+  return ({ opacityValue }) =>
+    opacityValue === undefined
+      ? `rgb(var(${variableName}))`
+      : `rgb(var(${variableName}) / ${opacityValue})`;
+}
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -21,28 +34,28 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: 'var(--color-primary)',
-          hover: 'var(--color-primary-hover)',
+          DEFAULT: withOpacity('--color-primary'),
+          hover: withOpacity('--color-primary-hover'),
         },
-        action: 'var(--color-action)',
+        action: withOpacity('--color-action'),
         success: {
-          DEFAULT: 'var(--color-success)',
-          soft: 'var(--color-success-soft)',
+          DEFAULT: withOpacity('--color-success'),
+          soft: withOpacity('--color-success-soft'),
         },
         warning: {
-          DEFAULT: 'var(--color-warning)',
-          soft: 'var(--color-warning-soft)',
+          DEFAULT: withOpacity('--color-warning'),
+          soft: withOpacity('--color-warning-soft'),
         },
         danger: {
-          DEFAULT: 'var(--color-danger)',
-          soft: 'var(--color-danger-soft)',
+          DEFAULT: withOpacity('--color-danger'),
+          soft: withOpacity('--color-danger-soft'),
         },
-        background: 'var(--color-background)',
-        surface: 'var(--color-surface)',
-        border: 'var(--color-border)',
+        background: withOpacity('--color-background'),
+        surface: withOpacity('--color-surface'),
+        border: withOpacity('--color-border'),
         text: {
-          primary: 'var(--color-text-primary)',
-          secondary: 'var(--color-text-secondary)',
+          primary: withOpacity('--color-text-primary'),
+          secondary: withOpacity('--color-text-secondary'),
         },
       },
       fontFamily: {
@@ -57,17 +70,6 @@ module.exports = {
         ],
         body: ['var(--font-size-body)', { fontWeight: '400' }],
         small: ['var(--font-size-small)', { fontWeight: '500' }],
-      },
-      spacing: {
-        4: 'var(--spacing-4)',
-        8: 'var(--spacing-8)',
-        12: 'var(--spacing-12)',
-        16: 'var(--spacing-16)',
-        24: 'var(--spacing-24)',
-        32: 'var(--spacing-32)',
-        40: 'var(--spacing-40)',
-        48: 'var(--spacing-48)',
-        64: 'var(--spacing-64)',
       },
       borderRadius: {
         small: 'var(--radius-small)',

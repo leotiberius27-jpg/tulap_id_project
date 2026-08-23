@@ -6,31 +6,35 @@
    ===================================================================== */
 
 :root {
-  /* --- Warna Brand --- */
-  --color-primary: #00529c;
-  --color-primary-hover: #003d75;
-  --color-action: #0072ce;
+  /* --- Warna Brand ---
+     Disimpan sebagai channel "R G B" (bukan #hex) supaya modifier opacity
+     Tailwind (mis. bg-primary/10) bisa menghitung alpha-blend lewat
+     rgba(var(--color-x), <alpha>) di tailwind.config.js - #hex mentah
+     tidak bisa diurai Tailwind v3 saat dipakai lewat CSS custom property. */
+  --color-primary: 0 82 156; /* #00529c */
+  --color-primary-hover: 0 61 117; /* #003d75 */
+  --color-action: 0 114 206; /* #0072ce */
 
   /* --- Warna Semantik --- */
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  --color-success: 16 185 129; /* #10b981 */
+  --color-warning: 245 158 11; /* #f59e0b */
+  --color-danger: 239 68 68; /* #ef4444 */
 
   /* Versi soft/tint untuk latar badge & banner status */
-  --color-success-soft: #e7f8f1;
-  --color-warning-soft: #fef3e2;
-  --color-danger-soft: #fdecec;
+  --color-success-soft: 231 248 241; /* #e7f8f1 */
+  --color-warning-soft: 254 243 226; /* #fef3e2 */
+  --color-danger-soft: 253 236 236; /* #fdecec */
 
   /* --- Layout --- */
-  --color-background: #f7f9fc;
-  --color-surface: #ffffff;
-  --color-border: #eaecf0;
+  --color-background: 247 249 252; /* #f7f9fc */
+  --color-surface: 255 255 255; /* #ffffff */
+  --color-border: 234 236 240; /* #eaecf0 */
 
   /* --- Teks --- */
-  --color-text-primary: #172033;
-  --color-text-secondary: #667085;
-  --color-on-primary: #ffffff;
-  --color-on-warning: #172033;
+  --color-text-primary: 23 32 51; /* #172033 */
+  --color-text-secondary: 102 112 133; /* #667085 */
+  --color-on-primary: 255 255 255; /* #ffffff */
+  --color-on-warning: 23 32 51; /* #172033 */
 
   /* --- Tipografi --- */
   --font-family-base: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
