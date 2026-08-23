@@ -102,23 +102,11 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#eef2fb] px-4 py-10">
-      <div className="grid w-full max-w-5xl grid-cols-1 overflow-hidden rounded-card shadow-dropdown md:grid-cols-2">
+      {/* Rasio kolom 907:765 (54.25%:45.75%) mengikuti proporsi persis
+          panel kiri/kanan pada referensi desain Web, bukan pembagian 50/50. */}
+      <div className="grid w-full max-w-5xl grid-cols-1 overflow-hidden rounded-card shadow-dropdown md:grid-cols-[907fr_765fr]">
         {/* LEFT — brand / illustration panel, hidden on mobile */}
-        <div className="relative hidden min-h-[640px] flex-col justify-between overflow-hidden bg-[#003d75] p-10 text-white md:flex">
-          {/* Ilustrasi petugas lapangan - aset sama dengan aplikasi mobile,
-              menjaga konsistensi visual lintas platform. */}
-          <Image
-            src="/hero_illustration.png"
-            alt=""
-            fill
-            priority
-            className="pointer-events-none object-cover object-[center_35%]"
-          />
-          {/* Overlay gradien agar teks tetap terbaca di atas foto - dua pita
-              terpisah (atas untuk judul, bawah untuk badge) supaya wajah
-              karakter di tengah tetap terlihat jelas */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-[#003d75] via-[#003d75]/70 to-transparent" />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-[#001c38] via-[#001c38]/60 to-transparent" />
+        <div className="relative hidden min-h-[640px] flex-col overflow-hidden bg-[#003d75] p-10 text-white md:flex">
           <MapPin className="pointer-events-none absolute right-10 top-24 z-10 h-5 w-5 text-white/25" />
           <MapPin className="pointer-events-none absolute right-24 top-10 z-10 h-4 w-4 text-white/20" />
 
@@ -142,8 +130,23 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {/* Ilustrasi petugas lapangan sesuai referensi desain Web
+              (Referensi/Web) - seragam & lanyard instansi, berbeda dari
+              ilustrasi kasual aplikasi mobile. Dikunci pada rasio aspek
+              700:481 asli hasil crop referensi (object-contain) supaya
+              tidak ada wajah/elemen yang terpotong akibat object-cover. */}
+          <div className="relative z-10 mt-6 aspect-[660/330] w-full">
+            <Image
+              src="/hero_illustration_web.png"
+              alt=""
+              fill
+              priority
+              className="pointer-events-none rounded-xl object-contain"
+            />
+          </div>
+
           {/* Badge & kartu verifikasi, melayang di atas ilustrasi */}
-          <div className="relative z-10">
+          <div className="relative z-10 mt-6">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-text-primary shadow-lg">
               <CheckCircle2 className="h-3.5 w-3.5 text-success" />
               Lokasi Terverifikasi
