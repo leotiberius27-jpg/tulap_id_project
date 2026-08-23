@@ -3,14 +3,31 @@
 import Image from 'next/image';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  MapPin,
+  Camera,
+  Receipt,
+  FileCheck2,
+  CloudUpload,
+  CheckCircle2,
+  ArrowUpRight,
+} from 'lucide-react';
+import { ForgotPasswordModal } from '@/components/forgot-password-modal';
+import { SocialLoginButtons } from '@/components/social-login-buttons';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,88 +57,197 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4 py-12">
-      <div className="w-full max-w-md rounded-2xl bg-surface p-8 sm:p-10 border border-border/80 shadow-dropdown">
-        {/* Brand Logo & Header */}
-        <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-primary/5 flex items-center justify-center mb-4 p-2">
-            <Image
-              src="/logo.png"
-              alt="Tulap.id Logo"
-              width={54}
-              height={54}
-              className="object-contain"
-              priority
-            />
-          </div>
-          <h1 className="text-2xl font-bold text-primary tracking-tight">Tulap.id</h1>
-          <p className="mt-1 text-small text-text-secondary">
-            Dashboard Manajemen Tugas &amp; Verifikasi LPJ
-          </p>
-        </div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#eef2fb] px-4 py-10">
+      <div className="grid w-full max-w-5xl grid-cols-1 overflow-hidden rounded-card shadow-dropdown md:grid-cols-2">
+        {/* LEFT — brand / illustration panel, hidden on mobile */}
+        <div className="relative hidden min-h-[640px] flex-col justify-between overflow-hidden bg-gradient-to-br from-[#003d75] via-[#00529c] to-[#0072ce] p-10 text-white md:flex">
+          {/* Dotted world-map texture */}
+          <svg
+            className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.15]"
+            aria-hidden="true"
+          >
+            <pattern id="dots" width="14" height="14" patternUnits="userSpaceOnUse">
+              <circle cx="1.5" cy="1.5" r="1.5" fill="white" />
+            </pattern>
+            <rect width="100%" height="100%" fill="url(#dots)" />
+          </svg>
+          <MapPin className="pointer-events-none absolute right-10 top-24 h-5 w-5 text-white/20" />
+          <MapPin className="pointer-events-none absolute right-24 top-10 h-4 w-4 text-white/15" />
+          <MapPin className="pointer-events-none absolute left-16 top-40 h-4 w-4 text-white/15" />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <label htmlFor="email" className="text-xs font-semibold text-text-primary uppercase tracking-wider">
-              Email Pengguna
-            </label>
-            <div className="relative">
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-button border border-border pl-10 pr-4 py-2.5 text-small bg-surface text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm transition"
-                placeholder="nama@instansi.go.id"
-              />
-              <Mail className="w-4 h-4 text-text-secondary absolute left-3.5 top-1/2 -translate-y-1/2" />
+          {/* Header */}
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
+              <span className="text-section-title font-bold tracking-tight">Tulap.id</span>
+              <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/90 ring-1 ring-white/20">
+                <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                Online
+              </span>
+            </div>
+
+            <h1 className="mt-8 text-[34px] font-bold leading-[1.15] tracking-tight">
+              Tugas Lapangan
+              <br />
+              <span className="text-[#7fd4ff]">dalam Kendali</span>
+            </h1>
+            <p className="mt-4 max-w-xs text-small leading-relaxed text-white/80">
+              Dokumentasikan kegiatan, validasi bukti, dan selesaikan laporan dalam satu tempat.
+            </p>
+          </div>
+
+          {/* Illustration cluster */}
+          <div className="relative z-10 flex-1">
+            {/* Field-officer avatars */}
+            <div className="mt-6 flex items-end gap-4">
+              <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur-sm">
+                <Camera className="h-9 w-9 text-white/90" strokeWidth={1.5} />
+              </div>
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur-sm">
+                <FileCheck2 className="h-8 w-8 text-white/90" strokeWidth={1.5} />
+              </div>
+            </div>
+
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-text-primary shadow-lg">
+              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+              Lokasi Terverifikasi
+              <span className="font-normal text-text-secondary">-6.2000, 106.8167</span>
+            </div>
+
+            {/* Floating verification cards */}
+            <div className="mt-6 flex flex-wrap gap-3">
+              <div className="flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 text-[11px] font-semibold text-text-primary shadow-lg">
+                <Receipt className="h-4 w-4 text-primary" />
+                Struk / OCR
+                <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+              </div>
+              <div className="flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 text-[11px] font-semibold text-text-primary shadow-lg">
+                <FileCheck2 className="h-4 w-4 text-primary" />
+                Laporan
+                <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+              </div>
+              <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-[11px] font-semibold text-white ring-1 ring-white/25">
+                <CloudUpload className="h-4 w-4" />
+                Sinkronisasi
+              </div>
             </div>
           </div>
+        </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label htmlFor="password" className="text-xs font-semibold text-text-primary uppercase tracking-wider">
+        {/* RIGHT — login form */}
+        <div className="flex flex-col justify-center bg-surface p-8 sm:p-10">
+          <div className="flex flex-col items-center text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+              <Image
+                src="/logo.png"
+                alt="Tulap.id"
+                width={30}
+                height={30}
+                className="object-contain"
+                priority
+              />
+            </div>
+            <h2 className="mt-4 text-page-title font-bold text-text-primary">Masuk</h2>
+            <p className="mt-1 text-small text-text-secondary">
+              Masuk untuk melanjutkan tugas lapangan Anda.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="text-xs font-semibold text-text-primary">
+                Email
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-button border border-border bg-surface py-2.5 pl-10 pr-4 text-small text-text-primary shadow-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
+                  placeholder="Masukkan email"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="text-xs font-semibold text-text-primary">
                 Kata Sandi
               </label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-button border border-border bg-surface py-2.5 pl-10 pr-10 text-small text-text-primary shadow-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
+                  placeholder="Masukkan kata sandi"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-text-secondary transition hover:text-text-primary"
+                  aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-[11px] font-semibold text-primary hover:underline"
+                >
+                  Lupa kata sandi?
+                </button>
+              </div>
             </div>
-            <div className="relative">
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-button border border-border pl-10 pr-4 py-2.5 text-small bg-surface text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm transition"
-                placeholder="••••••••"
-              />
-              <Lock className="w-4 h-4 text-text-secondary absolute left-3.5 top-1/2 -translate-y-1/2" />
-            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 rounded-button border border-danger/20 bg-danger-soft/80 p-3 text-xs text-danger">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex w-full items-center justify-center gap-2 rounded-button bg-primary py-3 text-small font-semibold text-white shadow-sm transition hover:bg-primary-hover disabled:opacity-60"
+            >
+              {isSubmitting ? 'Memproses...' : 'Masuk'}
+            </button>
+          </form>
+
+          <SocialLoginButtons onError={setError} />
+
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => setShowForgotPassword(true)}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+            >
+              Butuh bantuan masuk?
+              <ArrowUpRight className="h-3 w-3" />
+            </button>
           </div>
 
-          {error && (
-            <div className="flex items-center gap-2 rounded-button bg-danger-soft/80 border border-danger/20 p-3 text-xs text-danger">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full mt-2 flex items-center justify-center gap-2 rounded-button bg-primary py-3 text-small font-semibold text-white transition hover:bg-primary-hover shadow-sm disabled:opacity-60"
-          >
-            <span>{isSubmitting ? 'Memproses Masuk...' : 'Masuk ke Dashboard'}</span>
-            {!isSubmitting && <ArrowRight className="w-4 h-4" />}
-          </button>
-        </form>
-
-        <div className="mt-8 pt-6 border-t border-border/80 text-center">
-          <p className="text-[11px] text-text-secondary">
-            Sistem Informasi Penugasan &amp; Verifikasi Akuntabilitas Lapangan Resmi.
-          </p>
+          <div className="mt-6 border-t border-border/80 pt-5 text-center">
+            <p className="text-[11px] leading-relaxed text-text-secondary">
+              Gunakan akun yang telah didaftarkan oleh admin instansi Anda. Sistem Informasi
+              Penugasan &amp; Verifikasi Akuntabilitas Lapangan Resmi.
+            </p>
+          </div>
         </div>
       </div>
+
+      {showForgotPassword && (
+        <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />
+      )}
     </div>
   );
 }
