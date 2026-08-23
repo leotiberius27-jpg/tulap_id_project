@@ -10,7 +10,6 @@ import {
   EyeOff,
   AlertCircle,
   MapPin,
-  Camera,
   Receipt,
   FileCheck2,
   CloudUpload,
@@ -105,20 +104,23 @@ export default function LoginPage() {
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#eef2fb] px-4 py-10">
       <div className="grid w-full max-w-5xl grid-cols-1 overflow-hidden rounded-card shadow-dropdown md:grid-cols-2">
         {/* LEFT — brand / illustration panel, hidden on mobile */}
-        <div className="relative hidden min-h-[640px] flex-col justify-between overflow-hidden bg-gradient-to-br from-[#003d75] via-[#00529c] to-[#0072ce] p-10 text-white md:flex">
-          {/* Dotted world-map texture */}
-          <svg
-            className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.15]"
-            aria-hidden="true"
-          >
-            <pattern id="dots" width="14" height="14" patternUnits="userSpaceOnUse">
-              <circle cx="1.5" cy="1.5" r="1.5" fill="white" />
-            </pattern>
-            <rect width="100%" height="100%" fill="url(#dots)" />
-          </svg>
-          <MapPin className="pointer-events-none absolute right-10 top-24 h-5 w-5 text-white/20" />
-          <MapPin className="pointer-events-none absolute right-24 top-10 h-4 w-4 text-white/15" />
-          <MapPin className="pointer-events-none absolute left-16 top-40 h-4 w-4 text-white/15" />
+        <div className="relative hidden min-h-[640px] flex-col justify-between overflow-hidden bg-[#003d75] p-10 text-white md:flex">
+          {/* Ilustrasi petugas lapangan - aset sama dengan aplikasi mobile,
+              menjaga konsistensi visual lintas platform. */}
+          <Image
+            src="/hero_illustration.png"
+            alt=""
+            fill
+            priority
+            className="pointer-events-none object-cover object-[center_35%]"
+          />
+          {/* Overlay gradien agar teks tetap terbaca di atas foto - dua pita
+              terpisah (atas untuk judul, bawah untuk badge) supaya wajah
+              karakter di tengah tetap terlihat jelas */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-[#003d75] via-[#003d75]/70 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-[#001c38] via-[#001c38]/60 to-transparent" />
+          <MapPin className="pointer-events-none absolute right-10 top-24 z-10 h-5 w-5 text-white/25" />
+          <MapPin className="pointer-events-none absolute right-24 top-10 z-10 h-4 w-4 text-white/20" />
 
           {/* Header */}
           <div className="relative z-10">
@@ -140,26 +142,16 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Illustration cluster */}
-          <div className="relative z-10 flex-1">
-            {/* Field-officer avatars */}
-            <div className="mt-6 flex items-end gap-4">
-              <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur-sm">
-                <Camera className="h-9 w-9 text-white/90" strokeWidth={1.5} />
-              </div>
-              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur-sm">
-                <FileCheck2 className="h-8 w-8 text-white/90" strokeWidth={1.5} />
-              </div>
-            </div>
-
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-text-primary shadow-lg">
+          {/* Badge & kartu verifikasi, melayang di atas ilustrasi */}
+          <div className="relative z-10">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-text-primary shadow-lg">
               <CheckCircle2 className="h-3.5 w-3.5 text-success" />
               Lokasi Terverifikasi
               <span className="font-normal text-text-secondary">-6.2000, 106.8167</span>
             </div>
 
             {/* Floating verification cards */}
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-3 flex flex-wrap gap-3">
               <div className="flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 text-[11px] font-semibold text-text-primary shadow-lg">
                 <Receipt className="h-4 w-4 text-primary" />
                 Struk / OCR

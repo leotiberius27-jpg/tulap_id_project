@@ -54,26 +54,34 @@ function AppleLogoIcon() {
   );
 }
 
+// Path resmi Google "G" (viewBox 18x18, sama seperti tombol Sign in with
+// Google asli) - dipakai untuk state belum-dikonfigurasi supaya logo tetap
+// autentik, bukan placeholder generik.
+function GoogleLogoIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"
+      />
+      <path
+        fill="#34A853"
+        d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"
+      />
+      <path
+        fill="#EA4335"
+        d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 2.58 9 2.58z"
+      />
+    </svg>
+  );
+}
+
 export function SocialLoginButtons({ onError }: { onError: (message: string) => void }) {
   const hasAnyProvider = Boolean(GOOGLE_CLIENT_ID) || Boolean(APPLE_CLIENT_ID);
-
-  if (!hasAnyProvider) {
-    // Neither provider configured — say so plainly instead of rendering
-    // dead buttons. This is the honest state, not a placeholder.
-    return (
-      <div className="mt-6 flex items-center gap-2 rounded-button border border-border bg-background/60 p-3 text-[11px] text-text-secondary">
-        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-        <span>
-          Masuk dengan Google/Apple belum dikonfigurasi. Tambahkan{' '}
-          <code className="rounded bg-border/60 px-1 py-0.5">NEXT_PUBLIC_GOOGLE_CLIENT_ID</code>{' '}
-          atau{' '}
-          <code className="rounded bg-border/60 px-1 py-0.5">NEXT_PUBLIC_APPLE_CLIENT_ID</code>{' '}
-          di <code className="rounded bg-border/60 px-1 py-0.5">.env.local</code> untuk
-          mengaktifkan.
-        </span>
-      </div>
-    );
-  }
 
   return (
     <div className="mt-6 space-y-3">
@@ -83,21 +91,43 @@ export function SocialLoginButtons({ onError }: { onError: (message: string) => 
         <div className="h-px flex-1 bg-border" />
       </div>
       <div className="space-y-2.5">
-        {GOOGLE_CLIENT_ID ? <GoogleButton onError={onError} /> : <DisabledButton label="Google" />}
-        {APPLE_CLIENT_ID ? <AppleButton onError={onError} /> : <DisabledButton label="Apple" />}
+        {GOOGLE_CLIENT_ID ? (
+          <GoogleButton onError={onError} />
+        ) : (
+          <DisabledButton label="Google" icon={<GoogleLogoIcon />} />
+        )}
+        {APPLE_CLIENT_ID ? (
+          <AppleButton onError={onError} />
+        ) : (
+          <DisabledButton label="Apple" icon={<AppleLogoIcon />} />
+        )}
       </div>
+      {!hasAnyProvider && (
+        <div className="flex items-center gap-2 rounded-button border border-border bg-background/60 p-3 text-[11px] text-text-secondary">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            Tombol di atas belum aktif. Tambahkan{' '}
+            <code className="rounded bg-border/60 px-1 py-0.5">NEXT_PUBLIC_GOOGLE_CLIENT_ID</code>{' '}
+            atau{' '}
+            <code className="rounded bg-border/60 px-1 py-0.5">NEXT_PUBLIC_APPLE_CLIENT_ID</code>{' '}
+            di <code className="rounded bg-border/60 px-1 py-0.5">.env.local</code> untuk
+            mengaktifkan.
+          </span>
+        </div>
+      )}
     </div>
   );
 }
 
-function DisabledButton({ label }: { label: string }) {
+function DisabledButton({ label, icon }: { label: string; icon: React.ReactNode }) {
   return (
     <button
       type="button"
       disabled
       title={`Masuk dengan ${label} belum dikonfigurasi (Client ID kosong)`}
-      className="flex w-full items-center justify-center gap-2 rounded-button border border-border bg-background py-2.5 text-small font-medium text-text-secondary/50 cursor-not-allowed"
+      className="flex w-full items-center justify-center gap-2 rounded-button border border-border bg-surface py-2.5 text-small font-medium text-text-primary/40 opacity-60 cursor-not-allowed"
     >
+      <span className="opacity-50">{icon}</span>
       Lanjutkan dengan {label}
     </button>
   );
