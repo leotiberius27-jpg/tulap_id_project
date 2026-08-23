@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 /// GoogleLogoIcon
 /// ----------------------------------------------------------------------
-/// Menghasilkan ikon Google "G" 4 warna autentik menggunakan CustomPainter
-/// murni (bebas dependency aset eksternal dan resolusi tajam).
+/// Ikon Google "G" 4 warna, digambar dari path resmi Google (viewBox
+/// 18x18 yang dipakai tombol "Sign in with Google" resmi) via
+/// CustomPainter murni - bebas dependency aset eksternal/paket SVG.
 /// ----------------------------------------------------------------------
 class GoogleLogoIcon extends StatelessWidget {
   final double size;
@@ -25,60 +26,63 @@ class GoogleLogoIcon extends StatelessWidget {
 class _GoogleLogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final double w = size.width;
-    final double h = size.height;
-    final center = Offset(w / 2, h / 2);
-    final radius = w / 2;
+    canvas.save();
+    canvas.scale(size.width / 18, size.height / 18);
 
-    // Paint objek
-    final redPaint = Paint()..color = const Color(0xFFEA4335)..style = PaintingStyle.fill;
-    final yellowPaint = Paint()..color = const Color(0xFFFBBC05)..style = PaintingStyle.fill;
-    final greenPaint = Paint()..color = const Color(0xFF34A853)..style = PaintingStyle.fill;
-    final bluePaint = Paint()..color = const Color(0xFF4285F4)..style = PaintingStyle.fill;
+    final bluePaint = Paint()..color = const Color(0xFF4285F4);
+    final greenPaint = Paint()..color = const Color(0xFF34A853);
+    final yellowPaint = Paint()..color = const Color(0xFFFBBC05);
+    final redPaint = Paint()..color = const Color(0xFFEA4335);
 
-    // Lingkaran luar clip
-    final rect = Rect.fromCircle(center: center, radius: radius);
-
-    // Blue arc & bar
     final bluePath = Path()
-      ..moveTo(center.dx, center.dy)
-      ..arcTo(rect, -0.4, 1.2, false)
-      ..lineTo(center.dx + radius, center.dy)
-      ..lineTo(center.dx, center.dy)
+      ..moveTo(17.64, 9.2)
+      ..cubicTo(17.64, 8.563, 17.583, 7.949, 17.476, 7.36)
+      ..lineTo(9, 7.36)
+      ..lineTo(9, 10.841)
+      ..lineTo(13.844, 10.841)
+      ..cubicTo(13.635, 11.966, 13.001, 12.919, 12.048, 13.558)
+      ..lineTo(12.048, 15.816)
+      ..lineTo(14.956, 15.816)
+      ..cubicTo(16.658, 14.249, 17.64, 11.942, 17.64, 9.2)
       ..close();
     canvas.drawPath(bluePath, bluePaint);
 
-    // Green arc
     final greenPath = Path()
-      ..moveTo(center.dx, center.dy)
-      ..arcTo(rect, 0.8, 1.5, false)
+      ..moveTo(9, 18)
+      ..cubicTo(11.43, 18, 13.467, 17.194, 14.956, 15.82)
+      ..lineTo(12.048, 13.561)
+      ..cubicTo(11.242, 14.101, 10.211, 14.421, 9, 14.421)
+      ..cubicTo(6.656, 14.421, 4.672, 12.837, 3.964, 10.71)
+      ..lineTo(0.957, 10.71)
+      ..lineTo(0.957, 13.042)
+      ..cubicTo(2.438, 15.983, 5.482, 18, 9, 18)
       ..close();
     canvas.drawPath(greenPath, greenPaint);
 
-    // Yellow arc
     final yellowPath = Path()
-      ..moveTo(center.dx, center.dy)
-      ..arcTo(rect, 2.3, 1.2, false)
+      ..moveTo(3.964, 10.71)
+      ..cubicTo(3.784, 10.17, 3.682, 9.593, 3.682, 9.0)
+      ..cubicTo(3.682, 8.407, 3.784, 7.83, 3.964, 7.29)
+      ..lineTo(3.964, 4.958)
+      ..lineTo(0.957, 4.958)
+      ..cubicTo(0.347, 6.173, 0, 7.548, 0, 9)
+      ..cubicTo(0, 10.452, 0.348, 11.827, 0.957, 13.042)
+      ..lineTo(3.964, 10.71)
       ..close();
     canvas.drawPath(yellowPath, yellowPaint);
 
-    // Red arc
     final redPath = Path()
-      ..moveTo(center.dx, center.dy)
-      ..arcTo(rect, 3.5, 1.3, false)
+      ..moveTo(9, 3.58)
+      ..cubicTo(10.321, 3.58, 11.508, 4.034, 12.44, 4.925)
+      ..lineTo(15.022, 2.345)
+      ..cubicTo(13.463, 0.891, 11.426, 0, 9, 0)
+      ..cubicTo(5.482, 0, 2.438, 2.017, 0.957, 4.958)
+      ..lineTo(3.964, 6.29)
+      ..cubicTo(4.672, 4.163, 6.656, 2.58, 9, 2.58)
       ..close();
     canvas.drawPath(redPath, redPaint);
 
-    // Lubang tengah (putih)
-    final whitePaint = Paint()..color = Colors.white..style = PaintingStyle.fill;
-    canvas.drawCircle(center, radius * 0.58, whitePaint);
-
-    // Bar horizontal biru di tengah
-    final barRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(center.dx - radius * 0.05, center.dy - radius * 0.22, radius * 1.05, radius * 0.44),
-      Radius.circular(radius * 0.08),
-    );
-    canvas.drawRRect(barRect, bluePaint);
+    canvas.restore();
   }
 
   @override
