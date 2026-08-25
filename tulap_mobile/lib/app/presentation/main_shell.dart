@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../core/session/auth_session_manager.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/account/presentation/pages/account_page.dart';
 import '../../features/auth/domain/entities/auth_user_entity.dart';
@@ -54,11 +55,13 @@ class _MainShellState extends State<MainShell> {
 
   late final TaskListController _taskListController;
   late final HistoryController _historyController;
+  late final AuthSessionManager _authSessionManager;
   late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
+    _authSessionManager = sl<AuthSessionManager>();
     _taskListController = TaskListController(
       getActiveTasks: sl<GetActiveTasks>(),
       getCurrentSession: sl<GetCurrentSession>(),
@@ -79,18 +82,27 @@ class _MainShellState extends State<MainShell> {
       ),
       const AccountPage(),
     ];
+    _user = _authSessionManager.currentUser;
+    _authSessionManager.addListener(_onUserSessionChanged);
     _loadUser();
+  }
+
+  void _onUserSessionChanged() {
+    if (mounted) {
+      setState(() => _user = _authSessionManager.currentUser);
+    }
   }
 
   @override
   void dispose() {
+    _authSessionManager.removeListener(_onUserSessionChanged);
     _taskListController.dispose();
     _historyController.dispose();
     super.dispose();
   }
 
   Future<void> _loadUser() async {
-    final user = await sl<GetCurrentSession>()();
+    final user = _authSessionManager.currentUser ?? await sl<GetCurrentSession>()();
     if (mounted) setState(() => _user = user);
   }
 
@@ -104,24 +116,21 @@ class _MainShellState extends State<MainShell> {
     if (!mounted) return;
     setState(() => _isResolvingTask = false);
 
-    result.fold(
-      (failure) => _showMessage(failure.message),
-      (task) {
-        if (task == null) {
-          _showMessage('Belum ada tugas aktif untuk diambil buktinya.');
-          return;
-        }
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => GeotagCameraEntryPage(
-              officerName: _user?.fullName ?? 'Pengguna',
-              agencyName: _user?.instansiName ?? 'Instansi tidak diketahui',
-              taskId: task.id,
-            ),
+    result.fold((failure) => _showMessage(failure.message), (task) {
+      if (task == null) {
+        _showMessage('Belum ada tugas aktif untuk diambil buktinya.');
+        return;
+      }
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => GeotagCameraEntryPage(
+            officerName: _user?.fullName ?? 'Pengguna',
+            agencyName: _user?.instansiName ?? 'Instansi tidak diketahui',
+            taskId: task.id,
           ),
-        );
-      },
-    );
+        ),
+      );
+    });
   }
 
   void _showMessage(String message) {
@@ -133,19 +142,21 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true,
       body: IndexedStack(index: _index, children: _pages),
-      floatingActionButton: _CameraFab(
+      floatingActionButton: TulapAnimatedCameraFab(
         isLoading: _isResolvingTask,
         onPressed: _onCameraPressed,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: _BottomBar(
+      bottomNavigationBar: TulapAnimatedBottomBar(
         currentIndex: _index,
         onTap: (i) {
           HapticFeedback.selectionClick();
           final isSwitchingTab = i != _index;
           setState(() => _index = i);
           if (!isSwitchingTab) return;
+          if (i == 0 || i == 3) _loadUser();
           if (i == 1) _taskListController.load();
           if (i == 2) _historyController.load();
         },
@@ -154,69 +165,207 @@ class _MainShellState extends State<MainShell> {
   }
 }
 
-class _BottomBar extends StatelessWidget {
+/// TulapAnimatedBottomBar
+/// ----------------------------------------------------------------------
+/// Fluid curved-notch animated bottom navigation bar (sesuai referensi Navigasi.gif):
+/// - 4 tab utama (Beranda, Tugas, Riwayat, Akun) menggunakan transisi lengkungan
+///   fluid organic wave notch dan elevated floating circular active button.
+/// - Slot tengah menyediakan ruang khusus untuk tombol Camera FAB utama.
+/// ----------------------------------------------------------------------
+class TulapAnimatedBottomBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const _BottomBar({required this.currentIndex, required this.onTap});
+  const TulapAnimatedBottomBar({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  static const _navItems = [
+    (icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Beranda'),
+    (icon: Icons.assignment_outlined, activeIcon: Icons.assignment_rounded, label: 'Tugas'),
+    (icon: Icons.history_rounded, activeIcon: Icons.history_rounded, label: 'Riwayat'),
+    (icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: 'Akun'),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return BottomAppBar(
-      shape: const CircularNotchedRectangle(),
-      notchMargin: 8,
-      color: AppColors.surface,
-      elevation: 8,
-      padding: EdgeInsets.zero,
-      child: SizedBox(
-        height: 60,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _NavItem(
-              icon: Icons.home_outlined,
-              activeIcon: Icons.home,
-              label: 'Beranda',
-              isActive: currentIndex == 0,
-              onTap: () => onTap(0),
-            ),
-            _NavItem(
-              icon: Icons.assignment_outlined,
-              activeIcon: Icons.assignment,
-              label: 'Tugas',
-              isActive: currentIndex == 1,
-              onTap: () => onTap(1),
-            ),
-            const SizedBox(width: 56),
-            _NavItem(
-              icon: Icons.history_outlined,
-              activeIcon: Icons.history,
-              label: 'Riwayat',
-              isActive: currentIndex == 2,
-              onTap: () => onTap(2),
-            ),
-            _NavItem(
-              icon: Icons.person_outline,
-              activeIcon: Icons.person,
-              label: 'Akun',
-              isActive: currentIndex == 3,
-              onTap: () => onTap(3),
-            ),
-          ],
-        ),
+    final mediaQuery = MediaQuery.of(context);
+    final disableAnimations = mediaQuery.disableAnimations;
+    final animDuration = disableAnimations
+        ? Duration.zero
+        : const Duration(milliseconds: 280);
+    const animCurve = Curves.easeOutCubic;
+
+    final bottomPadding = mediaQuery.padding.bottom;
+    const barHeight = 64.0;
+
+    final colors = context.tulapColors;
+
+    return SizedBox(
+      height: barHeight + bottomPadding,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final totalWidth = constraints.maxWidth;
+          // 5 slots: [0: Beranda] [1: Tugas] [2: Center Camera Spacer] [3: Riwayat] [4: Akun]
+          final slotWidth = totalWidth / 5.0;
+
+          // Mapping tab index -> slot index:
+          // Tab 0 -> Slot 0 (Beranda)
+          // Tab 1 -> Slot 1 (Tugas)
+          // Tab 2 -> Slot 3 (Riwayat)
+          // Tab 3 -> Slot 4 (Akun)
+          final activeSlotIndex =
+              currentIndex < 2 ? currentIndex : currentIndex + 1;
+          final targetCenterX = slotWidth * (activeSlotIndex + 0.5);
+          final activeIcon = _navItems[currentIndex].activeIcon;
+
+          return TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: targetCenterX, end: targetCenterX),
+            duration: animDuration,
+            curve: animCurve,
+            builder: (context, currentCenterX, _) {
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // 1. Fluid Curved Notch Canvas Background for the active tab
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: CurvedNotchPainter(
+                        centerX: currentCenterX,
+                        color: colors.surface,
+                        shadowColor: colors.shadowSoft,
+                      ),
+                    ),
+                  ),
+
+                  // 2. Floating Elevated Circular Active Tab Button (in Notch Cradle)
+                  Positioned(
+                    left: currentCenterX - 26.0,
+                    top: -14.0,
+                    child: IgnorePointer(
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: colors.surface,
+                          border: Border.all(
+                            color: colors.primary.withValues(alpha: 0.3),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colors.primary.withValues(alpha: 0.25),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            transitionBuilder: (child, animation) {
+                              return ScaleTransition(
+                                scale: animation,
+                                child: FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: Icon(
+                              activeIcon,
+                              key: ValueKey(activeIcon),
+                              color: colors.primary,
+                              size: 26,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 3. Tab Buttons Row
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: barHeight,
+                    child: Row(
+                      children: [
+                        // Slot 0: Beranda
+                        Expanded(
+                          child: _CurvedNavItem(
+                            icon: _navItems[0].icon,
+                            activeIcon: _navItems[0].activeIcon,
+                            label: _navItems[0].label,
+                            isActive: currentIndex == 0,
+                            onTap: () => onTap(0),
+                          ),
+                        ),
+
+                        // Slot 1: Tugas
+                        Expanded(
+                          child: _CurvedNavItem(
+                            icon: _navItems[1].icon,
+                            activeIcon: _navItems[1].activeIcon,
+                            label: _navItems[1].label,
+                            isActive: currentIndex == 1,
+                            onTap: () => onTap(1),
+                          ),
+                        ),
+
+                        // Slot 2: Center Spacer for Prominent Camera FAB
+                        SizedBox(width: slotWidth),
+
+                        // Slot 3: Riwayat
+                        Expanded(
+                          child: _CurvedNavItem(
+                            icon: _navItems[2].icon,
+                            activeIcon: _navItems[2].activeIcon,
+                            label: _navItems[2].label,
+                            isActive: currentIndex == 2,
+                            onTap: () => onTap(2),
+                          ),
+                        ),
+
+                        // Slot 4: Akun
+                        Expanded(
+                          child: _CurvedNavItem(
+                            icon: _navItems[3].icon,
+                            activeIcon: _navItems[3].activeIcon,
+                            label: _navItems[3].label,
+                            isActive: currentIndex == 3,
+                            onTap: () => onTap(3),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
       ),
     );
   }
 }
 
-class _NavItem extends StatelessWidget {
+/// _CurvedNavItem
+/// ----------------------------------------------------------------------
+/// Item navigasi individual di dalam bar lengkung.
+/// ----------------------------------------------------------------------
+class _CurvedNavItem extends StatelessWidget {
   final IconData icon;
   final IconData activeIcon;
   final String label;
   final bool isActive;
   final VoidCallback onTap;
 
-  const _NavItem({
+  const _CurvedNavItem({
     required this.icon,
     required this.activeIcon,
     required this.label,
@@ -226,93 +375,239 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? AppColors.primary : AppColors.textSecondary;
+    final colors = context.tulapColors;
+    final inactiveColor = colors.textSecondary;
+    final activeColor = colors.primary;
 
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedSwitcher(
-              duration: AppMotion.stateChange,
-              child: Icon(
-                isActive ? activeIcon : icon,
-                key: ValueKey(isActive),
-                color: color,
-                size: 22,
-              ),
+    return Semantics(
+      button: true,
+      selected: isActive,
+      label: label,
+      container: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          splashColor: colors.primary.withValues(alpha: 0.08),
+          highlightColor: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 6, bottom: 4),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Inactive icon placeholder (hidden when active because elevated circle appears in the notch)
+                if (!isActive)
+                  Icon(
+                    icon,
+                    size: 22,
+                    color: inactiveColor,
+                  )
+                else
+                  const SizedBox(height: 22),
+                SizedBox(height: isActive ? 12 : 3),
+                // Label
+                MediaQuery.withClampedTextScaling(
+                  maxScaleFactor: 1.25,
+                  child: AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 200),
+                    style: TextStyle(
+                      fontFamily: AppTypography.fontFamily,
+                      fontSize: 11,
+                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                      color: isActive ? activeColor : inactiveColor,
+                      letterSpacing: -0.1,
+                    ),
+                    child: ExcludeSemantics(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 2),
-            AnimatedDefaultTextStyle(
-              duration: AppMotion.stateChange,
-              style: AppTypography.small.copyWith(
-                color: color,
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-              ),
-              child: Text(label),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _CameraFab extends StatelessWidget {
+/// TulapAnimatedCameraFab
+/// ----------------------------------------------------------------------
+/// Center prominent camera action button dengan micro-interaction press scale
+/// dan Tulap.id blue gradient.
+/// ----------------------------------------------------------------------
+class TulapAnimatedCameraFab extends StatefulWidget {
   final bool isLoading;
   final VoidCallback onPressed;
 
-  const _CameraFab({required this.isLoading, required this.onPressed});
+  const TulapAnimatedCameraFab({
+    super.key,
+    required this.isLoading,
+    required this.onPressed,
+  });
+
+  @override
+  State<TulapAnimatedCameraFab> createState() => _TulapAnimatedCameraFabState();
+}
+
+class _TulapAnimatedCameraFabState extends State<TulapAnimatedCameraFab> {
+  bool _isPressed = false;
+
+  void _onTapDown(TapDownDetails _) {
+    if (widget.isLoading) return;
+    setState(() => _isPressed = true);
+  }
+
+  void _onTapUp(TapUpDetails _) {
+    if (widget.isLoading) return;
+    setState(() => _isPressed = false);
+    widget.onPressed();
+  }
+
+  void _onTapCancel() {
+    if (_isPressed) {
+      setState(() => _isPressed = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.heroGradientStart, AppColors.heroGradientEnd],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.35),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        child: Semantics(
-          button: true,
-          label: 'Ambil bukti tugas',
-          enabled: !isLoading,
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: isLoading ? null : onPressed,
+    return Semantics(
+      button: true,
+      label: 'Buka Kamera Geotag Lapangan',
+      container: true,
+      enabled: !widget.isLoading,
+      child: GestureDetector(
+        onTapDown: _onTapDown,
+        onTapUp: _onTapUp,
+        onTapCancel: _onTapCancel,
+        child: AnimatedScale(
+          scale: _isPressed ? 0.93 : 1.00,
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeInOut,
+          child: Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF0A84E8), // Active accent blue top
+                  Color(0xFF00529C), // Primary navy bottom
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(
+                    alpha: _isPressed ? 0.22 : 0.38,
+                  ),
+                  blurRadius: _isPressed ? 10 : 16,
+                  offset: Offset(0, _isPressed ? 2 : 5),
+                ),
+              ],
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.35),
+                width: 1.5,
+              ),
+            ),
             child: Center(
-              child: isLoading
+              child: widget.isLoading
                   ? const SizedBox(
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
+                        strokeWidth: 2.2,
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.camera_alt, color: Colors.white, size: 24),
+                  : const Icon(
+                      Icons.camera_alt_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+/// CurvedNotchPainter
+/// ----------------------------------------------------------------------
+/// CustomPainter yang menggambar lengkungan halus (wave notch dip) di atas bar
+/// putih, persis sesuai referensi Navigasi.gif.
+/// ----------------------------------------------------------------------
+class CurvedNotchPainter extends CustomPainter {
+  final double centerX;
+  final Color color;
+  final Color shadowColor;
+
+  CurvedNotchPainter({
+    required this.centerX,
+    required this.color,
+    required this.shadowColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+    const double dipRadius = 36.0; // Setengah lebar kurva
+    const double dipDepth = 30.0;  // Kedalaman lengkungan
+
+    final p0 = Offset(centerX - dipRadius * 1.5, 0);
+    final p1 = Offset(centerX - dipRadius * 0.9, 0);
+    final p2 = Offset(centerX - dipRadius * 0.6, dipDepth);
+    final p3 = Offset(centerX, dipDepth);
+    final p4 = Offset(centerX + dipRadius * 0.6, dipDepth);
+    final p5 = Offset(centerX + dipRadius * 0.9, 0);
+    final p6 = Offset(centerX + dipRadius * 1.5, 0);
+
+    path.moveTo(0, 0);
+    path.lineTo(p0.dx, 0);
+    path.cubicTo(p1.dx, p1.dy, p2.dx, p2.dy, p3.dx, p3.dy);
+    path.cubicTo(p4.dx, p4.dy, p5.dx, p5.dy, p6.dx, p6.dy);
+    path.lineTo(size.width, 0);
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+
+    // Gambar bayangan halus di atas dock
+    canvas.drawShadow(path, shadowColor, 8.0, true);
+
+    // Gambar isi dock
+    canvas.drawPath(path, paint);
+
+    // Garis border atas yang sangat halus
+    final borderPaint = Paint()
+      ..color = AppColors.border.withValues(alpha: 0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    final topPath = Path();
+    topPath.moveTo(0, 0);
+    topPath.lineTo(p0.dx, 0);
+    topPath.cubicTo(p1.dx, p1.dy, p2.dx, p2.dy, p3.dx, p3.dy);
+    topPath.cubicTo(p4.dx, p4.dy, p5.dx, p5.dy, p6.dx, p6.dy);
+    topPath.lineTo(size.width, 0);
+    canvas.drawPath(topPath, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CurvedNotchPainter oldDelegate) {
+    return oldDelegate.centerX != centerX ||
+        oldDelegate.color != color ||
+        oldDelegate.shadowColor != shadowColor;
   }
 }

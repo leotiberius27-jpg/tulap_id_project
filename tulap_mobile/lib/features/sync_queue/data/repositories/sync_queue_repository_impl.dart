@@ -138,11 +138,14 @@ class SyncQueueRepositoryImpl implements SyncQueueRepository {
     String errorMessage,
   ) async {
     final newAttemptCount = record.attemptCount + 1;
-    final willAutoRetry = newAttemptCount < SyncRecordEntity.maxAutoRetryAttempts;
+    final willAutoRetry =
+        newAttemptCount < SyncRecordEntity.maxAutoRetryAttempts;
 
     final updated = SyncRecordModel.fromEntity(
       record.copyWith(
-        status: willAutoRetry ? SyncStatus.waitingForInternet : SyncStatus.failed,
+        status: willAutoRetry
+            ? SyncStatus.waitingForInternet
+            : SyncStatus.failed,
         attemptCount: newAttemptCount,
         lastAttemptAt: DateTime.now(),
         lastErrorMessage: errorMessage,

@@ -20,8 +20,8 @@ class ConfirmAndSaveExpenseNote {
   ConfirmAndSaveExpenseNote({
     required ExpenseOcrRepository repository,
     required EnqueueSyncItem enqueueSyncItem,
-  })  : _repository = repository,
-        _enqueueSyncItem = enqueueSyncItem;
+  }) : _repository = repository,
+       _enqueueSyncItem = enqueueSyncItem;
 
   Future<Either<Failure, ExpenseNoteEntity>> call({
     required String taskId,

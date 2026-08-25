@@ -3,8 +3,7 @@ import '../../domain/entities/geotag_photo_entity.dart';
 /// GeotagPhotoModel
 /// ----------------------------------------------------------------------
 /// Extends entity domain dan menambahkan kemampuan serialisasi. Model
-/// inilah yang benar-benar disimpan/diambil dari database lokal
-/// (SQLite/Hive) dan dikirim ke API backend saat sinkronisasi.
+/// inilah yang disimpan di database lokal (SQLite) dan dikirim ke API backend.
 /// ----------------------------------------------------------------------
 class GeotagPhotoModel extends GeotagPhotoEntity {
   const GeotagPhotoModel({
@@ -34,13 +33,6 @@ class GeotagPhotoModel extends GeotagPhotoEntity {
       plusCode: json['plusCode'] as String? ?? '',
       serverTimestamp: DateTime.parse(json['serverTimestamp'] as String),
       integrityHash: json['integrityHash'] as String,
-      // SQLite tidak punya tipe boolean native - kolom ini tersimpan
-      // sebagai INTEGER (0/1), jadi sqflite mengembalikannya sebagai
-      // Dart int, BUKAN bool. Cast `as bool` langsung akan selalu
-      // throw TypeError saat baris ini dibaca dari database (baru
-      // aman kalau row berasal dari sumber lain yang memang sudah
-      // bool, mis. respons API). Pola sama seperti
-      // ChecklistItemModel.fromJson - dicek eksplisit dulu.
       isMockLocationDetected: json['isMockLocationDetected'] is bool
           ? json['isMockLocationDetected'] as bool
           : json['isMockLocationDetected'] == 1,
@@ -63,16 +55,14 @@ class GeotagPhotoModel extends GeotagPhotoEntity {
       'plusCode': plusCode,
       'serverTimestamp': serverTimestamp.toIso8601String(),
       'integrityHash': integrityHash,
-      'isMockLocationDetected': isMockLocationDetected,
-      'isRootedDeviceDetected': isRootedDeviceDetected,
+      'isMockLocationDetected': isMockLocationDetected ? 1 : 0,
+      'isRootedDeviceDetected': isRootedDeviceDetected ? 1 : 0,
       'address': address,
       'caption': caption,
     };
   }
 
-  /// Payload khusus untuk endpoint `POST /evidence/photo` - TIDAK
-  /// menyertakan `localFilePath` (path lokal tidak relevan untuk
-  /// server) dan file gambar dikirim terpisah sebagai multipart.
+  /// Payload khusus untuk endpoint `POST /evidence/photo`
   Map<String, dynamic> toUploadPayload() {
     return {
       'taskId': taskId,

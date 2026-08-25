@@ -3,6 +3,7 @@ import '../../domain/usecases/forgot_password.dart';
 import '../../domain/usecases/reset_password.dart';
 
 enum ForgotPasswordStep { requestCode, confirmReset }
+
 enum ForgotPasswordStatus { idle, submitting, error, done }
 
 class ForgotPasswordState {
@@ -37,8 +38,8 @@ class ForgotPasswordController extends ChangeNotifier {
   ForgotPasswordController({
     required ForgotPassword forgotPassword,
     required ResetPassword resetPassword,
-  })  : _forgotPassword = forgotPassword,
-        _resetPassword = resetPassword;
+  }) : _forgotPassword = forgotPassword,
+       _resetPassword = resetPassword;
 
   void _update(ForgotPasswordState newState) {
     _state = newState;
@@ -52,18 +53,22 @@ class ForgotPasswordController extends ChangeNotifier {
 
     return result.fold(
       (failure) {
-        _update(ForgotPasswordState(
-          status: ForgotPasswordStatus.error,
-          errorMessage: failure.message,
-        ));
+        _update(
+          ForgotPasswordState(
+            status: ForgotPasswordStatus.error,
+            errorMessage: failure.message,
+          ),
+        );
         return false;
       },
       (message) {
-        _update(ForgotPasswordState(
-          step: ForgotPasswordStep.confirmReset,
-          status: ForgotPasswordStatus.idle,
-          message: message,
-        ));
+        _update(
+          ForgotPasswordState(
+            step: ForgotPasswordStep.confirmReset,
+            status: ForgotPasswordStatus.idle,
+            message: message,
+          ),
+        );
         return true;
       },
     );
@@ -74,10 +79,12 @@ class ForgotPasswordController extends ChangeNotifier {
     required String code,
     required String newPassword,
   }) async {
-    _update(ForgotPasswordState(
-      step: _state.step,
-      status: ForgotPasswordStatus.submitting,
-    ));
+    _update(
+      ForgotPasswordState(
+        step: _state.step,
+        status: ForgotPasswordStatus.submitting,
+      ),
+    );
 
     final result = await _resetPassword(
       email: email,
@@ -87,19 +94,23 @@ class ForgotPasswordController extends ChangeNotifier {
 
     return result.fold(
       (failure) {
-        _update(ForgotPasswordState(
-          step: ForgotPasswordStep.confirmReset,
-          status: ForgotPasswordStatus.error,
-          errorMessage: failure.message,
-        ));
+        _update(
+          ForgotPasswordState(
+            step: ForgotPasswordStep.confirmReset,
+            status: ForgotPasswordStatus.error,
+            errorMessage: failure.message,
+          ),
+        );
         return false;
       },
       (message) {
-        _update(ForgotPasswordState(
-          step: ForgotPasswordStep.confirmReset,
-          status: ForgotPasswordStatus.done,
-          message: message,
-        ));
+        _update(
+          ForgotPasswordState(
+            step: ForgotPasswordStep.confirmReset,
+            status: ForgotPasswordStatus.done,
+            message: message,
+          ),
+        );
         return true;
       },
     );

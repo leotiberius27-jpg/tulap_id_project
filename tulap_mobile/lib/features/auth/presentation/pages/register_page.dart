@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../app/presentation/main_shell.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/auth_user_entity.dart';
@@ -72,7 +73,13 @@ class _RegisterViewState extends State<_RegisterView> {
     if (!mounted || !success) return;
 
     final user = controller.state.user;
-    if (user != null) widget.onRegisterSuccess(user);
+    if (user != null) {
+      widget.onRegisterSuccess(user);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+        (route) => false,
+      );
+    }
   }
 
   @override
@@ -108,8 +115,9 @@ class _RegisterViewState extends State<_RegisterView> {
                       labelText: 'Nama Lengkap',
                       prefixIcon: Icon(Icons.person_outline, size: 20),
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Nama wajib diisi.' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Nama wajib diisi.'
+                        : null,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
@@ -120,8 +128,9 @@ class _RegisterViewState extends State<_RegisterView> {
                       labelText: 'Email',
                       prefixIcon: Icon(Icons.mail_outline, size: 20),
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Email wajib diisi.' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Email wajib diisi.'
+                        : null,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
@@ -131,8 +140,9 @@ class _RegisterViewState extends State<_RegisterView> {
                       labelText: 'Nama Instansi',
                       prefixIcon: Icon(Icons.apartment_outlined, size: 20),
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Instansi wajib diisi.' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Instansi wajib diisi.'
+                        : null,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
@@ -153,11 +163,14 @@ class _RegisterViewState extends State<_RegisterView> {
                       labelText: 'Kata Sandi',
                       prefixIcon: const Icon(Icons.lock_outline, size: 20),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined),
-                        onPressed: () =>
-                            setState(() => _obscurePassword = !_obscurePassword),
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
                       ),
                     ),
                     validator: (v) => (v == null || v.length < 8)
@@ -192,7 +205,9 @@ class _RegisterViewState extends State<_RegisterView> {
                       ),
                       child: Text(
                         state.errorMessage ?? 'Registrasi gagal.',
-                        style: AppTypography.small.copyWith(color: AppColors.danger),
+                        style: AppTypography.small.copyWith(
+                          color: AppColors.danger,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),

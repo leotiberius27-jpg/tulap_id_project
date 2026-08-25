@@ -91,7 +91,11 @@ class _ForgotPasswordViewState extends State<_ForgotPasswordView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.lock_reset, size: 48, color: AppColors.primary),
+                    const Icon(
+                      Icons.lock_reset,
+                      size: 48,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(height: AppSpacing.md),
                     Text(
                       'Masukkan email akun Anda. Kami akan mengirim kode reset '
@@ -106,8 +110,9 @@ class _ForgotPasswordViewState extends State<_ForgotPasswordView> {
                         labelText: 'Email',
                         prefixIcon: Icon(Icons.mail_outline, size: 20),
                       ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Email wajib diisi.' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Email wajib diisi.'
+                          : null,
                       onFieldSubmitted: (_) => _requestCode(controller),
                     ),
                     if (state.status == ForgotPasswordStatus.error) ...[
@@ -141,7 +146,11 @@ class _ForgotPasswordViewState extends State<_ForgotPasswordView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.mark_email_read_outlined, size: 48, color: AppColors.success),
+                  const Icon(
+                    Icons.mark_email_read_outlined,
+                    size: 48,
+                    color: AppColors.success,
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
                     state.message ??
@@ -168,11 +177,14 @@ class _ForgotPasswordViewState extends State<_ForgotPasswordView> {
                       labelText: 'Kata Sandi Baru',
                       prefixIcon: const Icon(Icons.lock_outline, size: 20),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined),
-                        onPressed: () =>
-                            setState(() => _obscurePassword = !_obscurePassword),
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
                       ),
                     ),
                     validator: (v) => (v == null || v.length < 8)
@@ -216,7 +228,10 @@ class _ErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: AppColors.dangerSoft,
         borderRadius: BorderRadius.circular(AppRadius.small),

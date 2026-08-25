@@ -24,7 +24,7 @@ class AuthLocalDataSource {
   final FlutterSecureStorage _secureStorage;
 
   AuthLocalDataSource({FlutterSecureStorage? secureStorage})
-      : _secureStorage = secureStorage ?? const FlutterSecureStorage();
+    : _secureStorage = secureStorage ?? const FlutterSecureStorage();
 
   Future<void> saveSession({
     required String accessToken,
@@ -37,6 +37,28 @@ class AuthLocalDataSource {
       key: _userProfileKey,
       value: jsonEncode(user.toStorageMap()),
     );
+    await saveRegisteredUserProfile(user);
+  }
+
+  Future<void> saveRegisteredUserProfile(AuthUserModel user) async {
+    final key = 'reg_profile_${user.email.toLowerCase().trim()}';
+    await _secureStorage.write(
+      key: key,
+      value: jsonEncode(user.toStorageMap()),
+    );
+  }
+
+  Future<AuthUserModel?> getRegisteredUserProfile(String email) async {
+    final key = 'reg_profile_${email.toLowerCase().trim()}';
+    final raw = await _secureStorage.read(key: key);
+    if (raw == null) return null;
+    try {
+      return AuthUserModel.fromStorageMap(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<AuthUserModel?> getStoredUser() async {
@@ -45,6 +67,19 @@ class AuthLocalDataSource {
     return AuthUserModel.fromStorageMap(
       jsonDecode(raw) as Map<String, dynamic>,
     );
+  }
+
+  /// Memperbarui profil user di penyimpanan aman (nama, nomor telepon, instansi, dll.)
+  /// dan memperbarui salinan cadangan registrasi lokal.
+  Future<void> updateUserProfile(AuthUserModel updatedUser) async {
+    await _secureStorage.write(
+      key: _userProfileKey,
+      value: jsonEncode(updatedUser.toStorageMap()),
+    );
+    await saveRegisteredUserProfile(updatedUser);
+    if (await hasBiometricBackup()) {
+      await saveBiometricBackup();
+    }
   }
 
   /// Menghapus seluruh sesi tersimpan (logout) - setelah ini

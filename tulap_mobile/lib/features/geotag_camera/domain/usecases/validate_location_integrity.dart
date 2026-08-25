@@ -41,21 +41,26 @@ class ValidateLocationIntegrity {
   ValidateLocationIntegrity({
     required MockLocationDetector mockLocationDetector,
     required RootDetector rootDetector,
-  })  : _mockLocationDetector = mockLocationDetector,
-        _rootDetector = rootDetector;
+  }) : _mockLocationDetector = mockLocationDetector,
+       _rootDetector = rootDetector;
 
-  Future<Either<Failure, LocationIntegrityCheckResult>> call() async {
+  Future<Either<Failure, LocationIntegrityCheckResult>> call({
+    dynamic position,
+  }) async {
     try {
-      final locationResult =
-          await _mockLocationDetector.getValidatedPosition();
-      final isDeviceCompromised =
-          await _rootDetector.isDeviceCompromised();
-
-      final isFullyValid = locationResult.isValid && !isDeviceCompromised;
-
+      final isDeviceCompromised = await _rootDetector.isDeviceCompromised();
       if (isDeviceCompromised) {
         return const Left(DeviceIntegrityFailure());
       }
+
+      final LocationIntegrityResult locationResult;
+      if (position != null) {
+        locationResult = _mockLocationDetector.evaluatePosition(position);
+      } else {
+        locationResult = await _mockLocationDetector.getValidatedPosition();
+      }
+
+      final isFullyValid = locationResult.isValid && !isDeviceCompromised;
 
       return Right(
         LocationIntegrityCheckResult(
@@ -68,11 +73,6 @@ class ValidateLocationIntegrity {
         ),
       );
     } catch (e) {
-      // Pertahankan pesan asli dari MockLocationDetector (mis. "Layanan
-      // lokasi (GPS) perangkat tidak aktif.", "Izin lokasi ditolak.")
-      // alih-alih menimpa dengan pesan generik - pesan ini SUDAH ditulis
-      // dalam Bahasa Indonesia yang jelas & actionable (Bagian 17), jadi
-      // aman ditampilkan langsung ke user tanpa membocorkan detail teknis.
       final message = e.toString().replaceFirst('Exception: ', '');
       return Left(LocationInvalidFailure(message));
     }

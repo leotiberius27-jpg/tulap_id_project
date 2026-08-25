@@ -11,6 +11,30 @@ abstract class Failure {
   const Failure(this.message);
 }
 
+/// Gagal pada autentikasi
+class AuthFailure extends Failure {
+  const AuthFailure([super.message = 'Autentikasi gagal.']);
+}
+
+/// Gagal memuat tugas
+class TaskNotFoundFailure extends Failure {
+  const TaskNotFoundFailure([super.message = 'Tugas tidak ditemukan.']);
+}
+
+/// Gagal submit verifikasi tugas karena checklist belum lengkap
+class TaskSubmitRejectedFailure extends Failure {
+  final List<String> incompleteItems;
+  const TaskSubmitRejectedFailure(
+    this.incompleteItems, [
+    super.message = 'Checklist wajib belum lengkap.',
+  ]);
+}
+
+/// Gagal koneksi server
+class ServerFailure extends Failure {
+  const ServerFailure([super.message = 'Terjadi kesalahan pada server.']);
+}
+
 /// Gagal karena lokasi perangkat tidak valid (mock location/GPS lemah)
 class LocationInvalidFailure extends Failure {
   const LocationInvalidFailure([
@@ -33,6 +57,21 @@ class CameraFailure extends Failure {
 /// Gagal menyimpan foto ke penyimpanan lokal
 class LocalStorageFailure extends Failure {
   const LocalStorageFailure([
-    super.message = 'Gagal menyimpan foto ke perangkat.',
+    super.message = 'Gagal menyimpan data ke perangkat.',
   ]);
 }
+
+/// Gagal pada operasi database lokal SQLite
+class DatabaseFailure extends Failure {
+  const DatabaseFailure([
+    super.message = 'Terjadi kesalahan pada database lokal.',
+  ]);
+}
+
+/// Gagal validasi input
+class ValidationFailure extends Failure {
+  const ValidationFailure([
+    super.message = 'Input data tidak valid.',
+  ]);
+}
+

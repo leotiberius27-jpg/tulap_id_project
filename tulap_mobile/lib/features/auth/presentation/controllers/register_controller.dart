@@ -29,7 +29,7 @@ class RegisterController extends ChangeNotifier {
   RegisterState get state => _state;
 
   RegisterController({required SelfRegister selfRegister})
-      : _selfRegister = selfRegister;
+    : _selfRegister = selfRegister;
 
   void _update(RegisterState newState) {
     _state = newState;
@@ -55,7 +55,12 @@ class RegisterController extends ChangeNotifier {
 
     return result.fold(
       (failure) {
-        _update(RegisterState(status: RegisterStatus.error, errorMessage: failure.message));
+        _update(
+          RegisterState(
+            status: RegisterStatus.error,
+            errorMessage: failure.message,
+          ),
+        );
         return false;
       },
       (user) {

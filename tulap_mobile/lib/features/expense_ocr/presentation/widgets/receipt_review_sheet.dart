@@ -21,7 +21,8 @@ class ReceiptReviewSheet extends StatefulWidget {
     required ExpenseCategoryEntity category,
     double? taxAmount,
     String? receiptNumber,
-  }) onSave;
+  })
+  onSave;
 
   const ReceiptReviewSheet({
     super.key,
@@ -54,7 +55,9 @@ class _ReceiptReviewSheetState extends State<ReceiptReviewSheet> {
     _taxController = TextEditingController(
       text: d.taxAmount?.toStringAsFixed(0) ?? '',
     );
-    _receiptNumberController = TextEditingController(text: d.receiptNumber ?? '');
+    _receiptNumberController = TextEditingController(
+      text: d.receiptNumber ?? '',
+    );
     _selectedDate = d.transactionDate ?? DateTime.now();
     _selectedCategory = d.category;
   }
@@ -114,9 +117,7 @@ class _ReceiptReviewSheetState extends State<ReceiptReviewSheet> {
               const SizedBox(height: AppSpacing.lg),
 
               // Nominal besar - hierarchy utama sesuai spesifikasi
-              _isEditing
-                  ? _buildAmountField()
-                  : _buildDisplayNominal(),
+              _isEditing ? _buildAmountField() : _buildDisplayNominal(),
               const SizedBox(height: AppSpacing.lg),
 
               if (_isEditing) ...[
@@ -166,7 +167,8 @@ class _ReceiptReviewSheetState extends State<ReceiptReviewSheet> {
   }
 
   void _handleSave() {
-    final amount = double.tryParse(_amountController.text.replaceAll(',', '')) ?? 0;
+    final amount =
+        double.tryParse(_amountController.text.replaceAll(',', '')) ?? 0;
     final tax = double.tryParse(_taxController.text.replaceAll(',', ''));
 
     widget.onSave(
@@ -197,7 +199,11 @@ class _ReceiptReviewSheetState extends State<ReceiptReviewSheet> {
             ),
             if (needsReview) ...[
               const SizedBox(width: AppSpacing.sm),
-              const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 20),
+              const Icon(
+                Icons.warning_amber_rounded,
+                color: AppColors.warning,
+                size: 20,
+              ),
             ],
           ],
         ),
@@ -253,10 +259,15 @@ class _ReceiptReviewSheetState extends State<ReceiptReviewSheet> {
     );
   }
 
-  Widget _buildAmountField() => _buildTextField('Nominal', _amountController, isNumber: true);
+  Widget _buildAmountField() =>
+      _buildTextField('Nominal', _amountController, isNumber: true);
   Widget _buildVendorField() => _buildTextField('Vendor', _vendorController);
 
-  Widget _buildTextField(String label, TextEditingController controller, {bool isNumber = false}) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    bool isNumber = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: TextField(
@@ -267,7 +278,11 @@ class _ReceiptReviewSheetState extends State<ReceiptReviewSheet> {
     );
   }
 
-  Widget _buildDisplayRow({required String label, required String value, required bool needsReview}) {
+  Widget _buildDisplayRow({
+    required String label,
+    required String value,
+    required bool needsReview,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Row(
@@ -279,7 +294,11 @@ class _ReceiptReviewSheetState extends State<ReceiptReviewSheet> {
               Text(value, style: AppTypography.body),
               if (needsReview) ...[
                 const SizedBox(width: 4),
-                const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 16),
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  color: AppColors.warning,
+                  size: 16,
+                ),
               ],
             ],
           ),
@@ -304,7 +323,8 @@ class _ReceiptReviewSheetState extends State<ReceiptReviewSheet> {
             onChanged: widget.isSaving
                 ? null
                 : (value) {
-                    if (value != null) setState(() => _selectedCategory = value);
+                    if (value != null)
+                      setState(() => _selectedCategory = value);
                   },
           ),
         ],
@@ -367,9 +387,21 @@ class _ConfidenceBadge extends StatelessWidget {
     final label = needsReview ? 'Perlu Dicek' : 'OCR Berhasil';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.small)),
-      child: Text(label, style: AppTypography.small.copyWith(color: color, fontWeight: FontWeight.w600)),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppRadius.small),
+      ),
+      child: Text(
+        label,
+        style: AppTypography.small.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }

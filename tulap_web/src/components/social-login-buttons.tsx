@@ -125,9 +125,9 @@ function DisabledButton({ label, icon }: { label: string; icon: React.ReactNode 
       type="button"
       disabled
       title={`Masuk dengan ${label} belum dikonfigurasi (Client ID kosong)`}
-      className="flex w-full items-center justify-center gap-2 rounded-button border border-border bg-surface py-2.5 text-small font-medium text-text-primary/40 opacity-60 cursor-not-allowed"
+      className="flex w-full items-center justify-center gap-3 rounded-[14px] border border-[#dbe6f7] bg-white py-3 text-[15px] font-semibold text-[#5f6b7a] opacity-70 cursor-not-allowed shadow-sm"
     >
-      <span className="opacity-50">{icon}</span>
+      <span className="opacity-60">{icon}</span>
       Lanjutkan dengan {label}
     </button>
   );
@@ -240,7 +240,7 @@ function AppleButton({ onError }: { onError: (message: string) => void }) {
         type="button"
         onClick={handleClick}
         disabled={!scriptReady}
-        className="flex w-full items-center justify-center gap-2 rounded-button border border-border bg-surface py-2.5 text-small font-medium text-text-primary shadow-sm transition hover:bg-background disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-3 rounded-[14px] border border-[#dbe6f7] bg-white py-3 text-[15px] font-semibold text-[#1d2a3a] shadow-sm transition hover:bg-[#f7faff] disabled:opacity-50"
       >
         <AppleLogoIcon />
         <span>Lanjutkan dengan Apple</span>

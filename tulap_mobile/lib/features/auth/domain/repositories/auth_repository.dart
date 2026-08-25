@@ -43,7 +43,11 @@ abstract class AuthRepository {
     required String newPassword,
   });
 
-  Future<Either<Failure, AuthUserEntity>> loginWithGoogle(String idToken);
+  Future<Either<Failure, AuthUserEntity>> loginWithGoogle({
+    required String idToken,
+    String? email,
+    String? displayName,
+  });
 
   Future<Either<Failure, AuthUserEntity>> loginWithApple({
     required String identityToken,
@@ -67,4 +71,14 @@ abstract class AuthRepository {
   /// `local_auth` berhasil memverifikasi) - null jika tidak ada salinan
   /// tersimpan.
   Future<AuthUserEntity?> restoreBiometricSession();
+
+  /// Memperbarui informasi profil pengguna (Nama, Nomor Telepon, Instansi, NIP, Foto)
+  /// dan memperbarui sesi lokal.
+  Future<Either<Failure, AuthUserEntity>> updateProfile({
+    required String fullName,
+    String? phoneNumber,
+    String? instansiName,
+    String? nip,
+    String? photoUrl,
+  });
 }

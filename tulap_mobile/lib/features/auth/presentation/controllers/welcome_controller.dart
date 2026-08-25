@@ -61,10 +61,10 @@ class WelcomeController extends ChangeNotifier {
     required GetBiometricGreetingUser getBiometricGreetingUser,
     required RestoreBiometricSession restoreBiometricSession,
     required BiometricAuthService biometricAuthService,
-  })  : _networkInfo = networkInfo,
-        _getBiometricGreetingUser = getBiometricGreetingUser,
-        _restoreBiometricSession = restoreBiometricSession,
-        _biometricAuthService = biometricAuthService {
+  }) : _networkInfo = networkInfo,
+       _getBiometricGreetingUser = getBiometricGreetingUser,
+       _restoreBiometricSession = restoreBiometricSession,
+       _biometricAuthService = biometricAuthService {
     _load();
   }
 

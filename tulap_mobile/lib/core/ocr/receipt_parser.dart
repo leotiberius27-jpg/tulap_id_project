@@ -15,7 +15,15 @@ class ParsedReceiptField<T> {
   bool get needsReview => confidence < 0.6 || value == null;
 }
 
-enum ReceiptCategory { bbm, tol, penginapan, retail, konsumsi, transportasiLain, lainnya }
+enum ReceiptCategory {
+  bbm,
+  tol,
+  penginapan,
+  retail,
+  konsumsi,
+  transportasiLain,
+  lainnya,
+}
 
 class ParsedReceiptResult {
   final ParsedReceiptField<String> vendorName;
@@ -179,9 +187,7 @@ class ReceiptParser {
 
     // Normalisasi: hapus separator ribuan (titik), ganti koma desimal
     // jadi titik. Asumsi format Indonesia: 150.000,50 -> 150000.50
-    final normalized = rawNumber
-        .replaceAll('.', '')
-        .replaceAll(',', '.');
+    final normalized = rawNumber.replaceAll('.', '').replaceAll(',', '.');
 
     return double.tryParse(normalized);
   }
@@ -204,7 +210,8 @@ class ReceiptParser {
       final date = DateTime(year, month, day);
       // Validasi sederhana: tanggal tidak boleh di masa depan jauh atau
       // tahun yang tidak masuk akal.
-      final isPlausible = date.isBefore(DateTime.now().add(const Duration(days: 1))) &&
+      final isPlausible =
+          date.isBefore(DateTime.now().add(const Duration(days: 1))) &&
           year >= 2020;
 
       return ParsedReceiptField(

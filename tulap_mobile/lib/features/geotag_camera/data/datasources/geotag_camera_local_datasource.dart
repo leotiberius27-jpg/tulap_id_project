@@ -8,39 +8,31 @@ import '../../../../core/imaging/watermark_compositor.dart';
 import '../../../../core/security/hash_generator.dart';
 import '../models/geotag_photo_model.dart';
 
-/// Target ukuran maksimum foto setelah kompresi, sesuai Bagian 31
-/// dokumen spesifikasi ("Local Image Compression ~300KB/foto").
-const int _kTargetMaxFileSizeBytes = 300 * 1024;
-
 /// GeotagCameraLocalDataSource
 /// ----------------------------------------------------------------------
-/// Lapisan paling teknis: berbicara langsung dengan hardware kamera
-/// (package `camera`), file system, dan database lokal SQLite. Semua
-/// exception teknis (izin ditolak, disk penuh, dsb) dilempar apa
-/// adanya di sini - penanganan jadi Failure dilakukan di
-/// GeotagCameraRepositoryImpl (lapisan di atasnya).
+/// Menangani pipeline pemrosesan dan penyimpanan foto bukti:
+/// 1. Menyimpan foto mentah asli (original photo) tanpa modifikasi.
+/// 2. Membakar panel verifikasi bukti permanen (Evidence Verification Panel).
+/// 3. Menghitung checksum SHA-256 untuk audit anti-tamper.
+/// 4. Mengompresi salinan ber-watermark untuk distribusi & penyimpanan hemat.
+/// 5. Menyimpan catatan metadata ke SQLite lokal.
 /// ----------------------------------------------------------------------
 class GeotagCameraLocalDataSource {
+  static const _uuid = Uuid();
+  static const int _kTargetMaxFileSizeBytes = 350 * 1024; // Target ~350KB
+
   final HashGenerator _hashGenerator;
   final WatermarkCompositor _watermarkCompositor;
   final Database _database;
-  final Uuid _uuid = const Uuid();
 
   GeotagCameraLocalDataSource({
     required HashGenerator hashGenerator,
     required WatermarkCompositor watermarkCompositor,
     required Database database,
-  })  : _hashGenerator = hashGenerator,
-        _watermarkCompositor = watermarkCompositor,
-        _database = database;
+  }) : _hashGenerator = hashGenerator,
+       _watermarkCompositor = watermarkCompositor,
+       _database = database;
 
-  /// Mengambil satu frame foto dari [controller] kamera yang sedang
-  /// aktif, MEMBAKAR watermark permanen ke gambar (lihat
-  /// WatermarkCompositor), menghitung hash dari hasil ber-watermark
-  /// tersebut (bukan file mentah pra-watermark - foto ber-watermark
-  /// INILAH artefak bukti resmi yang sesungguhnya diserahkan untuk
-  /// audit), mengompresnya, lalu menyimpan record ke tabel lokal
-  /// `geotag_photos`.
   Future<GeotagPhotoModel> captureAndPersist({
     required CameraController controller,
     required String taskId,
@@ -58,31 +50,43 @@ class GeotagCameraLocalDataSource {
       throw CameraException('NOT_INITIALIZED', 'Kamera belum siap digunakan.');
     }
 
-    // 1. Ambil foto mentah dari kamera
+    final id = _uuid.v4();
+    final timestampMs = DateTime.now().millisecondsSinceEpoch;
+    final dir = await getApplicationDocumentsDirectory();
+
+    // 1. Ambil foto mentah dari sensor kamera
     final XFile rawFile = await controller.takePicture();
     final rawBytes = await File(rawFile.path).readAsBytes();
 
-    // 2. Bakar watermark permanen ke gambar - lihat catatan lama di
-    // WatermarkOverlay yang secara eksplisit menunda langkah ini ke
-    // "layer data" (di sinilah tempatnya).
+    // 2. Simpan salinan foto asli (Original Photo) untuk preservasi hukum/audit
+    final originalPath = '${dir.path}/tulap_raw_${timestampMs}.jpg';
+    await File(originalPath).writeAsBytes(rawBytes);
+
+    // 3. Komposisi panel watermark bukti verifikasi permanen
     final watermarkedBytes = await _watermarkCompositor.compose(
       sourceImageBytes: rawBytes,
       data: watermarkData,
     );
-    final dir = await getApplicationDocumentsDirectory();
-    final watermarkedPath =
-        '${dir.path}/tulap_watermarked_${DateTime.now().millisecondsSinceEpoch}.png';
-    await File(watermarkedPath).writeAsBytes(watermarkedBytes);
 
-    // 3. Hash dihitung dari file BER-WATERMARK (artefak resmi), SEBELUM
-    // kompresi (lihat catatan di HashGenerator soal urutan ini).
-    final integrityHash = await _hashGenerator.generateSha256(watermarkedPath);
+    // 4. Tulis file watermark sementara untuk penghitungan hash
+    final watermarkedTempPath =
+        '${dir.path}/tulap_watermarked_${timestampMs}.png';
+    await File(watermarkedTempPath).writeAsBytes(watermarkedBytes);
 
-    // 4. Kompresi untuk hemat storage & bandwidth upload - juga yang
-    // mengonversi PNG hasil compositing menjadi JPEG akhir.
-    final compressedPath = await _compressImage(watermarkedPath);
+    // 5. Hitung SHA-256 dari artefak bukti resmi
+    final integrityHash = await _hashGenerator.generateSha256(
+      watermarkedTempPath,
+    );
 
-    final id = _uuid.v4();
+    // 6. Kompresi salinan ber-watermark menjadi JPEG optimal untuk upload & galeri
+    final compressedPath = await _compressImage(watermarkedTempPath);
+
+    // Bersihkan temporary PNG pra-kompresi
+    final tempFile = File(watermarkedTempPath);
+    if (await tempFile.exists()) {
+      await tempFile.delete();
+    }
+
     final model = GeotagPhotoModel(
       id: id,
       taskId: taskId,
@@ -96,19 +100,15 @@ class GeotagCameraLocalDataSource {
       isMockLocationDetected: isMockLocationDetected,
       isRootedDeviceDetected: isRootedDeviceDetected,
       address: address,
-      caption: caption,
+      caption: caption ?? watermarkData.taskName,
     );
 
     await _database.insert('geotag_photos', model.toJson());
 
-    // File mentah & file ber-watermark pra-kompresi tidak lagi
-    // dibutuhkan setelah hash dihitung dan versi kompresi tersimpan -
-    // hapus keduanya untuk hemat ruang.
-    for (final path in [rawFile.path, watermarkedPath]) {
-      final fileOnDisk = File(path);
-      if (await fileOnDisk.exists()) {
-        await fileOnDisk.delete();
-      }
+    // Bersihkan file cache raw kamera bawaan OS
+    final rawCacheFile = File(rawFile.path);
+    if (await rawCacheFile.exists() && rawCacheFile.path != originalPath) {
+      await rawCacheFile.delete();
     }
 
     return model;
@@ -119,9 +119,7 @@ class GeotagCameraLocalDataSource {
     final targetPath =
         '${dir.path}/tulap_evidence_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-    // Kompresi iteratif: turunkan quality bertahap sampai file di
-    // bawah target ~300KB, dengan batas minimum quality 40 agar foto
-    // tidak terlalu rusak untuk keperluan audit visual.
+    // Kompresi berkualitas tinggi (Quality 85) untuk menjaga ketajaman QR Code
     int quality = 85;
     XFile? result;
 
@@ -130,20 +128,17 @@ class GeotagCameraLocalDataSource {
         originalPath,
         targetPath,
         quality: quality,
-        // Batasi resolusi ke skala maksimum 1080p - plugin ini hanya
-        // MENGECILKAN gambar yang lebih besar dari minWidth/minHeight,
-        // tidak pernah memperbesar gambar yang sudah lebih kecil.
         minWidth: 1920,
         minHeight: 1080,
-        keepExif: false, // EXIF asli tidak diperlukan - lokasi sudah kita catat manual & lebih terpercaya
+        keepExif: false,
       );
 
       if (result == null) break;
 
       final size = await File(result.path).length();
-      if (size <= _kTargetMaxFileSizeBytes || quality <= 40) break;
+      if (size <= _kTargetMaxFileSizeBytes || quality <= 50) break;
 
-      quality -= 15;
+      quality -= 10;
     } while (true);
 
     return result?.path ?? originalPath;
@@ -172,6 +167,10 @@ class GeotagCameraLocalDataSource {
         await file.delete();
       }
     }
-    await _database.delete('geotag_photos', where: 'id = ?', whereArgs: [photoId]);
+    await _database.delete(
+      'geotag_photos',
+      where: 'id = ?',
+      whereArgs: [photoId],
+    );
   }
 }

@@ -49,8 +49,8 @@ class ReceiptScannerController extends ChangeNotifier {
     required ScanReceipt scanReceipt,
     required ConfirmAndSaveExpenseNote confirmAndSave,
     required this.taskId,
-  })  : _scanReceipt = scanReceipt,
-        _confirmAndSave = confirmAndSave;
+  }) : _scanReceipt = scanReceipt,
+       _confirmAndSave = confirmAndSave;
 
   void _update(ReceiptScannerState newState) {
     _state = newState;
@@ -105,10 +105,12 @@ class ReceiptScannerController extends ChangeNotifier {
 
     return result.fold(
       (failure) {
-        _update(_state.copyWith(
-          status: ReceiptScanStatus.reviewing,
-          errorMessage: failure.message,
-        ));
+        _update(
+          _state.copyWith(
+            status: ReceiptScanStatus.reviewing,
+            errorMessage: failure.message,
+          ),
+        );
         return Either2.failure(failure.message);
       },
       (note) {

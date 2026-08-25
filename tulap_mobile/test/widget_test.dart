@@ -9,6 +9,12 @@ import 'package:tulap_mobile/app/di/injection_container.dart';
 import 'package:tulap_mobile/core/error/failures.dart';
 import 'package:tulap_mobile/core/network/network_info.dart';
 import 'package:tulap_mobile/core/security/biometric_auth_service.dart';
+import 'package:tulap_mobile/core/session/auth_session_manager.dart';
+import 'package:tulap_mobile/core/theme/app_theme_mode.dart';
+import 'package:tulap_mobile/core/theme/theme_controller.dart';
+import 'package:tulap_mobile/features/account/data/datasources/account_local_datasource.dart';
+import 'package:tulap_mobile/features/account/domain/entities/account_settings_entity.dart';
+import 'package:tulap_mobile/features/account/domain/entities/storage_breakdown_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/entities/auth_user_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/get_biometric_greeting_user.dart';
@@ -68,7 +74,11 @@ class _NoSessionAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, AuthUserEntity>> loginWithGoogle(String idToken) {
+  Future<Either<Failure, AuthUserEntity>> loginWithGoogle({
+    required String idToken,
+    String? email,
+    String? displayName,
+  }) {
     throw UnimplementedError();
   }
 
@@ -94,23 +104,78 @@ class _NoSessionAuthRepository implements AuthRepository {
 
   @override
   Future<AuthUserEntity?> restoreBiometricSession() async => null;
+
+  @override
+  Future<Either<Failure, AuthUserEntity>> updateProfile({
+    required String fullName,
+    String? phoneNumber,
+    String? instansiName,
+    String? nip,
+    String? photoUrl,
+  }) async => throw UnimplementedError();
+}
+
+class _FakeAccountLocalDataSource implements AccountLocalDataSource {
+  @override
+  Future<AppThemeMode> getThemeMode() async => AppThemeMode.system;
+
+  @override
+  Future<void> saveThemeMode(AppThemeMode mode) async {}
+
+  @override
+  Future<CameraSettingsEntity> getCameraSettings() async => const CameraSettingsEntity();
+
+  @override
+  Future<void> saveCameraSettings(CameraSettingsEntity settings) async {}
+
+  @override
+  Future<NotificationSettingsEntity> getNotificationSettings() async =>
+      const NotificationSettingsEntity();
+
+  @override
+  Future<void> saveNotificationSettings(NotificationSettingsEntity settings) async {}
+
+  @override
+  Future<StorageBreakdownEntity> getStorageBreakdown() async => const StorageBreakdownEntity(
+        cacheBytes: 0,
+        photosBytes: 0,
+        databaseBytes: 0,
+        pendingUploadsCount: 0,
+        totalBytes: 0,
+      );
+
+  @override
+  Future<int> clearTemporaryCache() async => 0;
 }
 
 void main() {
   setUp(() {
     final fakeRepository = _NoSessionAuthRepository();
+    final fakeAccountLocalDataSource = _FakeAccountLocalDataSource();
+    sl.registerLazySingleton<AccountLocalDataSource>(() => fakeAccountLocalDataSource);
+    sl.registerLazySingleton<ThemeController>(
+      () => ThemeController(localDataSource: fakeAccountLocalDataSource),
+    );
+    sl.registerLazySingleton<AuthRepository>(() => fakeRepository);
+    sl.registerLazySingleton<AuthSessionManager>(
+      () => AuthSessionManager(authRepository: fakeRepository),
+    );
     sl.registerLazySingleton<GetCurrentSession>(
       () => GetCurrentSession(fakeRepository),
     );
-    sl.registerLazySingleton<Login>(() => Login(fakeRepository));
+    sl.registerLazySingleton<Login>(
+      () => Login(fakeRepository, sl<AuthSessionManager>()),
+    );
     sl.registerLazySingleton<NetworkInfo>(() => _FakeNetworkInfo());
     sl.registerLazySingleton<GetBiometricGreetingUser>(
       () => GetBiometricGreetingUser(fakeRepository),
     );
     sl.registerLazySingleton<RestoreBiometricSession>(
-      () => RestoreBiometricSession(fakeRepository),
+      () => RestoreBiometricSession(fakeRepository, sl<AuthSessionManager>()),
     );
-    sl.registerLazySingleton<BiometricAuthService>(() => BiometricAuthService());
+    sl.registerLazySingleton<BiometricAuthService>(
+      () => BiometricAuthService(),
+    );
   });
 
   tearDown(() => sl.reset());

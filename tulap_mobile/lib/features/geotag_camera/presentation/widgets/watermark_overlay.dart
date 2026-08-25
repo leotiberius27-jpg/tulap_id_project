@@ -35,7 +35,10 @@ class WatermarkOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final dateFormatted = DateFormat('d MMM yyyy · HH:mm:ss', 'id_ID').format(now);
+    final dateFormatted = DateFormat(
+      'd MMM yyyy · HH:mm:ss',
+      'id_ID',
+    ).format(now);
 
     return Positioned(
       left: AppSpacing.base,
@@ -83,11 +86,7 @@ class _WatermarkLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 12,
-        height: 1.4,
-      ),
+      style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.4),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );

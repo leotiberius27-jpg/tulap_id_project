@@ -68,7 +68,11 @@ class MyActivityTile extends StatelessWidget {
                   color: AppColors.iconSoftBlue,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(_iconFor(category), color: AppColors.action, size: 20),
+                child: Icon(
+                  _iconFor(category),
+                  color: AppColors.action,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(

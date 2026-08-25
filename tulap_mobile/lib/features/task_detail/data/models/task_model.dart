@@ -90,6 +90,13 @@ class TaskModel extends TaskEntity {
     required super.expenseNoteCount,
     super.description,
     super.latestRevisionNote,
+    super.isSelfCreated,
+    super.syncStatus,
+    super.syncVersion,
+    super.startedAt,
+    super.completedAt,
+    super.createdAt,
+    super.updatedAt,
   });
 
   /// Parsing dari response `GET /tasks/:id` backend - backend
@@ -122,6 +129,21 @@ class TaskModel extends TaskEntity {
       latestRevisionNote: (revisionNotes != null && revisionNotes.isNotEmpty)
           ? (revisionNotes.first as Map<String, dynamic>)['note'] as String?
           : null,
+      isSelfCreated: (json['isSelfCreated'] as bool?) ?? false,
+      syncStatus: 'SYNCED',
+      syncVersion: (json['syncVersion'] as int?) ?? 1,
+      startedAt: json['startedAt'] != null
+          ? DateTime.tryParse(json['startedAt'] as String)
+          : null,
+      completedAt: json['completedAt'] != null
+          ? DateTime.tryParse(json['completedAt'] as String)
+          : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String)
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'] as String)
+          : null,
     );
   }
 
@@ -140,6 +162,13 @@ class TaskModel extends TaskEntity {
       'status': status.name,
       'assigneeId': assigneeId,
       'assigneeName': assigneeName,
+      'isSelfCreated': isSelfCreated ? 1 : 0,
+      'syncStatus': syncStatus,
+      'syncVersion': syncVersion,
+      'startedAt': startedAt?.toIso8601String(),
+      'completedAt': completedAt?.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 
@@ -167,6 +196,21 @@ class TaskModel extends TaskEntity {
       checklistItems: checklistItems,
       geotagPhotoCount: geotagPhotoCount,
       expenseNoteCount: expenseNoteCount,
+      isSelfCreated: map['isSelfCreated'] == 1,
+      syncStatus: (map['syncStatus'] as String?) ?? 'SYNCED',
+      syncVersion: (map['syncVersion'] as int?) ?? 1,
+      startedAt: map['startedAt'] != null
+          ? DateTime.tryParse(map['startedAt'] as String)
+          : null,
+      completedAt: map['completedAt'] != null
+          ? DateTime.tryParse(map['completedAt'] as String)
+          : null,
+      createdAt: map['createdAt'] != null
+          ? DateTime.tryParse(map['createdAt'] as String)
+          : null,
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.tryParse(map['updatedAt'] as String)
+          : null,
     );
   }
 }

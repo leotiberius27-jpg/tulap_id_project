@@ -14,12 +14,14 @@ class DioClient {
   final String baseUrl;
 
   DioClient({required this.baseUrl, FlutterSecureStorage? secureStorage})
-      : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
-        dio = Dio(BaseOptions(
+    : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
+      dio = Dio(
+        BaseOptions(
           baseUrl: baseUrl,
           connectTimeout: const Duration(seconds: 15),
           receiveTimeout: const Duration(seconds: 30),
-        )) {
+        ),
+      ) {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -51,17 +53,19 @@ class DioClient {
       final refreshToken = await _secureStorage.read(key: 'refresh_token');
       if (refreshToken == null) return false;
 
-      final response = await Dio(BaseOptions(baseUrl: baseUrl)).post(
-        '/auth/refresh',
-        data: {'refreshToken': refreshToken},
-      );
+      final response = await Dio(
+        BaseOptions(baseUrl: baseUrl),
+      ).post('/auth/refresh', data: {'refreshToken': refreshToken});
 
       final newAccessToken = response.data['accessToken'] as String;
       final newRefreshToken = response.data['refreshToken'] as String;
 
       await _secureStorage.write(key: 'access_token', value: newAccessToken);
       await _secureStorage.write(key: 'refresh_token', value: newRefreshToken);
-      await _refreshBiometricBackupTokensIfEnabled(newAccessToken, newRefreshToken);
+      await _refreshBiometricBackupTokensIfEnabled(
+        newAccessToken,
+        newRefreshToken,
+      );
       return true;
     } catch (_) {
       return false;

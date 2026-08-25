@@ -11,7 +11,7 @@ class BiometricAuthService {
   final LocalAuthentication _localAuth;
 
   BiometricAuthService({LocalAuthentication? localAuth})
-      : _localAuth = localAuth ?? LocalAuthentication();
+    : _localAuth = localAuth ?? LocalAuthentication();
 
   Future<bool> isAvailable() async {
     try {

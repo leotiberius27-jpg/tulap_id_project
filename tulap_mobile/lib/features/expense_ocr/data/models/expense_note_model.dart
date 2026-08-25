@@ -24,7 +24,9 @@ class ExpenseNoteModel extends ExpenseNoteEntity {
       vendorName: map['vendorName'] as String,
       transactionDate: DateTime.parse(map['transactionDate'] as String),
       totalAmount: (map['totalAmount'] as num).toDouble(),
-      taxAmount: map['taxAmount'] != null ? (map['taxAmount'] as num).toDouble() : null,
+      taxAmount: map['taxAmount'] != null
+          ? (map['taxAmount'] as num).toDouble()
+          : null,
       receiptNumber: map['receiptNumber'] as String?,
       category: ExpenseCategoryEntity.values.firstWhere(
         (c) => c.name == map['category'],

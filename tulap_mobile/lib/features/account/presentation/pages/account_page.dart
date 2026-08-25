@@ -2,21 +2,48 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../core/security/biometric_auth_service.dart';
-import '../../../../core/widgets/app_state_views.dart';
+import '../../../../core/session/auth_session_manager.dart';
+import '../../../../core/sync/background_sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_state_views.dart';
 import '../../../../main.dart';
 import '../../../auth/domain/usecases/disable_biometric_login.dart';
 import '../../../auth/domain/usecases/enable_biometric_login.dart';
 import '../../../auth/domain/usecases/get_current_session.dart';
 import '../../../auth/domain/usecases/is_biometric_login_enabled.dart';
 import '../../../auth/domain/usecases/logout.dart';
+import '../../../sync_queue/domain/repositories/sync_queue_repository.dart';
+import '../../../sync_queue/presentation/pages/sync_center_page.dart';
+import '../../domain/entities/storage_breakdown_entity.dart';
+import '../../domain/usecases/clear_app_cache.dart';
+import '../../domain/usecases/get_storage_breakdown.dart';
 import '../controllers/account_controller.dart';
+import '../widgets/account_menu_row.dart';
+import '../widgets/account_section_card.dart';
+import '../widgets/logout_protection_dialog.dart';
+import '../widgets/profile_header_card.dart';
+import 'about_tulap_page.dart';
+import 'camera_settings_page.dart';
+import 'device_storage_page.dart';
+import 'display_settings_page.dart';
+import 'edit_profile_page.dart';
+import 'help_support_page.dart';
+import 'location_settings_page.dart';
+import 'notification_settings_page.dart';
+import 'privacy_page.dart';
+import 'profile_info_page.dart';
+import 'security_login_page.dart';
+import 'terms_page.dart';
 
-/// AccountPage (Akun)
+/// AccountPage (Akun & Profil Tulap.id)
 /// ----------------------------------------------------------------------
-/// Tab "Akun" di bottom navigation - identitas pegawai yang sedang
-/// login (data asli dari sesi tersimpan, sama seperti yang dipakai
-/// Beranda) dan tombol Keluar yang benar-benar berfungsi.
+/// Modul Akun & Profil Lapangan Resmi Tulap.id:
+/// 1. ProfileHeader (Avatar Dinamis, Nama, Email, Instansi, Edit Profil)
+/// 2. Section 1: Akun & Keamanan (Info Profil, Keamanan, Biometrik Asli)
+/// 3. Section 2: Data & Sinkronisasi (Status Outbox, Storage, Cache Aman)
+/// 4. Section 3: Pengaturan (Notifikasi, Kamera Geotag, Lokasi GPS, Tampilan)
+/// 5. Section 4: Bantuan & Informasi (Panduan Lapangan, Privasi, Syarat, Tentang)
+/// 6. Logout Section (Dengan proteksi antrian data outbox belum tersinkron)
 /// ----------------------------------------------------------------------
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
@@ -31,6 +58,11 @@ class AccountPage extends StatelessWidget {
         enableBiometricLogin: sl<EnableBiometricLogin>(),
         disableBiometricLogin: sl<DisableBiometricLogin>(),
         biometricAuthService: sl<BiometricAuthService>(),
+        syncQueueRepository: sl<SyncQueueRepository>(),
+        backgroundSyncService: sl<BackgroundSyncService>(),
+        getStorageBreakdown: sl<GetStorageBreakdown>(),
+        clearAppCache: sl<ClearAppCache>(),
+        authSessionManager: sl<AuthSessionManager>(),
       ),
       child: const _AccountView(),
     );
@@ -42,258 +74,442 @@ class _AccountView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.tulapColors;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Akun')),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('Akun'),
+        centerTitle: true,
+        backgroundColor: colors.surface,
+        elevation: 0,
+      ),
       body: SafeArea(
         top: false,
-        // Padding bawah tetap agar tombol kamera tengah (FAB centerDocked
-        // di MainShell) tidak menutupi konten terakhir - lihat catatan
-        // yang sama di HomePage.
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 56),
-          child: Consumer<AccountController>(
+        child: Consumer<AccountController>(
           builder: (context, controller, _) {
             final user = controller.state.user;
             if (user == null) {
               return const AppLoadingView(label: 'Memuat akun...');
             }
 
-            return ListView(
-              padding: const EdgeInsets.all(AppSpacing.base),
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(AppRadius.cardLarge),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: AppColors.shadowSoft,
-                        blurRadius: 24,
-                        offset: Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      CircleAvatar(
-                        radius: 32,
-                        backgroundColor: AppColors.iconSoftBlue,
-                        child: Text(
-                          user.fullName.isNotEmpty
-                              ? user.fullName[0].toUpperCase()
-                              : '?',
-                          style: AppTypography.pageTitle.copyWith(
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        user.fullName,
-                        style: AppTypography.sectionTitle,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.iconSoftBlue,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          _roleLabel(user.role),
-                          style: AppTypography.small.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      const Divider(height: 1),
-                      const SizedBox(height: AppSpacing.md),
-                      _InfoRow(
-                        icon: Icons.apartment_outlined,
-                        label: 'Instansi',
-                        value: user.instansiName ?? 'Tidak diketahui',
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      _InfoRow(
-                        icon: Icons.mail_outline,
-                        label: 'Email',
-                        value: user.email,
-                      ),
-                    ],
-                  ),
+            return RefreshIndicator(
+              onRefresh: () => controller.refresh(),
+              color: colors.primary,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.base,
+                  AppSpacing.base,
+                  AppSpacing.base,
+                  84, // Bottom padding aman dari FAB Kamera tengah
                 ),
-                if (controller.state.biometricHardwareAvailable) ...[
-                  const SizedBox(height: AppSpacing.lg),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.base,
-                      vertical: AppSpacing.sm,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(AppRadius.cardLarge),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: AppColors.shadowSoft,
-                          blurRadius: 16,
-                          offset: Offset(0, 6),
+                children: [
+                  // ============================================================
+                  // 1. PROFILE HEADER CARD
+                  // ============================================================
+                  ProfileHeaderCard(
+                    user: user,
+                    onEditProfile: () async {
+                      final updated = await Navigator.of(context).push<bool>(
+                        MaterialPageRoute(
+                          builder: (_) => EditProfilePage(user: user),
                         ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.fingerprint, color: AppColors.primary, size: 22),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Masuk Cepat dengan Biometrik',
-                                style: AppTypography.body.copyWith(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                      );
+                      if (updated == true) {
+                        controller.refresh();
+                      }
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // ============================================================
+                  // 2. SECTION 1 — AKUN & KEAMANAN
+                  // ============================================================
+                  AccountSectionCard(
+                    title: 'AKUN & KEAMANAN',
+                    children: [
+                      AccountMenuRow(
+                        icon: Icons.person_outline,
+                        iconBgColor: AppColors.iconSoftBlue,
+                        title: 'Informasi Profil',
+                        subtitle: 'Rincian identitas, NIP, & instansi penugasan',
+                        onTap: () async {
+                          final updated = await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(
+                              builder: (_) => ProfileInfoPage(user: user),
+                            ),
+                          );
+                          if (updated == true) {
+                            controller.refresh();
+                          }
+                        },
+                      ),
+                      AccountMenuRow(
+                        icon: Icons.lock_outline,
+                        iconBgColor: AppColors.iconSoftIndigo,
+                        title: 'Keamanan & Login',
+                        subtitle: 'Metode otentikasi & proteksi kredensial',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => SecurityLoginPage(user: user),
+                          ),
+                        ),
+                      ),
+                      AccountMenuRow(
+                        icon: Icons.fingerprint,
+                        iconBgColor: AppColors.iconSoftCyan,
+                        title: 'Login Biometrik',
+                        subtitle: controller.state.biometricHardwareAvailable
+                            ? (controller.state.biometricLoginEnabled
+                                ? 'Aktif (Sidik Jari / Wajah)'
+                                : 'Nonaktif')
+                            : 'Tidak tersedia di perangkat ini',
+                        showDivider: false,
+                        trailing: controller.state.biometricHardwareAvailable
+                            ? (controller.state.isTogglingBiometric
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : Switch(
+                                    value: controller.state.biometricLoginEnabled,
+                                    onChanged: (val) =>
+                                        controller.toggleBiometricLogin(val),
+                                    activeTrackColor: AppColors.primary,
+                                  ))
+                            : Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.background,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'N/A',
+                                  style: AppTypography.small.copyWith(
+                                    fontSize: 10,
+                                    color: AppColors.textSecondary,
+                                  ),
                                 ),
                               ),
-                              Text(
-                                'Gunakan sidik jari/wajah untuk masuk tanpa kata sandi.',
-                                style: AppTypography.small.copyWith(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // ============================================================
+                  // 3. SECTION 2 — DATA & SINKRONISASI
+                  // ============================================================
+                  AccountSectionCard(
+                    title: 'DATA & SINKRONISASI',
+                    children: [
+                      AccountMenuRow(
+                        icon: Icons.cloud_sync_outlined,
+                        iconBgColor: AppColors.iconSoftBlue,
+                        title: 'Status Sinkronisasi',
+                        subtitle: controller.state.syncStatusSubtitle,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (controller.state.pendingSyncCount > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.warningSoft,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  '${controller.state.pendingSyncCount}',
+                                  style: AppTypography.small.copyWith(
+                                    color: AppColors.warning,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              )
+                            else
+                              const Icon(
+                                Icons.check_circle_outline,
+                                color: AppColors.success,
+                                size: 18,
                               ),
-                            ],
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: AppColors.textSecondary,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SyncCenterPage(),
                           ),
                         ),
-                        controller.state.isTogglingBiometric
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : Switch(
-                                value: controller.state.biometricLoginEnabled,
-                                onChanged: (value) =>
-                                    controller.toggleBiometricLogin(value),
-                                activeTrackColor: AppColors.primary,
+                      ),
+                      AccountMenuRow(
+                        icon: Icons.storage_outlined,
+                        iconBgColor: AppColors.iconSoftTeal,
+                        title: 'Penyimpanan Perangkat',
+                        subtitle: controller.state.storageBreakdown != null
+                            ? 'Tulap.id: ${controller.state.storageBreakdown!.formattedTotal}'
+                            : 'Memuat status memori...',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const DeviceStoragePage(),
+                          ),
+                        ),
+                      ),
+                      AccountMenuRow(
+                        icon: Icons.delete_sweep_outlined,
+                        iconBgColor: AppColors.iconSoftCyan,
+                        title: 'Data & Cache',
+                        subtitle: 'Bersihkan file sementara secara aman',
+                        showDivider: false,
+                        onTap: () => _confirmClearCache(context, controller),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // ============================================================
+                  // 4. SECTION 3 — PENGATURAN
+                  // ============================================================
+                  AccountSectionCard(
+                    title: 'PENGATURAN',
+                    children: [
+                      AccountMenuRow(
+                        icon: Icons.notifications_none_rounded,
+                        iconBgColor: AppColors.iconSoftBlue,
+                        title: 'Notifikasi',
+                        subtitle: 'Pengingat tugas & status sinkronisasi',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationSettingsPage(),
+                          ),
+                        ),
+                      ),
+                      AccountMenuRow(
+                        icon: Icons.camera_alt_outlined,
+                        iconBgColor: AppColors.iconSoftIndigo,
+                        title: 'Kamera & Dokumentasi',
+                        subtitle: 'Preferensi watermark & standar integritas',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const CameraSettingsPage(),
+                          ),
+                        ),
+                      ),
+                      AccountMenuRow(
+                        icon: Icons.location_on_outlined,
+                        iconBgColor: AppColors.iconSoftTeal,
+                        title: 'Lokasi & GPS',
+                        subtitle: 'Izin GPS & kebijakan privasi lapangan',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const LocationSettingsPage(),
+                          ),
+                        ),
+                      ),
+                      AccountMenuRow(
+                        icon: Icons.palette_outlined,
+                        iconBgColor: AppColors.iconSoftCyan,
+                        title: 'Tampilan',
+                        subtitle: 'Tema standar lapangan berlatar kontras',
+                        showDivider: false,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const DisplaySettingsPage(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // ============================================================
+                  // 5. SECTION 4 — BANTUAN & INFORMASI
+                  // ============================================================
+                  AccountSectionCard(
+                    title: 'BANTUAN & INFORMASI',
+                    children: [
+                      AccountMenuRow(
+                        icon: Icons.help_outline_rounded,
+                        iconBgColor: AppColors.iconSoftBlue,
+                        title: 'Bantuan & Dukungan',
+                        subtitle: 'Panduan kamera, GPS, tugas, dan nota',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const HelpSupportPage(),
+                          ),
+                        ),
+                      ),
+                      AccountMenuRow(
+                        icon: Icons.privacy_tip_outlined,
+                        iconBgColor: AppColors.iconSoftIndigo,
+                        title: 'Kebijakan Privasi',
+                        subtitle: 'Perlindungan data & privasi sensor',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const PrivacyPage(),
+                          ),
+                        ),
+                      ),
+                      AccountMenuRow(
+                        icon: Icons.description_outlined,
+                        iconBgColor: AppColors.iconSoftTeal,
+                        title: 'Syarat Penggunaan',
+                        subtitle: 'Aturan kepatuhan dokumentasi kegiatan',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const TermsPage(),
+                          ),
+                        ),
+                      ),
+                      AccountMenuRow(
+                        icon: Icons.info_outline_rounded,
+                        iconBgColor: AppColors.iconSoftCyan,
+                        title: 'Tentang Tulap.id',
+                        subtitle: 'Versy ${AboutTulapPage.appVersion}',
+                        showDivider: false,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AboutTulapPage(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // ============================================================
+                  // 6. LOGOUT BUTTON
+                  // ============================================================
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: controller.state.isLoggingOut
+                          ? null
+                          : () => _handleLogout(context, controller),
+                      icon: const Icon(
+                        Icons.logout_rounded,
+                        color: AppColors.danger,
+                        size: 20,
+                      ),
+                      label: controller.state.isLoggingOut
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.danger,
                               ),
-                      ],
+                            )
+                          : const Text(
+                              'Keluar dari Akun',
+                              style: TextStyle(
+                                color: AppColors.danger,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.danger, width: 1.2),
+                        backgroundColor: AppColors.surface,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.button),
+                        ),
+                      ),
                     ),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.lg),
-                OutlinedButton.icon(
-                  onPressed: controller.state.isLoggingOut
-                      ? null
-                      : () => _confirmLogout(context, controller),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.danger,
-                    side: const BorderSide(color: AppColors.dangerSoft, width: 1.5),
-                  ),
-                  icon: controller.state.isLoggingOut
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.logout),
-                  label: const Text('Keluar'),
-                ),
-              ],
+              ),
             );
           },
-          ),
         ),
       ),
     );
   }
 
-  String _roleLabel(String role) {
-    switch (role) {
-      case 'PEGAWAI':
-        return 'Pegawai';
-      case 'VERIFIKATOR':
-        return 'Verifikator';
-      case 'ADMIN':
-        return 'Admin';
-      case 'SUPER_ADMIN':
-        return 'Super Admin';
-      default:
-        return role;
-    }
-  }
-
-  Future<void> _confirmLogout(
+  Future<void> _confirmClearCache(
     BuildContext context,
     AccountController controller,
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Keluar dari akun?'),
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+        ),
+        title: const Text('Bersihkan Cache?'),
         content: const Text(
-          'Anda perlu masuk kembali dengan email dan password untuk '
-          'melanjutkan tugas.',
+          'File sementara akan dihapus. Seluruh bukti foto, nota, dan catatan kegiatan Anda TETAP AMAN.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Batal'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-            child: const Text('Keluar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Bersihkan'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true || !context.mounted) return;
-
-    await controller.signOut();
-    if (!context.mounted) return;
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const AuthGate()),
-      (route) => false,
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _InfoRow({required this.icon, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: AppColors.textSecondary),
-        const SizedBox(width: AppSpacing.sm),
-        Text(label, style: AppTypography.small),
-        const Spacer(),
-        Flexible(
-          child: Text(
-            value,
-            style: AppTypography.small.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.end,
+    if (confirmed == true && context.mounted) {
+      await controller.clearCache();
+      if (context.mounted && controller.state.message != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(controller.state.message!),
+            backgroundColor: AppColors.success,
           ),
-        ),
-      ],
+        );
+      }
+    }
+  }
+
+  Future<void> _handleLogout(
+    BuildContext context,
+    AccountController controller,
+  ) async {
+    final action = await LogoutProtectionDialog.show(
+      context,
+      pendingCount: controller.state.pendingSyncCount,
     );
+
+    if (action == null || action == LogoutDialogAction.cancel || !context.mounted) {
+      return;
+    }
+
+    if (action == LogoutDialogAction.syncNow) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const SyncCenterPage()),
+      );
+      return;
+    }
+
+    if (action == LogoutDialogAction.logoutNow) {
+      await controller.signOut();
+      if (!context.mounted) return;
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AuthGate()),
+        (route) => false,
+      );
+    }
   }
 }

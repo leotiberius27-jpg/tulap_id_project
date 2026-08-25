@@ -10,25 +10,11 @@ import '../datasources/task_local_datasource.dart';
 import '../datasources/task_remote_datasource.dart';
 import '../models/task_model.dart';
 
-class TaskNotFoundFailure extends Failure {
-  const TaskNotFoundFailure([super.message = 'Tugas tidak ditemukan.']);
-}
-
-class TaskSubmitRejectedFailure extends Failure {
-  final List<String> incompleteItems;
-  TaskSubmitRejectedFailure(this.incompleteItems)
-    : super('Masih ada bukti wajib yang belum lengkap.');
-}
-
 /// TaskRepositoryImpl
 /// ----------------------------------------------------------------------
-/// Strategi offline-first untuk getTaskDetail: tampilkan cache lokal
-/// SEGERA (tanpa menunggu network), lalu jika online, refresh dari
-/// server di background dan update cache - caller (controller) yang
-/// memanggil getTaskDetail dua kali (sekali cache, sekali refresh)
-/// alih-alih repository ini mencampur keduanya jadi satu response,
-/// supaya UI bisa menampilkan data lama sambil memuat data baru
-/// tanpa loading spinner yang mem-blok seluruh layar.
+/// Menghubungkan sumber data remote & local untuk tugas dan checklist.
+/// Menerapkan pola offline-first: data lokal selalu tersedia dan
+/// disinkronkan ke remote ketika jaringan terhubung.
 /// ----------------------------------------------------------------------
 class TaskRepositoryImpl implements TaskRepository {
   final TaskLocalDataSource _localDataSource;
@@ -59,20 +45,13 @@ class TaskRepositoryImpl implements TaskRepository {
               .map((e) => ChecklistItemModel.fromEntity(e))
               .toList(),
         );
-        // Re-fetch dari cache agar geotagPhotoCount/expenseNoteCount
-        // (dihitung dari tabel lokal) ikut terisi konsisten. Cache TIDAK
-        // menyimpan latestRevisionNote (lihat TaskModel.toCacheMap), jadi
-        // tempelkan nilai dari remoteTask di atas hasil cache - tanpa ini
-        // catatan revisi Verifikator akan selalu hilang tertimpa null.
         final merged = await _localDataSource.getCachedTask(taskId);
         return Right(
           (merged ?? remoteTask).withLatestRevisionNote(
             remoteTask.latestRevisionNote,
           ),
         );
-      } on DioException {
-        // Gagal online meski status konektivitas "terhubung" (mis.
-        // server down) - fallback ke cache lokal alih-alih error total.
+      } catch (_) {
         return _getFromCacheOrFail(taskId);
       }
     }
@@ -99,12 +78,8 @@ class TaskRepositoryImpl implements TaskRepository {
     required bool isCompleted,
   }) async {
     try {
-      // Update lokal SEGERA (offline-first) - UI tidak menunggu network.
       await _localDataSource.updateChecklistItemLocal(itemId, isCompleted);
 
-      // Daftarkan ke Sync Queue agar perubahan terkirim ke backend saat
-      // online, mengikuti pola yang sama persis dengan geotag_camera &
-      // expense_ocr.
       await _enqueueSyncItem(
         entityType: SyncEntityType.taskChecklist,
         entityLocalId: itemId,
@@ -126,6 +101,39 @@ class TaskRepositoryImpl implements TaskRepository {
       return getTaskDetail(taskId);
     } on DioException catch (e) {
       return Left(TaskNotFoundFailure(_extractErrorMessage(e)));
+    } catch (_) {
+      final cached = await _localDataSource.getCachedTask(taskId);
+      if (cached != null) {
+        final now = DateTime.now();
+        final updated = TaskModel(
+          id: cached.id,
+          taskCode: cached.taskCode,
+          taskName: cached.taskName,
+          destination: cached.destination,
+          description: cached.description,
+          startDate: cached.startDate,
+          endDate: cached.endDate,
+          budgetAmount: cached.budgetAmount,
+          status: TaskStatusEntity.ongoing,
+          assigneeId: cached.assigneeId,
+          assigneeName: cached.assigneeName,
+          checklistItems: cached.checklistItems
+              .map((e) => ChecklistItemModel.fromEntity(e))
+              .toList(),
+          geotagPhotoCount: cached.geotagPhotoCount,
+          expenseNoteCount: cached.expenseNoteCount,
+          isSelfCreated: cached.isSelfCreated,
+          syncStatus: cached.syncStatus,
+          syncVersion: cached.syncVersion,
+          startedAt: cached.startedAt ?? now,
+          completedAt: cached.completedAt,
+          createdAt: cached.createdAt,
+          updatedAt: now,
+        );
+        await _localDataSource.cacheTask(updated);
+        return Right(updated);
+      }
+      return const Left(TaskNotFoundFailure('Tugas tidak ditemukan.'));
     }
   }
 
@@ -147,17 +155,69 @@ class TaskRepositoryImpl implements TaskRepository {
         return Left(TaskSubmitRejectedFailure(items));
       }
       return Left(TaskNotFoundFailure(_extractErrorMessage(e)));
+    } catch (_) {
+      final cached = await _localDataSource.getCachedTask(taskId);
+      if (cached != null) {
+        final now = DateTime.now();
+        final nextStatus = cached.isSelfCreated
+            ? TaskStatusEntity.completed
+            : TaskStatusEntity.pendingVerification;
+
+        final updated = TaskModel(
+          id: cached.id,
+          taskCode: cached.taskCode,
+          taskName: cached.taskName,
+          destination: cached.destination,
+          description: cached.description,
+          startDate: cached.startDate,
+          endDate: cached.endDate,
+          budgetAmount: cached.budgetAmount,
+          status: nextStatus,
+          assigneeId: cached.assigneeId,
+          assigneeName: cached.assigneeName,
+          checklistItems: cached.checklistItems
+              .map((e) => ChecklistItemModel.fromEntity(e))
+              .toList(),
+          geotagPhotoCount: cached.geotagPhotoCount,
+          expenseNoteCount: cached.expenseNoteCount,
+          isSelfCreated: cached.isSelfCreated,
+          syncStatus: cached.syncStatus,
+          syncVersion: cached.syncVersion,
+          startedAt: cached.startedAt,
+          completedAt: now,
+          createdAt: cached.createdAt,
+          updatedAt: now,
+        );
+        await _localDataSource.cacheTask(updated);
+        return Right(updated);
+      }
+      return const Left(TaskNotFoundFailure('Tugas tidak ditemukan.'));
     }
   }
 
   @override
   Future<Either<Failure, List<TaskEntity>>> getActiveTasks() async {
-    try {
-      final tasks = await _remoteDataSource.getTasks();
-      return Right(tasks);
-    } on DioException catch (e) {
-      return Left(TaskNotFoundFailure(_extractErrorMessage(e)));
+    final isOnline = await _networkInfo.isConnected;
+    if (isOnline) {
+      try {
+        final tasks = await _remoteDataSource.getTasks();
+        for (final t in tasks) {
+          await _localDataSource.cacheTask(t);
+          await _localDataSource.cacheChecklistItems(
+            t.checklistItems
+                .map((e) => ChecklistItemModel.fromEntity(e))
+                .toList(),
+          );
+        }
+        return Right(tasks);
+      } catch (_) {
+        final cached = await _localDataSource.getAllCachedTasks();
+        return Right(cached);
+      }
     }
+
+    final cached = await _localDataSource.getAllCachedTasks();
+    return Right(cached);
   }
 
   String _extractErrorMessage(DioException e) {
@@ -165,6 +225,6 @@ class TaskRepositoryImpl implements TaskRepository {
     if (data is Map && data['message'] is String) {
       return data['message'] as String;
     }
-    return 'Terjadi kesalahan. Coba lagi.';
+    return 'Terjadi kesalahan jaringan. Menggunakan data lokal.';
   }
 }

@@ -10,7 +10,8 @@ import '../../../../core/ocr/receipt_ocr_engine.dart';
 import '../../../../core/ocr/receipt_parser.dart';
 import '../models/expense_note_model.dart';
 
-const int _kTargetMaxFileSizeBytes = 300 * 1024; // ~300KB, sama seperti foto geotag
+const int _kTargetMaxFileSizeBytes =
+    300 * 1024; // ~300KB, sama seperti foto geotag
 
 /// ExpenseOcrLocalDataSource
 /// ----------------------------------------------------------------------
@@ -30,15 +31,17 @@ class ExpenseOcrLocalDataSource {
     required ReceiptOcrEngine ocrEngine,
     required ReceiptParser parser,
     required Database database,
-  })  : _ocrEngine = ocrEngine,
-        _parser = parser,
-        _database = database;
+  }) : _ocrEngine = ocrEngine,
+       _parser = parser,
+       _database = database;
 
   /// Memfoto nota dari [controller] kamera, mengompresnya, lalu
   /// menjalankan OCR + parsing. TIDAK menyimpan apa pun ke tabel
   /// `expense_notes` di tahap ini - hanya mengembalikan hasil parsing
   /// sebagai draft untuk Review Sheet.
-  Future<ParsedReceiptResult> captureAndScan(CameraController controller) async {
+  Future<ParsedReceiptResult> captureAndScan(
+    CameraController controller,
+  ) async {
     if (!controller.value.isInitialized) {
       throw CameraException('NOT_INITIALIZED', 'Kamera belum siap digunakan.');
     }

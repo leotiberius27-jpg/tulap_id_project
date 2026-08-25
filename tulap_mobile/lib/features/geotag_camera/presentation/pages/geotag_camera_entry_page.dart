@@ -1,39 +1,34 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import '../../../../app/di/injection_container.dart';
+import '../../../../core/geo/reverse_geocoder.dart';
 import '../../domain/usecases/capture_geotagged_photo.dart';
+import '../../domain/usecases/get_task_photo_previews.dart';
 import '../../domain/usecases/validate_location_integrity.dart';
 import '../controllers/geotag_camera_controller.dart';
 import 'geotag_camera_page.dart';
 
 /// GeotagCameraEntryPage
 /// ----------------------------------------------------------------------
-/// INI yang sebenarnya dipanggil lewat `Navigator.push` dari Detail
-/// Tugas ("Foto Kegiatan" quick action) - BUKAN GeotagCameraPage
-/// langsung. Halaman ini menangani seluruh siklus hidup yang butuh
-/// async & harus dibersihkan dengan benar:
-///
-///   1. `availableCameras()` -> pilih kamera belakang -> inisialisasi
-///      CameraController (async, perlu loading state).
-///   2. `registerCameraSession(controller)` -> mendaftarkan
-///      GeotagCameraRepository & usecase terkait ke service locator
-///      untuk sesi kamera kali ini.
-///   3. Membuat GeotagCameraController dari usecase yang baru
-///      terdaftar, lalu merender GeotagCameraPage yang sesungguhnya.
-///   4. Saat halaman ditutup (dispose): controller di-dispose, kamera
-///      dilepas, DAN `unregisterCameraSession()` dipanggil - mencegah
-///      memory leak dan referensi ke CameraController yang sudah mati.
+/// Entrypoint layar kamera Geotagged Camera:
+/// - Menginisialisasi CameraController secara asinkron
+/// - Mendukung switch/flip antara kamera belakang dan kamera depan
+/// - Mendaftarkan sesi kamera ke dependency injection (DI)
+/// - Menghubungkan usecase validasi integritas lokasi & reverse geocoding
+/// - Membersihkan resource (dispose controller & unregister DI) saat ditutup
 /// ----------------------------------------------------------------------
 class GeotagCameraEntryPage extends StatefulWidget {
   final String officerName;
   final String agencyName;
   final String taskId;
+  final String? taskName;
 
   const GeotagCameraEntryPage({
     super.key,
     required this.officerName,
     required this.agencyName,
     required this.taskId,
+    this.taskName,
   });
 
   @override
@@ -43,54 +38,54 @@ class GeotagCameraEntryPage extends StatefulWidget {
 class _GeotagCameraEntryPageState extends State<GeotagCameraEntryPage> {
   CameraController? _cameraController;
   GeotagCameraController? _geotagController;
+  CameraLensDirection _currentLensDirection = CameraLensDirection.back;
   String? _initError;
+  bool _isSwitchingCamera = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeCamera();
+    _geotagController = GeotagCameraController(
+      validateLocationIntegrity: sl<ValidateLocationIntegrity>(),
+      captureGeotaggedPhoto: sl<CaptureGeotaggedPhoto>(),
+      getTaskPhotoPreviews: sl<GetTaskPhotoPreviews>(),
+      reverseGeocoder: sl<ReverseGeocoder>(),
+      taskId: widget.taskId,
+    );
+    _initializeCamera(_currentLensDirection);
   }
 
-  Future<void> _initializeCamera() async {
+  Future<void> _initializeCamera(CameraLensDirection direction) async {
     try {
       final cameras = await availableCameras();
-      final backCamera = cameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.back,
+      if (cameras.isEmpty) {
+        if (mounted) {
+          setState(
+            () => _initError =
+                'Perangkat tidak memiliki sensor kamera yang tersedia.',
+          );
+        }
+        return;
+      }
+
+      final selectedCamera = cameras.firstWhere(
+        (c) => c.lensDirection == direction,
         orElse: () => cameras.first,
       );
 
       final controller = CameraController(
-        backCamera,
-        // ResolutionPreset.medium, BUKAN .high - camera_android_camerax
-        // membuka 3 use case sekaligus (Preview+ImageCapture+ImageAnalysis).
-        // Di chipset kelas bawah (dikonfirmasi di perangkat fisik Realme
-        // RMX3834, Unisoc/Spreadtrum) HAL kamera tidak sanggup negosiasi
-        // 3 stream bersamaan di resolusi .high - hasilnya preview LIVE
-        // pecah jadi potongan kecil di atas + hitam di sisanya, padahal
-        // ISP tetap mengalirkan frame normal (dikonfirmasi lewat logcat)
-        // dan hasil capture foto tetap tersimpan benar. .medium cukup
-        // untuk bukti foto lapangan (bukan fotografi profesional) dan
-        // sesuai rentang resolusi yang lebih luas didukung HAL kelas bawah.
+        selectedCamera,
         ResolutionPreset.medium,
-        enableAudio: false, // Bukti foto tidak butuh audio
+        enableAudio: false,
       );
 
       await controller.initialize();
 
-      // Baru daftarkan ke DI SETELAH controller siap - repository yang
-      // dibuat di sini akan memegang instance controller yang valid.
+      // Daftarkan session kamera ke GetIt service locator
       registerCameraSession(controller);
 
-      final geotagController = GeotagCameraController(
-        validateLocationIntegrity: sl<ValidateLocationIntegrity>(),
-        captureGeotaggedPhoto: sl<CaptureGeotaggedPhoto>(),
-        taskId: widget.taskId,
-      );
-
       if (!mounted) {
-        // Widget sudah di-dispose sebelum inisialisasi selesai (mis.
-        // user menekan back cepat) - bersihkan langsung agar tidak leak.
-        geotagController.dispose();
+        _geotagController?.dispose();
         await controller.dispose();
         unregisterCameraSession();
         return;
@@ -98,13 +93,35 @@ class _GeotagCameraEntryPageState extends State<GeotagCameraEntryPage> {
 
       setState(() {
         _cameraController = controller;
-        _geotagController = geotagController;
+        _currentLensDirection = selectedCamera.lensDirection;
+        _isSwitchingCamera = false;
+        _initError = null;
       });
     } catch (e) {
       if (mounted) {
-        setState(() => _initError = 'Kamera tidak dapat diakses. Periksa izin kamera.');
+        setState(() {
+          _initError =
+              'Kamera tidak dapat diakses. Periksa izin kamera pada pengaturan perangkat.';
+          _isSwitchingCamera = false;
+        });
       }
     }
+  }
+
+  Future<void> _flipCamera() async {
+    if (_isSwitchingCamera || _cameraController == null) return;
+
+    setState(() => _isSwitchingCamera = true);
+
+    final targetDirection = _currentLensDirection == CameraLensDirection.back
+        ? CameraLensDirection.front
+        : CameraLensDirection.back;
+
+    // Bersihkan controller kamera sebelumnya
+    await _cameraController?.dispose();
+    unregisterCameraSession();
+
+    await _initializeCamera(targetDirection);
   }
 
   @override
@@ -122,15 +139,50 @@ class _GeotagCameraEntryPageState extends State<GeotagCameraEntryPage> {
         backgroundColor: Colors.black,
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(28),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.no_photography, color: Colors.white54, size: 48),
-                const SizedBox(height: 16),
-                Text(_initError!, style: const TextStyle(color: Colors.white), textAlign: TextAlign.center),
-                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.no_photography_rounded,
+                    color: Colors.white70,
+                    size: 48,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Kamera Tidak Dapat Diakses',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _initError!,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
                 OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white54),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Kembali'),
                 ),
@@ -141,10 +193,27 @@ class _GeotagCameraEntryPageState extends State<GeotagCameraEntryPage> {
       );
     }
 
-    if (_cameraController == null || _geotagController == null) {
+    if (_cameraController == null ||
+        _geotagController == null ||
+        _isSwitchingCamera) {
       return const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator(color: Colors.white)),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(
+                color: Color(0xFF006EE6),
+                strokeWidth: 3,
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Menyiapkan Kamera & Sinyal GPS...',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -154,6 +223,8 @@ class _GeotagCameraEntryPageState extends State<GeotagCameraEntryPage> {
       officerName: widget.officerName,
       agencyName: widget.agencyName,
       taskId: widget.taskId,
+      taskName: widget.taskName,
+      onFlipCamera: _flipCamera,
     );
   }
 }

@@ -86,7 +86,8 @@ class _FloatingBobState extends State<FloatingBob>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        final offset = Curves.easeInOut.transform(_controller.value) * widget.distance;
+        final offset =
+            Curves.easeInOut.transform(_controller.value) * widget.distance;
         return Transform.translate(offset: Offset(0, -offset), child: child);
       },
       child: widget.child,
@@ -109,7 +110,8 @@ class PulseDot extends StatefulWidget {
   State<PulseDot> createState() => _PulseDotState();
 }
 
-class _PulseDotState extends State<PulseDot> with SingleTickerProviderStateMixin {
+class _PulseDotState extends State<PulseDot>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
@@ -138,7 +140,10 @@ class _PulseDotState extends State<PulseDot> with SingleTickerProviderStateMixin
           child: Container(
             width: widget.size,
             height: widget.size,
-            decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: widget.color,
+              shape: BoxShape.circle,
+            ),
           ),
         );
       },
@@ -154,7 +159,10 @@ Route<T> slideFadeRoute<T>(Widget page) {
     reverseTransitionDuration: AppMotion.screen,
     pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final curved = CurvedAnimation(parent: animation, curve: AppMotion.standard);
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: AppMotion.standard,
+      );
       return SlideTransition(
         position: Tween<Offset>(
           begin: const Offset(1, 0),

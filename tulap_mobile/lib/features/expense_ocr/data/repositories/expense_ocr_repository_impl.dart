@@ -8,7 +8,9 @@ import '../datasources/expense_ocr_local_datasource.dart';
 import '../models/expense_note_model.dart';
 
 class OcrScanFailure extends Failure {
-  const OcrScanFailure([super.message = 'Gagal membaca nota. Coba foto ulang.']);
+  const OcrScanFailure([
+    super.message = 'Gagal membaca nota. Coba foto ulang.',
+  ]);
 }
 
 class DuplicateReceiptFailure extends Failure {
@@ -21,18 +23,33 @@ class DuplicateReceiptFailure extends Failure {
 /// ----------------------------------------------------------------------
 class ExpenseOcrRepositoryImpl implements ExpenseOcrRepository {
   final ExpenseOcrLocalDataSource _localDataSource;
-  final CameraController _cameraController;
+  CameraController? _cameraController;
 
   ExpenseOcrRepositoryImpl({
     required ExpenseOcrLocalDataSource localDataSource,
-    required CameraController cameraController,
-  })  : _localDataSource = localDataSource,
-        _cameraController = cameraController;
+    CameraController? cameraController,
+  }) : _localDataSource = localDataSource,
+       _cameraController = cameraController;
+
+  void attachCameraController(CameraController controller) {
+    _cameraController = controller;
+  }
+
+  void detachCameraController() {
+    _cameraController = null;
+  }
 
   @override
   Future<Either<Failure, ScannedReceiptDraft>> scanReceipt() async {
     try {
-      final parsed = await _localDataSource.captureAndScan(_cameraController);
+      if (_cameraController == null ||
+          !_cameraController!.value.isInitialized) {
+        return const Left(
+          CameraFailure('Sensor kamera nota belum siap digunakan.'),
+        );
+      }
+
+      final parsed = await _localDataSource.captureAndScan(_cameraController!);
       final compressedPath = _localDataSource.lastCompressedPath;
 
       if (compressedPath == null) {

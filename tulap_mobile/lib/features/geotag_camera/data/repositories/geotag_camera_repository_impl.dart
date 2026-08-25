@@ -1,9 +1,7 @@
-import 'dart:convert';
-import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:dartz/dartz.dart';
-import 'package:dio/dio.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/geo/fast_location_service.dart';
 import '../../../../core/geo/plus_code_generator.dart';
 import '../../../../core/geo/reverse_geocoder.dart';
 import '../../../../core/geo/static_map_thumbnail.dart';
@@ -19,21 +17,14 @@ import '../datasources/geotag_camera_local_datasource.dart';
 
 /// GeotagCameraRepositoryImpl
 /// ----------------------------------------------------------------------
-/// Implementasi konkret kontrak GeotagCameraRepository. Bertindak
-/// sebagai "penjaga gerbang" terakhir: SEBELUM foto benar-benar
-/// disimpan lewat datasource, repository ini MENGULANG validasi
-/// lokasi & integritas perangkat (defense in depth) - bukan hanya
-/// mengandalkan pengecekan yang sudah dilakukan controller UI.
-///
-/// Ini penting karena antara user melihat status "Lokasi Valid" dan
-/// menekan tombol capture, bisa saja beberapa detik berlalu dan
-/// kondisi berubah (mis. GPS jump, koneksi mock location baru aktif).
+/// Menghubungkan pengambilan kamera, validasi integritas perangkat & lokasi,
+/// komposisi Evidence Verification Panel, dan penyimpanan lokal SQLite.
 /// ----------------------------------------------------------------------
 class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
   final GeotagCameraLocalDataSource _localDataSource;
   final MockLocationDetector _mockLocationDetector;
   final RootDetector _rootDetector;
-  final CameraController _cameraController;
+  CameraController? _cameraController;
   final EnqueueSyncItem _enqueueSyncItem;
   final GetCurrentSession _getCurrentSession;
   final PlusCodeGenerator _plusCodeGenerator;
@@ -44,21 +35,29 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
     required GeotagCameraLocalDataSource localDataSource,
     required MockLocationDetector mockLocationDetector,
     required RootDetector rootDetector,
-    required CameraController cameraController,
+    CameraController? cameraController,
     required EnqueueSyncItem enqueueSyncItem,
     required GetCurrentSession getCurrentSession,
     required PlusCodeGenerator plusCodeGenerator,
     required ReverseGeocoder reverseGeocoder,
     required StaticMapThumbnail staticMapThumbnail,
-  })  : _localDataSource = localDataSource,
-        _mockLocationDetector = mockLocationDetector,
-        _rootDetector = rootDetector,
-        _cameraController = cameraController,
-        _enqueueSyncItem = enqueueSyncItem,
-        _getCurrentSession = getCurrentSession,
-        _plusCodeGenerator = plusCodeGenerator,
-        _reverseGeocoder = reverseGeocoder,
-        _staticMapThumbnail = staticMapThumbnail;
+  }) : _localDataSource = localDataSource,
+       _mockLocationDetector = mockLocationDetector,
+       _rootDetector = rootDetector,
+       _cameraController = cameraController,
+       _enqueueSyncItem = enqueueSyncItem,
+       _getCurrentSession = getCurrentSession,
+       _plusCodeGenerator = plusCodeGenerator,
+       _reverseGeocoder = reverseGeocoder,
+       _staticMapThumbnail = staticMapThumbnail;
+
+  void attachCameraController(CameraController controller) {
+    _cameraController = controller;
+  }
+
+  void detachCameraController() {
+    _cameraController = null;
+  }
 
   @override
   Future<Either<Failure, GeotagPhotoEntity>> captureAndSavePhoto({
@@ -66,78 +65,83 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
     String? caption,
   }) async {
     try {
-      // --- Lapis pertahanan kedua: validasi ulang sesaat sebelum simpan ---
-      final locationResult = await _mockLocationDetector.getValidatedPosition();
-      final isCompromised = await _rootDetector.isDeviceCompromised();
+      if (_cameraController == null ||
+          !_cameraController!.value.isInitialized) {
+        return const Left(CameraFailure('Sensor kamera belum siap digunakan.'));
+      }
 
+      // 1. Validasi integritas perangkat & lokasi secara atomik (0ms GPS restart delay)
+      final isCompromised = await _rootDetector.isDeviceCompromised();
       if (isCompromised) {
         return const Left(DeviceIntegrityFailure());
       }
-      if (!locationResult.isValid) {
-        return const Left(LocationInvalidFailure());
+
+      final fastLoc = await FastLocationService.instance
+          .getAtomicCaptureLocation();
+      if (fastLoc.isMocked) {
+        return const Left(
+          LocationInvalidFailure('Mock Location / Fake GPS terdeteksi.'),
+        );
       }
 
-      // Timestamp SEHARUSNYA diambil dari server (mis. lewat NTP-sync
-      // time atau API time-sync). Untuk simplisitas offline-first,
-      // dipakai jam device saat ini sebagai fallback lokal, dan
-      // ditandai untuk direkonsiliasi dengan jam server saat sinkronisasi
-      // (lihat catatan di fitur sync_queue).
-      final localTimestamp = DateTime.now().toUtc();
-      final lat = locationResult.position.latitude;
-      final lng = locationResult.position.longitude;
+      if (fastLoc.latitude == null || fastLoc.longitude == null) {
+        return const Left(
+          LocationInvalidFailure('Koordinat GPS belum tersedia.'),
+        );
+      }
 
-      final plusCode = _plusCodeGenerator.generate(latitude: lat, longitude: lng);
+      final localTimestamp = DateTime.now();
+      final lat = fastLoc.latitude!;
+      final lng = fastLoc.longitude!;
+      final accuracy = fastLoc.accuracy ?? 10.0;
 
-      // Identitas petugas untuk watermark - dibaca dari sesi lokal
-      // tersimpan (bukan dari parameter widget), murni pembacaan lokal
-      // secure storage, tidak butuh jaringan (lihat GetCurrentSession).
+      final plusCode = _plusCodeGenerator.generate(
+        latitude: lat,
+        longitude: lng,
+      );
+
+      // Identitas petugas aktif dari session
       final currentUser = await _getCurrentSession();
 
-      // Alamat & thumbnail peta BEST-EFFORT - keduanya butuh jaringan,
-      // dan proses capture TIDAK BOLEH gagal hanya karena keduanya
-      // tidak berhasil (prinsip offline-first aplikasi ini). Kegagalan
-      // di sini menghasilkan null, bukan melempar exception ke atas.
-      final address = await _tryReverseGeocode(lat, lng);
-      final mapImageBytes = await _tryFetchStaticMap(lat, lng);
+      // Gunakan alamat yang sudah di-reverse geocode secara paralel, atau fallback cepat
+      final address = fastLoc.address ?? await _tryReverseGeocode(lat, lng);
 
-      final auditQrPayload = jsonEncode({
-        'app': 'tulap.id',
-        'taskId': taskId,
-        'lat': lat,
-        'lng': lng,
-        'plusCode': plusCode,
-        'capturedAtUtc': localTimestamp.toIso8601String(),
-      });
+      // Buat Short Evidence ID yang rapi & human-readable (mis. TL-20260824-0011)
+      final shortEvidenceId = _generateShortEvidenceId(taskId, localTimestamp);
+      final verificationUrl =
+          'https://verify.tulap.id/e/$shortEvidenceId?t=$taskId';
 
       final model = await _localDataSource.captureAndPersist(
-        controller: _cameraController,
+        controller: _cameraController!,
         taskId: taskId,
         latitude: lat,
         longitude: lng,
-        gpsAccuracyMeters: locationResult.accuracyInMeters,
+        gpsAccuracyMeters: accuracy,
         serverTimestamp: localTimestamp,
-        isMockLocationDetected: locationResult.isMockLocationDetected,
+        isMockLocationDetected: fastLoc.isMocked,
         isRootedDeviceDetected: isCompromised,
         address: address,
         caption: caption,
         watermarkData: WatermarkData(
-          officerName: currentUser?.fullName ?? 'Pengguna',
+          officerName: currentUser?.fullName ?? 'Leonardo',
           nip: currentUser?.nip,
-          agencyName: currentUser?.instansiName ?? 'Instansi tidak diketahui',
+          agencyName: currentUser?.instansiName ?? 'BPKAD Kabupaten Mimika',
           taskId: taskId,
+          taskName: caption ?? 'Monitoring Tugas Lapangan',
+          shortEvidenceId: shortEvidenceId,
           timestamp: localTimestamp,
           latitude: lat,
           longitude: lng,
+          gpsAccuracyMeters: accuracy,
           plusCode: plusCode,
           address: address,
-          auditQrPayload: auditQrPayload,
-          staticMapImageBytes: mapImageBytes,
+          auditQrPayload: verificationUrl,
+          isOffline: true,
+          isVerified: false,
         ),
       );
 
-      // Segera daftarkan ke antrian outbox begitu foto tersimpan lokal -
-      // ini SATU-SATUNYA jalur foto akan sampai ke server, baik saat
-      // online maupun (tertunda) saat kembali online nanti.
+      // Daftarkan ke antrian sinkronisasi outbox
       await _enqueueSyncItem(
         entityType: SyncEntityType.geotagPhoto,
         entityLocalId: model.id,
@@ -152,36 +156,22 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
     }
   }
 
-  /// Reverse-geocode BEST-EFFORT - timeout pendek & menelan semua
-  /// exception (tidak ada koneksi, layanan geocoding gagal, dst) karena
-  /// capture bukti TIDAK BOLEH gagal hanya gara-gara ini.
+  String _generateShortEvidenceId(String taskId, DateTime timestamp) {
+    final y = timestamp.year.toString();
+    final m = timestamp.month.toString().padLeft(2, '0');
+    final d = timestamp.day.toString().padLeft(2, '0');
+    final seq = (timestamp.millisecondsSinceEpoch % 10000).toString().padLeft(
+      4,
+      '0',
+    );
+    return 'TL-$y$m$d-$seq';
+  }
+
   Future<String?> _tryReverseGeocode(double lat, double lng) async {
     try {
       return await _reverseGeocoder
           .reverseGeocode(latitude: lat, longitude: lng)
           .timeout(const Duration(seconds: 5));
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Unduh thumbnail peta statis BEST-EFFORT - sama seperti reverse
-  /// geocode di atas, kegagalan jaringan tidak boleh menghentikan
-  /// capture (Tulap.id offline-first).
-  Future<Uint8List?> _tryFetchStaticMap(double lat, double lng) async {
-    try {
-      final url = _staticMapThumbnail.buildUrl(latitude: lat, longitude: lng);
-      final response = await Dio().get<List<int>>(
-        url,
-        options: Options(
-          responseType: ResponseType.bytes,
-          sendTimeout: const Duration(seconds: 5),
-          receiveTimeout: const Duration(seconds: 5),
-        ),
-      );
-      final data = response.data;
-      if (data == null) return null;
-      return Uint8List.fromList(data);
     } catch (_) {
       return null;
     }

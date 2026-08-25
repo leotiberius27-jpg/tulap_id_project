@@ -60,26 +60,31 @@ class _Pill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.tulapColors;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(99),
       child: AnimatedContainer(
         duration: AppMotion.stateChange,
         curve: AppMotion.standard,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.base,
+          vertical: 8,
+        ),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surface,
+          color: isSelected ? colors.primary : colors.surface,
           borderRadius: BorderRadius.circular(99),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
+            color: isSelected ? colors.primary : colors.border,
           ),
           boxShadow: isSelected
               ? const []
-              : const [
+              : [
                   BoxShadow(
-                    color: AppColors.shadowSoft,
+                    color: colors.shadowSoft,
                     blurRadius: 8,
-                    offset: Offset(0, 3),
+                    offset: const Offset(0, 3),
                   ),
                 ],
         ),
@@ -87,7 +92,7 @@ class _Pill extends StatelessWidget {
           child: Text(
             label,
             style: AppTypography.small.copyWith(
-              color: isSelected ? Colors.white : AppColors.textPrimary,
+              color: isSelected ? Colors.white : colors.textPrimary,
               fontWeight: FontWeight.w700,
             ),
           ),

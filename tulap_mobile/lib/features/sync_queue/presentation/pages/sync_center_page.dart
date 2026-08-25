@@ -102,7 +102,8 @@ class SyncCenterPage extends StatelessWidget {
                       controller.isRetryingAll || controller.isBackgroundSyncing
                       ? null
                       : controller.retryAll,
-                  child: controller.isRetryingAll || controller.isBackgroundSyncing
+                  child:
+                      controller.isRetryingAll || controller.isBackgroundSyncing
                       ? Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -129,7 +130,6 @@ class SyncCenterPage extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _SectionHeader extends StatelessWidget {

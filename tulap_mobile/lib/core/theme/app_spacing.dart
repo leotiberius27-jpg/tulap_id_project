@@ -19,4 +19,3 @@ class AppSpacing {
   /// Padding horizontal standar untuk seluruh layar mobile Tulap.id
   static const double screenPadding = base;
 }
-

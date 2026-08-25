@@ -8,6 +8,9 @@ class AuthUserModel extends AuthUserEntity {
     required super.role,
     super.instansiName,
     super.nip,
+    super.phoneNumber,
+    super.photoUrl,
+    super.authProvider,
   });
 
   /// Parsing dari objek `user` pada response `POST /auth/login` backend
@@ -20,6 +23,9 @@ class AuthUserModel extends AuthUserEntity {
       role: json['role'] as String,
       instansiName: json['instansiName'] as String?,
       nip: json['nip'] as String?,
+      phoneNumber: json['phoneNumber'] as String?,
+      photoUrl: json['photoUrl'] as String?,
+      authProvider: json['authProvider'] as String?,
     );
   }
 
@@ -32,6 +38,9 @@ class AuthUserModel extends AuthUserEntity {
       'role': role,
       'instansiName': instansiName,
       'nip': nip,
+      'phoneNumber': phoneNumber,
+      'photoUrl': photoUrl,
+      'authProvider': authProvider,
     };
   }
 
@@ -43,6 +52,23 @@ class AuthUserModel extends AuthUserEntity {
       role: map['role'] as String,
       instansiName: map['instansiName'] as String?,
       nip: map['nip'] as String?,
+      phoneNumber: map['phoneNumber'] as String?,
+      photoUrl: map['photoUrl'] as String?,
+      authProvider: map['authProvider'] as String?,
+    );
+  }
+
+  factory AuthUserModel.fromEntity(AuthUserEntity entity) {
+    return AuthUserModel(
+      id: entity.id,
+      fullName: entity.fullName,
+      email: entity.email,
+      role: entity.role,
+      instansiName: entity.instansiName,
+      nip: entity.nip,
+      phoneNumber: entity.phoneNumber,
+      photoUrl: entity.photoUrl,
+      authProvider: entity.authProvider,
     );
   }
 }

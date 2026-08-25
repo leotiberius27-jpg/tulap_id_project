@@ -69,6 +69,7 @@ class SyncRemoteDataSource {
     final response = await _dioClient.dio.post(
       '/evidence/photo',
       data: formData,
+      options: Options(headers: {'X-Idempotency-Key': record.id}),
     );
 
     // Rekonsiliasi: timpa serverTimestamp lokal dengan waktu resmi
@@ -110,7 +111,11 @@ class SyncRemoteDataSource {
     // peringatan dini lokal, bukan validasi otoritatif. Jika server
     // membalas 409, error ini akan diterjemahkan jadi pesan yang sudah
     // manusiawi oleh SyncQueueRepositoryImpl._mapDioErrorToUserMessage.
-    await _dioClient.dio.post('/evidence/receipt', data: formData);
+    await _dioClient.dio.post(
+      '/evidence/receipt',
+      data: formData,
+      options: Options(headers: {'X-Idempotency-Key': record.id}),
+    );
   }
 
   Future<void> _uploadTaskChecklist(SyncRecordEntity record) async {
@@ -132,6 +137,7 @@ class SyncRemoteDataSource {
     await _dioClient.dio.patch(
       '/tasks/${record.taskId}/checklist/${record.entityLocalId}',
       data: {'isCompleted': isCompleted},
+      options: Options(headers: {'X-Idempotency-Key': record.id}),
     );
   }
 }

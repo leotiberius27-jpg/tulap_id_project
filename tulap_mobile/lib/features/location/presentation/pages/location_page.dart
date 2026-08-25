@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
+import '../../../../core/geo/reverse_geocoder.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../geotag_camera/domain/usecases/validate_location_integrity.dart';
 import '../controllers/location_controller.dart';
@@ -26,6 +27,7 @@ class LocationPage extends StatelessWidget {
     return ChangeNotifierProvider<LocationController>(
       create: (_) => LocationController(
         validateLocationIntegrity: sl<ValidateLocationIntegrity>(),
+        reverseGeocoder: sl<ReverseGeocoder>(),
       ),
       child: _LocationView(taskDestination: taskDestination),
     );
@@ -64,10 +66,19 @@ class _LocationView extends StatelessWidget {
                   _InfoCard(
                     icon: Icons.my_location,
                     iconBackground: AppColors.iconSoftBlue,
-                    label: 'Lokasi Saat Ini',
+                    label: 'Koordinat GPS Saat Ini',
                     value:
                         '${state.latitude!.toStringAsFixed(5)}, ${state.longitude!.toStringAsFixed(5)}',
                   ),
+                  if (state.formattedAddress != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    _InfoCard(
+                      icon: Icons.home_work_outlined,
+                      iconBackground: AppColors.iconSoftTeal,
+                      label: 'Alamat Lapangan Terdeteksi',
+                      value: state.formattedAddress!,
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.sm),
                   _InfoCard(
                     icon: Icons.gps_fixed,
@@ -79,7 +90,8 @@ class _LocationView extends StatelessWidget {
                 if (state.status == LocationCheckStatus.error) ...[
                   const SizedBox(height: AppSpacing.md),
                   _ErrorNotice(
-                    message: state.errorMessage ?? 'Lokasi tidak dapat diperiksa.',
+                    message:
+                        state.errorMessage ?? 'Lokasi tidak dapat diperiksa.',
                   ),
                 ],
                 const SizedBox(height: AppSpacing.lg),
@@ -148,7 +160,9 @@ class _InfoCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+                  style: AppTypography.body.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -190,7 +204,9 @@ class _ValidationStatusCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             config.label,
-            style: AppTypography.sectionTitle.copyWith(color: config.foreground),
+            style: AppTypography.sectionTitle.copyWith(
+              color: config.foreground,
+            ),
           ),
           if (config.description != null) ...[
             const SizedBox(height: 4),

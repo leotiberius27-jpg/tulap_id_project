@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../../core/geo/reverse_geocoder.dart';
 import '../../../geotag_camera/domain/usecases/validate_location_integrity.dart';
 
 enum LocationCheckStatus { checking, checked, error }
@@ -9,6 +10,7 @@ class LocationState {
   final double? latitude;
   final double? longitude;
   final double? accuracyMeters;
+  final String? formattedAddress;
   final String? errorMessage;
 
   const LocationState({
@@ -17,32 +19,23 @@ class LocationState {
     this.latitude,
     this.longitude,
     this.accuracyMeters,
+    this.formattedAddress,
     this.errorMessage,
   });
 }
 
-/// LocationController
-/// ----------------------------------------------------------------------
-/// Data untuk layar Lokasi mandiri (Bagian 29 master prompt) - memakai
-/// USECASE YANG SAMA dengan indikator GPS di kamera geotag
-/// (ValidateLocationIntegrity), TIDAK ada logika deteksi baru.
-///
-/// SENGAJA hanya memeriksa lokasi SEKALI saat layar dibuka + saat user
-/// menekan "Periksa Ulang" - BUKAN polling berkala seperti
-/// GeotagCameraController. Prinsip privasi (Bagian 72): "Tidak ada
-/// pelacakan berkelanjutan" - polling 3 detik di layar kamera itu
-/// dibenarkan karena mempersiapkan capture bukti yang akan diambil detik
-/// itu juga, sedangkan layar ini murni pengecekan sekali-lihat.
-/// ----------------------------------------------------------------------
 class LocationController extends ChangeNotifier {
   final ValidateLocationIntegrity _validateLocationIntegrity;
+  final ReverseGeocoder? _reverseGeocoder;
 
   LocationState _state = const LocationState();
   LocationState get state => _state;
 
   LocationController({
     required ValidateLocationIntegrity validateLocationIntegrity,
-  }) : _validateLocationIntegrity = validateLocationIntegrity {
+    ReverseGeocoder? reverseGeocoder,
+  }) : _validateLocationIntegrity = validateLocationIntegrity,
+       _reverseGeocoder = reverseGeocoder {
     checkLocation();
   }
 
@@ -56,22 +49,39 @@ class LocationController extends ChangeNotifier {
 
     final result = await _validateLocationIntegrity();
 
-    result.fold(
-      (failure) => _update(
+    await result.fold(
+      (failure) async => _update(
         LocationState(
           status: LocationCheckStatus.error,
           errorMessage: failure.message,
         ),
       ),
-      (checkResult) => _update(
-        LocationState(
-          status: LocationCheckStatus.checked,
-          integrityStatus: checkResult.status,
-          latitude: checkResult.latitude,
-          longitude: checkResult.longitude,
-          accuracyMeters: checkResult.accuracyMeters,
-        ),
-      ),
+      (checkResult) async {
+        String? address;
+        if (_reverseGeocoder != null &&
+            checkResult.latitude != null &&
+            checkResult.longitude != null) {
+          try {
+            address = await _reverseGeocoder.reverseGeocode(
+              latitude: checkResult.latitude!,
+              longitude: checkResult.longitude!,
+            );
+          } catch (_) {
+            address = null;
+          }
+        }
+
+        _update(
+          LocationState(
+            status: LocationCheckStatus.checked,
+            integrityStatus: checkResult.status,
+            latitude: checkResult.latitude,
+            longitude: checkResult.longitude,
+            accuracyMeters: checkResult.accuracyMeters,
+            formattedAddress: address,
+          ),
+        );
+      },
     );
   }
 }

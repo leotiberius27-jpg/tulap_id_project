@@ -36,18 +36,18 @@ class BackgroundSyncService extends ChangeNotifier {
   BackgroundSyncService({
     required ProcessSyncQueue processSyncQueue,
     required NetworkInfo networkInfo,
-  })  : _processSyncQueue = processSyncQueue,
-        _networkInfo = networkInfo;
+  }) : _processSyncQueue = processSyncQueue,
+       _networkInfo = networkInfo;
 
   void start() {
     // Trigger 1: event-driven, begitu koneksi berubah jadi online
-    _connectivitySubscription = _networkInfo.onConnectivityChanged.listen(
-      (isConnected) {
-        if (isConnected) {
-          _runSyncSafely();
-        }
-      },
-    );
+    _connectivitySubscription = _networkInfo.onConnectivityChanged.listen((
+      isConnected,
+    ) {
+      if (isConnected) {
+        _runSyncSafely();
+      }
+    });
 
     // Trigger 2: jaring pengaman berkala
     _pollingTimer = Timer.periodic(_fallbackPollingInterval, (_) {

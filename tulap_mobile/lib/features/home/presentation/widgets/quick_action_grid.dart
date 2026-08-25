@@ -34,12 +34,19 @@ class QuickActionGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.md,
+        horizontal: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.cardLarge),
         boxShadow: const [
-          BoxShadow(color: AppColors.shadowSoft, blurRadius: 20, offset: Offset(0, 8)),
+          BoxShadow(
+            color: AppColors.shadowSoft,
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
         ],
       ),
       child: Row(
@@ -102,7 +109,10 @@ class _QuickActionButton extends StatelessWidget {
             },
       borderRadius: BorderRadius.circular(AppRadius.cardLarge),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: 6),
+        padding: const EdgeInsets.symmetric(
+          vertical: AppSpacing.sm,
+          horizontal: 6,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -114,13 +124,19 @@ class _QuickActionButton extends StatelessWidget {
                 color: isEnabled ? iconBackground : AppColors.background,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: isEnabled ? AppColors.action : AppColors.textSecondary, size: 22),
+              child: Icon(
+                icon,
+                color: isEnabled ? AppColors.action : AppColors.textSecondary,
+                size: 22,
+              ),
             ),
             const SizedBox(height: AppSpacing.xs + 2),
             Text(
               label,
               style: AppTypography.small.copyWith(
-                color: isEnabled ? AppColors.textPrimary : AppColors.textSecondary,
+                color: isEnabled
+                    ? AppColors.textPrimary
+                    : AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
               ),
             ),

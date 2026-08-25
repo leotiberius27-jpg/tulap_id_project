@@ -24,10 +24,7 @@ class TaskStatusTimeline extends StatelessWidget {
     return Column(
       children: [
         for (var i = 0; i < steps.length; i++)
-          _TimelineRow(
-            step: steps[i],
-            isLast: i == steps.length - 1,
-          ),
+          _TimelineRow(step: steps[i], isLast: i == steps.length - 1),
       ],
     );
   }
@@ -145,7 +142,9 @@ class _TimelineRow extends StatelessWidget {
                 height: 26,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: isUpcoming ? AppColors.background : color.withValues(alpha: 0.14),
+                  color: isUpcoming
+                      ? AppColors.background
+                      : color.withValues(alpha: 0.14),
                   shape: BoxShape.circle,
                   border: Border.all(color: color, width: 1.5),
                 ),
@@ -156,7 +155,9 @@ class _TimelineRow extends StatelessWidget {
                   child: Container(
                     width: 2,
                     margin: const EdgeInsets.symmetric(vertical: 2),
-                    color: isUpcoming ? AppColors.border : color.withValues(alpha: 0.4),
+                    color: isUpcoming
+                        ? AppColors.border
+                        : color.withValues(alpha: 0.4),
                   ),
                 ),
             ],
@@ -167,7 +168,9 @@ class _TimelineRow extends StatelessWidget {
             child: Text(
               step.label,
               style: AppTypography.small.copyWith(
-                color: isUpcoming ? AppColors.textSecondary : AppColors.textPrimary,
+                color: isUpcoming
+                    ? AppColors.textSecondary
+                    : AppColors.textPrimary,
                 fontWeight: step.state == _StepState.current
                     ? FontWeight.w700
                     : FontWeight.w600,

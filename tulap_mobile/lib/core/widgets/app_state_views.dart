@@ -70,10 +70,18 @@ class AppEmptyState extends StatelessWidget {
               child: Icon(icon, color: iconColor, size: 32),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text(title, style: AppTypography.sectionTitle, textAlign: TextAlign.center),
+            Text(
+              title,
+              style: AppTypography.sectionTitle,
+              textAlign: TextAlign.center,
+            ),
             if (message != null) ...[
               const SizedBox(height: 4),
-              Text(message!, style: AppTypography.bodySecondary, textAlign: TextAlign.center),
+              Text(
+                message!,
+                style: AppTypography.bodySecondary,
+                textAlign: TextAlign.center,
+              ),
             ],
             if (action != null) ...[
               const SizedBox(height: AppSpacing.md),
@@ -112,7 +120,11 @@ class AppErrorState extends StatelessWidget {
           children: [
             Icon(icon, color: iconColor, size: 40),
             const SizedBox(height: AppSpacing.md),
-            Text(message, style: AppTypography.bodySecondary, textAlign: TextAlign.center),
+            Text(
+              message,
+              style: AppTypography.bodySecondary,
+              textAlign: TextAlign.center,
+            ),
             if (onRetry != null) ...[
               const SizedBox(height: AppSpacing.md),
               OutlinedButton(onPressed: onRetry, child: Text(retryLabel)),

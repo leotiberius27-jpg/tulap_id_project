@@ -12,6 +12,27 @@ enum ExpenseCategoryEntity {
   lainnya,
 }
 
+extension ExpenseCategoryEntityX on ExpenseCategoryEntity {
+  String get label {
+    switch (this) {
+      case ExpenseCategoryEntity.bbm:
+        return 'BBM';
+      case ExpenseCategoryEntity.tol:
+        return 'Tol';
+      case ExpenseCategoryEntity.penginapan:
+        return 'Penginapan';
+      case ExpenseCategoryEntity.retail:
+        return 'Retail';
+      case ExpenseCategoryEntity.konsumsi:
+        return 'Konsumsi';
+      case ExpenseCategoryEntity.transportasiLain:
+        return 'Transportasi';
+      case ExpenseCategoryEntity.lainnya:
+        return 'Lainnya';
+    }
+  }
+}
+
 /// ExpenseNoteEntity
 /// ----------------------------------------------------------------------
 /// Representasi murni satu nota pengeluaran di layer domain. Field
@@ -32,7 +53,8 @@ class ExpenseNoteEntity {
   final String ocrRawText;
   final double ocrConfidence; // Rata-rata confidence seluruh field kunci
 
-  final String? duplicateOfNoteId; // Terisi jika terdeteksi kemungkinan duplikat
+  final String?
+  duplicateOfNoteId; // Terisi jika terdeteksi kemungkinan duplikat
 
   const ExpenseNoteEntity({
     required this.id,

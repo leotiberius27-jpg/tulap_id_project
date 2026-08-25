@@ -44,9 +44,7 @@ class ReceiptScannerPage extends StatelessWidget {
 
               // Frame guide sederhana untuk membantu user mengambil
               // foto nota yang rata & terbaca OCR
-              const Center(
-                child: _ReceiptFrameGuide(),
-              ),
+              const Center(child: _ReceiptFrameGuide()),
 
               SafeArea(
                 child: Padding(
@@ -61,7 +59,10 @@ class ReceiptScannerPage extends StatelessWidget {
                       const Spacer(),
                       const Text(
                         'Scan Nota',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const Spacer(),
                       const SizedBox(width: 40), // Penyeimbang tombol back
@@ -136,7 +137,11 @@ class ReceiptScannerPage extends StatelessWidget {
               ),
 
               if (state.status == ReceiptScanStatus.error)
-                _ErrorBanner(message: state.errorMessage ?? 'Nominal kurang jelas, mohon periksa.'),
+                _ErrorBanner(
+                  message:
+                      state.errorMessage ??
+                      'Nominal kurang jelas, mohon periksa.',
+                ),
             ],
           ),
         );
@@ -144,7 +149,10 @@ class ReceiptScannerPage extends StatelessWidget {
     );
   }
 
-  void _showReviewSheet(BuildContext context, ReceiptScannerController controller) {
+  void _showReviewSheet(
+    BuildContext context,
+    ReceiptScannerController controller,
+  ) {
     final draft = controller.state.draft;
     if (draft == null) return;
 
@@ -157,34 +165,41 @@ class ReceiptScannerPage extends StatelessWidget {
       builder: (_) => ReceiptReviewSheet(
         draft: draft,
         isSaving: controller.state.status == ReceiptScanStatus.saving,
-        onSave: ({
-          required vendorName,
-          required transactionDate,
-          required totalAmount,
-          required category,
-          taxAmount,
-          receiptNumber,
-        }) async {
-          final result = await controller.confirmSave(
-            vendorName: vendorName,
-            transactionDate: transactionDate,
-            totalAmount: totalAmount,
-            category: category,
-            taxAmount: taxAmount,
-            receiptNumber: receiptNumber,
-          );
+        onSave:
+            ({
+              required vendorName,
+              required transactionDate,
+              required totalAmount,
+              required category,
+              taxAmount,
+              receiptNumber,
+            }) async {
+              final result = await controller.confirmSave(
+                vendorName: vendorName,
+                transactionDate: transactionDate,
+                totalAmount: totalAmount,
+                category: category,
+                taxAmount: taxAmount,
+                receiptNumber: receiptNumber,
+              );
 
-          if (!context.mounted) return;
+              if (!context.mounted) return;
 
-          if (result.isSuccess) {
-            Navigator.of(context).pop(); // Tutup sheet
-            Navigator.of(context).pop(result.savedNote); // Kembali ke Detail Tugas
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(result.errorMessage ?? 'Nota belum berhasil disimpan.')),
-            );
-          }
-        },
+              if (result.isSuccess) {
+                Navigator.of(context).pop(); // Tutup sheet
+                Navigator.of(
+                  context,
+                ).pop(result.savedNote); // Kembali ke Detail Tugas
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      result.errorMessage ?? 'Nota belum berhasil disimpan.',
+                    ),
+                  ),
+                );
+              }
+            },
       ),
     );
   }
@@ -234,7 +249,10 @@ class _CircleIconButton extends StatelessWidget {
         child: Container(
           width: 40,
           height: 40,
-          decoration: BoxDecoration(color: Colors.black.withOpacity(0.4), shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.4),
+            shape: BoxShape.circle,
+          ),
           child: Icon(icon, color: Colors.white, size: 20),
         ),
       ),
@@ -258,7 +276,10 @@ class _ErrorBanner extends StatelessWidget {
           color: AppColors.dangerSoft,
           borderRadius: BorderRadius.circular(AppRadius.small),
         ),
-        child: Text(message, style: AppTypography.small.copyWith(color: AppColors.danger)),
+        child: Text(
+          message,
+          style: AppTypography.small.copyWith(color: AppColors.danger),
+        ),
       ),
     );
   }

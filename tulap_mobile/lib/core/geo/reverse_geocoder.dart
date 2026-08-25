@@ -14,7 +14,12 @@ import 'package:geocoding/geocoding.dart';
 /// tidak ada bagian yang direkayasa saat komponen itu kosong.
 /// ----------------------------------------------------------------------
 class ReverseGeocoder {
-  final Geocoding _geocoding = Geocoding();
+  Geocoding? _geocoding;
+  Geocoding get _geo => _geocoding ??= Geocoding();
+
+  String? _cachedAddress;
+  double? _cachedLat;
+  double? _cachedLng;
 
   /// Mengembalikan alamat lengkap terformat, atau `null` jika geocoder
   /// tidak menemukan hasil apa pun untuk koordinat ini (mis. lokasi
@@ -24,22 +29,44 @@ class ReverseGeocoder {
     required double latitude,
     required double longitude,
   }) async {
-    final placemarks =
-        await _geocoding.placemarkFromCoordinates(latitude, longitude);
-    if (placemarks.isEmpty) return null;
+    // 1. Cek cache memori terdekat (< 50 meter)
+    if (_cachedLat != null && _cachedLng != null && _cachedAddress != null) {
+      final dLat = (latitude - _cachedLat!).abs();
+      final dLng = (longitude - _cachedLng!).abs();
+      if (dLat < 0.00045 && dLng < 0.00045) {
+        return _cachedAddress;
+      }
+    }
 
-    final p = placemarks.first;
-    final parts = <String>[
-      if ((p.thoroughfare ?? '').isNotEmpty) p.thoroughfare!,
-      if ((p.subThoroughfare ?? '').isNotEmpty) 'No. ${p.subThoroughfare}',
-      if ((p.subLocality ?? '').isNotEmpty) p.subLocality!,
-      if ((p.locality ?? '').isNotEmpty) p.locality!,
-      if ((p.subAdministrativeArea ?? '').isNotEmpty) p.subAdministrativeArea!,
-      if ((p.administrativeArea ?? '').isNotEmpty) p.administrativeArea!,
-      if ((p.postalCode ?? '').isNotEmpty) p.postalCode!,
-    ];
+    try {
+      final placemarks = await _geo
+          .placemarkFromCoordinates(latitude, longitude)
+          .timeout(const Duration(seconds: 4));
 
-    if (parts.isEmpty) return null;
-    return parts.join(', ');
+      if (placemarks.isEmpty) return _cachedAddress;
+
+      final p = placemarks.first;
+      final parts = <String>[
+        if ((p.thoroughfare ?? '').isNotEmpty) p.thoroughfare!,
+        if ((p.subThoroughfare ?? '').isNotEmpty) 'No. ${p.subThoroughfare}',
+        if ((p.subLocality ?? '').isNotEmpty) p.subLocality!,
+        if ((p.locality ?? '').isNotEmpty) p.locality!,
+        if ((p.subAdministrativeArea ?? '').isNotEmpty)
+          p.subAdministrativeArea!,
+        if ((p.administrativeArea ?? '').isNotEmpty) p.administrativeArea!,
+        if ((p.postalCode ?? '').isNotEmpty) p.postalCode!,
+      ];
+
+      if (parts.isEmpty) return _cachedAddress;
+
+      final formatted = parts.join(', ');
+      _cachedAddress = formatted;
+      _cachedLat = latitude;
+      _cachedLng = longitude;
+      return formatted;
+    } catch (_) {
+      // Offline / Timeout: kembalikan cache jika ada, atau null
+      return _cachedAddress;
+    }
   }
 }

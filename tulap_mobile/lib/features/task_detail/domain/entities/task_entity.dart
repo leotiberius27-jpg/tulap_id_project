@@ -80,6 +80,16 @@ class TaskEntity {
   /// field ini ada.
   final String? latestRevisionNote;
 
+  final bool isSelfCreated;
+  final String syncStatus;
+  final int syncVersion;
+
+  /// Timestamp pencatatan waktu kegiatan di lapangan (offline/cloud-aware)
+  final DateTime? startedAt;
+  final DateTime? completedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
   const TaskEntity({
     required this.id,
     required this.taskCode,
@@ -96,14 +106,23 @@ class TaskEntity {
     required this.expenseNoteCount,
     this.description,
     this.latestRevisionNote,
+    this.isSelfCreated = false,
+    this.syncStatus = 'SYNCED',
+    this.syncVersion = 1,
+    this.startedAt,
+    this.completedAt,
+    this.createdAt,
+    this.updatedAt,
   });
+
+  /// True jika kegiatan berlangsung lebih dari 1 hari kalender
+  bool get isMultiDay =>
+      startDate.year != endDate.year ||
+      startDate.month != endDate.month ||
+      startDate.day != endDate.day;
 
   /// Dipakai TaskRepositoryImpl untuk menempelkan `latestRevisionNote`
   /// dari hasil fetch server ke atas entity hasil gabungan cache lokal
-  /// (cache TIDAK menyimpan field ini, lihat catatan di TaskModel) -
-  /// tanpa ini catatan revisi asli akan selalu hilang tertimpa null
-  /// setiap kali online, karena getTaskDetail mengembalikan versi cache
-  /// demi geotagPhotoCount/expenseNoteCount yang dihitung lokal.
   TaskEntity withLatestRevisionNote(String? note) {
     return TaskEntity(
       id: id,
@@ -121,6 +140,63 @@ class TaskEntity {
       geotagPhotoCount: geotagPhotoCount,
       expenseNoteCount: expenseNoteCount,
       latestRevisionNote: note,
+      isSelfCreated: isSelfCreated,
+      syncStatus: syncStatus,
+      syncVersion: syncVersion,
+      startedAt: startedAt,
+      completedAt: completedAt,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
+
+  TaskEntity copyWith({
+    String? id,
+    String? taskCode,
+    String? taskName,
+    String? destination,
+    String? description,
+    DateTime? startDate,
+    DateTime? endDate,
+    double? budgetAmount,
+    TaskStatusEntity? status,
+    String? assigneeId,
+    String? assigneeName,
+    List<ChecklistItemEntity>? checklistItems,
+    int? geotagPhotoCount,
+    int? expenseNoteCount,
+    String? latestRevisionNote,
+    bool? isSelfCreated,
+    String? syncStatus,
+    int? syncVersion,
+    DateTime? startedAt,
+    DateTime? completedAt,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return TaskEntity(
+      id: id ?? this.id,
+      taskCode: taskCode ?? this.taskCode,
+      taskName: taskName ?? this.taskName,
+      destination: destination ?? this.destination,
+      description: description ?? this.description,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      budgetAmount: budgetAmount ?? this.budgetAmount,
+      status: status ?? this.status,
+      assigneeId: assigneeId ?? this.assigneeId,
+      assigneeName: assigneeName ?? this.assigneeName,
+      checklistItems: checklistItems ?? this.checklistItems,
+      geotagPhotoCount: geotagPhotoCount ?? this.geotagPhotoCount,
+      expenseNoteCount: expenseNoteCount ?? this.expenseNoteCount,
+      latestRevisionNote: latestRevisionNote ?? this.latestRevisionNote,
+      isSelfCreated: isSelfCreated ?? this.isSelfCreated,
+      syncStatus: syncStatus ?? this.syncStatus,
+      syncVersion: syncVersion ?? this.syncVersion,
+      startedAt: startedAt ?? this.startedAt,
+      completedAt: completedAt ?? this.completedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 

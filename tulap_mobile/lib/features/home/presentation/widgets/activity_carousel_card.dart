@@ -28,6 +28,7 @@ class ActivityCarouselCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final category = categorizeTask(task);
+    final colors = context.tulapColors;
 
     return Material(
       color: Colors.transparent,
@@ -40,13 +41,15 @@ class ActivityCarouselCard extends StatelessWidget {
         },
         child: Container(
           width: 264,
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+            border: Border.all(color: colors.border.withValues(alpha: 0.6)),
             boxShadow: [
               BoxShadow(
-                color: AppColors.shadowSoft,
+                color: colors.shadowSoft,
                 blurRadius: 24,
-                offset: Offset(0, 10),
+                offset: const Offset(0, 10),
               ),
             ],
           ),
@@ -64,6 +67,7 @@ class ActivityCarouselCard extends StatelessWidget {
                       style: AppTypography.body.copyWith(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
+                        color: colors.textPrimary,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -71,16 +75,16 @@ class ActivityCarouselCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.location_on_outlined,
                           size: 14,
-                          color: AppColors.textSecondary,
+                          color: colors.textSecondary,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             task.destination,
-                            style: AppTypography.small,
+                            style: AppTypography.small.copyWith(color: colors.textSecondary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -97,11 +101,11 @@ class ActivityCarouselCard extends StatelessWidget {
                           curve: AppMotion.standard,
                           builder: (context, value, _) =>
                               LinearProgressIndicator(
-                            value: value,
-                            backgroundColor: AppColors.background,
-                            color: AppColors.success,
-                            minHeight: 5,
-                          ),
+                                value: value,
+                                backgroundColor: AppColors.background,
+                                color: AppColors.success,
+                                minHeight: 5,
+                              ),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -148,11 +152,14 @@ class _BannerHeader extends StatelessWidget {
       child: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [AppColors.heroGradientStart, AppColors.heroGradientEnd],
+                colors: [
+                  context.tulapColors.heroGradientStart,
+                  context.tulapColors.heroGradientEnd,
+                ],
               ),
             ),
           ),

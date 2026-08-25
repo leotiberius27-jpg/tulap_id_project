@@ -37,7 +37,8 @@ class ReceiptScannerEntryPage extends StatefulWidget {
   const ReceiptScannerEntryPage({super.key, required this.taskId});
 
   @override
-  State<ReceiptScannerEntryPage> createState() => _ReceiptScannerEntryPageState();
+  State<ReceiptScannerEntryPage> createState() =>
+      _ReceiptScannerEntryPageState();
 }
 
 class _ReceiptScannerEntryPageState extends State<ReceiptScannerEntryPage> {
@@ -98,7 +99,9 @@ class _ReceiptScannerEntryPageState extends State<ReceiptScannerEntryPage> {
       });
     } catch (e) {
       if (mounted) {
-        setState(() => _initError = 'Kamera tidak dapat diakses. Periksa izin kamera.');
+        setState(
+          () => _initError = 'Kamera tidak dapat diakses. Periksa izin kamera.',
+        );
       }
     }
   }
@@ -122,9 +125,17 @@ class _ReceiptScannerEntryPageState extends State<ReceiptScannerEntryPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.no_photography, color: Colors.white54, size: 48),
+                const Icon(
+                  Icons.no_photography,
+                  color: Colors.white54,
+                  size: 48,
+                ),
                 const SizedBox(height: 16),
-                Text(_initError!, style: const TextStyle(color: Colors.white), textAlign: TextAlign.center),
+                Text(
+                  _initError!,
+                  style: const TextStyle(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 16),
                 OutlinedButton(
                   onPressed: () => Navigator.of(context).pop(),

@@ -72,19 +72,28 @@ class SyncStatusBanner extends StatelessWidget {
 
     if (pendingCount == 0) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.base),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.base,
+          vertical: AppSpacing.base,
+        ),
         decoration: BoxDecoration(
           color: AppColors.successSoft,
           borderRadius: BorderRadius.circular(AppRadius.cardLarge),
         ),
         child: Row(
           children: [
-            _StatusIcon(icon: Icons.check_circle_outline, color: AppColors.success),
+            _StatusIcon(
+              icon: Icons.check_circle_outline,
+              color: AppColors.success,
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 'Semua data sudah tersinkron',
-                style: AppTypography.small.copyWith(color: AppColors.success, fontWeight: FontWeight.w700),
+                style: AppTypography.small.copyWith(
+                  color: AppColors.success,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -107,12 +116,18 @@ class SyncStatusBanner extends StatelessWidget {
         children: [
           Row(
             children: [
-              _StatusIcon(icon: Icons.cloud_off_outlined, color: AppColors.warning),
+              _StatusIcon(
+                icon: Icons.cloud_off_outlined,
+                color: AppColors.warning,
+              ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   message,
-                  style: AppTypography.small.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                  style: AppTypography.small.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -120,7 +135,10 @@ class SyncStatusBanner extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Align(
             alignment: Alignment.centerRight,
-            child: TextButton(onPressed: onViewData, child: const Text('Lihat Data')),
+            child: TextButton(
+              onPressed: onViewData,
+              child: const Text('Lihat Data'),
+            ),
           ),
         ],
       ),
@@ -140,7 +158,10 @@ class _StatusIcon extends StatelessWidget {
       width: 32,
       height: 32,
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        shape: BoxShape.circle,
+      ),
       child: Icon(icon, size: 16, color: color),
     );
   }
