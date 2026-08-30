@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/user_avatar.dart';
@@ -67,9 +68,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
         maxHeight: 1024,
       );
       if (picked != null && mounted) {
-        setState(() {
-          _photoPath = picked.path;
-        });
+        // Salin ke direktori Dokumen aplikasi agar tersimpan permanen dan tidak terhapus cache cleaner
+        final appDir = await getApplicationDocumentsDirectory();
+        final profileDir = Directory('${appDir.path}/profile_photos');
+        if (!await profileDir.exists()) {
+          await profileDir.create(recursive: true);
+        }
+        final emailHash = widget.user.email.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+        final targetPath =
+            '${profileDir.path}/profile_${emailHash}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final savedFile = await File(picked.path).copy(targetPath);
+
+        if (mounted) {
+          setState(() {
+            _photoPath = savedFile.path;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {

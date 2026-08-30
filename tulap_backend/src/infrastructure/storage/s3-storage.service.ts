@@ -50,7 +50,7 @@ export class S3StorageService {
   async uploadFile(params: {
     buffer: Buffer;
     mimeType: string;
-    category: 'photo' | 'receipt';
+    category: 'photo' | 'receipt' | 'video' | 'report';
     originalFilename?: string;
   }): Promise<{ key: string; url: string }> {
     const now = new Date();
@@ -64,19 +64,6 @@ export class S3StorageService {
         Key: key,
         Body: params.buffer,
         ContentType: params.mimeType,
-        // TIDAK menyertakan ServerSideEncryption: 'AES256' di sini secara
-        // eksplisit - provider S3-compatible non-AWS (MinIO lokal dev,
-        // dikonfirmasi lewat error nyata: "Server side encryption
-        // specified but KMS is not configured") menolak permintaan SSE
-        // apa pun (termasuk AES256 biasa) kalau server-nya belum punya
-        // backend KMS terpasang, walau setup KMS penuh tidak proporsional
-        // untuk dev lokal. Kepatuhan AES-256 at-rest (Bagian 3 dokumen
-        // requirement) tetap terpenuhi di AWS S3 sungguhan tanpa flag ini
-        // - sejak Januari 2023 AWS otomatis menerapkan SSE-S3 ke SEMUA
-        // objek baru di level bucket/platform, tanpa perlu diminta per
-        // request. Untuk provider S3-compatible lain di produksi,
-        // konfigurasikan default encryption di level bucket (server-side,
-        // sekali di awal) alih-alih per-request seperti sebelumnya.
       }),
     );
 
@@ -101,6 +88,10 @@ export class S3StorageService {
         return '.jpg';
       case 'image/png':
         return '.png';
+      case 'video/mp4':
+        return '.mp4';
+      case 'video/quicktime':
+        return '.mov';
       default:
         return '';
     }

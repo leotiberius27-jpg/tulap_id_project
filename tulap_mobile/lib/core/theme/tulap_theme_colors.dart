@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 /// TulapThemeColors
 /// ----------------------------------------------------------------------
@@ -62,62 +62,62 @@ class TulapThemeColors extends ThemeExtension<TulapThemeColors> {
     required this.unreadCardBg,
   });
 
-  /// Light Mode Palette (Tulap.id Classic Institutional Palette)
+  /// Light Mode Palette
   static const light = TulapThemeColors(
-    background: Color(0xFFF7F9FC),
+    background: Color(0xFFF8FAFC),
     surface: Color(0xFFFFFFFF),
     surfaceElevated: Color(0xFFFFFFFF),
     cardBackground: Color(0xFFFFFFFF),
-    border: Color(0xFFEAECF0),
-    textPrimary: Color(0xFF172033),
-    textSecondary: Color(0xFF667085),
-    primary: Color(0xFF00529C),
-    primaryHover: Color(0xFF003D75),
-    action: Color(0xFF0072CE),
-    success: Color(0xFF10B981),
-    warning: Color(0xFFF59E0B),
-    danger: Color(0xFFEF4444),
-    successSoft: Color(0xFFE7F8F1),
-    warningSoft: Color(0xFFFEF3E2),
-    dangerSoft: Color(0xFFFDECEC),
-    iconSoftBlue: Color(0xFFE3EEFC),
-    iconSoftCyan: Color(0xFFE1F3F7),
-    iconSoftTeal: Color(0xFFE0F5F0),
-    iconSoftIndigo: Color(0xFFEAEAFB),
-    heroGradientStart: Color(0xFF00396E),
-    heroGradientEnd: Color(0xFF0064BD),
-    shadowSoft: Color(0x14172033),
+    border: Color(0xFFE2E8F0),
+    textPrimary: Color(0xFF0F172A),
+    textSecondary: Color(0xFF64748B),
+    primary: Color(0xFF0066FE),
+    primaryHover: Color(0xFF0052CC),
+    action: Color(0xFF0066FE),
+    success: Color(0xFF00C263),
+    warning: Color(0xFFFF9F0A),
+    danger: Color(0xFFFF3B30),
+    successSoft: Color(0xFFECFDF5),
+    warningSoft: Color(0xFFFFFBEB),
+    dangerSoft: Color(0xFFFEF2F2),
+    iconSoftBlue: Color(0xFFEBF3FF),
+    iconSoftCyan: Color(0xFFE6FFFA),
+    iconSoftTeal: Color(0xFFE6F9EE),
+    iconSoftIndigo: Color(0xFFF3E8FF),
+    heroGradientStart: Color(0xFF0052D4),
+    heroGradientEnd: Color(0xFF0066FE),
+    shadowSoft: Color(0x0F101828),
     inputFill: Color(0xFFFFFFFF),
-    unreadCardBg: Color(0xFFF4F8FD),
+    unreadCardBg: Color(0xFFEFF6FF),
   );
 
-  /// Dark Mode Palette (Tulap.id Deep Navy Accessibility Palette)
+  /// Dark Mode Palette (Google Drive Dark Theme Exact Matching)
   static const dark = TulapThemeColors(
-    background: Color(0xFF0B1220), // Deep Dark Navy background
-    surface: Color(0xFF111C2E), // Card Surface
-    surfaceElevated: Color(0xFF16243A), // Elevated cards, popups, sheets
-    cardBackground: Color(0xFF111C2E),
-    border: Color(0xFF27364B), // Dark blue-gray border
-    textPrimary: Color(0xFFF8FAFC), // High contrast off-white text
-    textSecondary: Color(0xFFA8B3C5), // Blue-gray secondary text
-    primary: Color(0xFF4DA3FF), // Vibrant Tulap Blue for dark mode readability
-    primaryHover: Color(0xFF38BDF8),
-    action: Color(0xFF38BDF8), // Interactive accent
-    success: Color(0xFF34D399), // High contrast green
-    warning: Color(0xFFFBBF24), // High contrast amber
-    danger: Color(0xFFF87171), // High contrast red
-    successSoft: Color(0xFF064E3B), // Dark soft green container
-    warningSoft: Color(0xFF451A03), // Dark soft amber container
-    dangerSoft: Color(0xFF450A0A), // Dark soft red container
-    iconSoftBlue: Color(0xFF162B4D),
-    iconSoftCyan: Color(0xFF0F2E3D),
-    iconSoftTeal: Color(0xFF0D2E2B),
-    iconSoftIndigo: Color(0xFF1E214D),
-    heroGradientStart: Color(0xFF0B172B),
-    heroGradientEnd: Color(0xFF142B4E),
-    shadowSoft: Color(0x33000000),
-    inputFill: Color(0xFF16243A),
-    unreadCardBg: Color(0xFF162B4D),
+    background: Color(0xFF131314), // Google Drive Surface / Canvas
+    surface: Color(0xFF1E1F20), // Google Drive Card / Container Surface
+    surfaceElevated: Color(0xFF282A2C), // Google Drive Elevated Sheet / Search Pill / Dialog
+    cardBackground: Color(0xFF1E1F20),
+    border: Color(0xFF444746), // Google M3 Outline Variant
+    textPrimary: Color(0xFFE3E3E3), // Google M3 On-Surface
+    textSecondary: Color(0xFFC4C7C5), // Google M3 On-Surface-Variant
+    primary: Color(0xFFA8C7FA), // Google Drive M3 Light Blue Accent
+    primaryHover: Color(0xFF8AB4F8), // Google Blue 200
+    action: Color(0xFFA8C7FA), // Interactive Google Blue Accent
+    success: Color(0xFF81C995), // Google Green 300
+    warning: Color(0xFFFDD663), // Google Yellow/Amber 300
+    danger: Color(0xFFF28B82), // Google Red 300
+    successSoft: Color(0xFF0E3B24), // Google Green Soft Container
+    warningSoft: Color(0xFF3E2E08), // Google Amber Soft Container
+    dangerSoft: Color(0xFF3C1414), // Google Red Soft Container
+    iconSoftBlue: Color(0xFF1A273D),
+    iconSoftCyan: Color(0xFF13353D),
+    iconSoftTeal: Color(0xFF12382E),
+    iconSoftIndigo: Color(0xFF2B234B),
+    heroGradientStart: Color(0xFF131314),
+    heroGradientEnd: Color(0xFF1F2E47),
+    shadowSoft: Color(0x66000000),
+    inputFill: Color(0xFF282A2C),
+    unreadCardBg: Color(0xFF1A2A44),
   );
 
   static TulapThemeColors of(BuildContext context) {

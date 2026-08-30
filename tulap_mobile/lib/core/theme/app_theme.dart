@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_radius.dart';
 import 'app_spacing.dart';
@@ -163,6 +163,55 @@ class AppTheme {
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),
+
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        headerBackgroundColor: AppColors.primary,
+        headerForegroundColor: AppColors.onPrimary,
+        headerHeadlineStyle: AppTypography.pageTitle.copyWith(color: AppColors.onPrimary),
+        headerHelpStyle: AppTypography.small.copyWith(color: AppColors.onPrimary.withValues(alpha: 0.8)),
+        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.onPrimary;
+          }
+          if (states.contains(WidgetState.disabled)) {
+            return AppColors.textSecondary.withValues(alpha: 0.4);
+          }
+          return AppColors.textPrimary;
+        }),
+        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primary;
+          }
+          return Colors.transparent;
+        }),
+        todayForegroundColor: WidgetStateProperty.all(AppColors.primary),
+        todayBorder: const BorderSide(color: AppColors.primary, width: 1.5),
+        yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.onPrimary;
+          }
+          return AppColors.textPrimary;
+        }),
+        yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primary;
+          }
+          return Colors.transparent;
+        }),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+        cancelButtonStyle: TextButton.styleFrom(
+          foregroundColor: AppColors.textSecondary,
+          textStyle: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+        ),
+        confirmButtonStyle: TextButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          textStyle: AppTypography.body.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ),
     );
   }
 
@@ -306,6 +355,55 @@ class AppTheme {
         unselectedLabelStyle: AppTypography.smallDark,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
+      ),
+
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: AppDarkColors.surfaceElevated,
+        surfaceTintColor: Colors.transparent,
+        headerBackgroundColor: AppDarkColors.surface,
+        headerForegroundColor: AppDarkColors.textPrimary,
+        headerHeadlineStyle: AppTypography.pageTitleDark.copyWith(color: AppDarkColors.textPrimary),
+        headerHelpStyle: AppTypography.smallDark.copyWith(color: AppDarkColors.textSecondary),
+        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppDarkColors.onPrimary;
+          }
+          if (states.contains(WidgetState.disabled)) {
+            return AppDarkColors.textSecondary.withValues(alpha: 0.4);
+          }
+          return AppDarkColors.textPrimary;
+        }),
+        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppDarkColors.primary;
+          }
+          return Colors.transparent;
+        }),
+        todayForegroundColor: WidgetStateProperty.all(AppDarkColors.primary),
+        todayBorder: const BorderSide(color: AppDarkColors.primary, width: 1.5),
+        yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppDarkColors.onPrimary;
+          }
+          return AppDarkColors.textPrimary;
+        }),
+        yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppDarkColors.primary;
+          }
+          return Colors.transparent;
+        }),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+        cancelButtonStyle: TextButton.styleFrom(
+          foregroundColor: AppDarkColors.textSecondary,
+          textStyle: AppTypography.bodyDark.copyWith(fontWeight: FontWeight.w600),
+        ),
+        confirmButtonStyle: TextButton.styleFrom(
+          foregroundColor: AppDarkColors.primary,
+          textStyle: AppTypography.bodyDark.copyWith(fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }

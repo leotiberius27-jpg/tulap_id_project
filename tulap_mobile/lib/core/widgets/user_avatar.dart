@@ -117,6 +117,7 @@ class UserAvatar extends StatelessWidget {
     if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
       return Image.network(
         rawPath,
+        key: ValueKey(rawPath),
         width: size,
         height: size,
         fit: BoxFit.cover,
@@ -134,6 +135,7 @@ class UserAvatar extends StatelessWidget {
       if (file.existsSync()) {
         return Image.file(
           file,
+          key: ValueKey(sanitizedPath),
           width: size,
           height: size,
           fit: BoxFit.cover,

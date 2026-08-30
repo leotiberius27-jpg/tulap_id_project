@@ -1,30 +1,43 @@
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../evidence_gallery/presentation/pages/evidence_viewer_page.dart';
+import '../../domain/entities/camera_preferences_entity.dart';
+import '../../domain/entities/watermark_template_entity.dart';
 import '../../domain/usecases/validate_location_integrity.dart';
 import '../controllers/geotag_camera_controller.dart';
 import '../widgets/camera_bottom_bar.dart';
+import '../widgets/camera_control_panel.dart';
 import '../widgets/camera_focus_indicator.dart';
-import '../widgets/camera_location_card.dart';
-import '../widgets/gps_status_indicator.dart';
+import '../widgets/camera_grid_overlay.dart';
+import '../widgets/camera_level_overlay.dart';
+import '../widgets/camera_mode_selector.dart';
+import '../widgets/camera_rename_sheet.dart';
+import '../widgets/camera_stamp_preview.dart';
+import '../widgets/camera_timer_countdown_overlay.dart';
+import '../widgets/camera_top_control_bar.dart';
+import '../widgets/camera_zoom_controls.dart';
 import '../widgets/mock_location_blocking_modal.dart';
+import '../widgets/task_photo_gallery_sheet.dart';
+import '../widgets/template_selector_sheet.dart';
+import 'advanced_camera_settings_page.dart';
 
 /// GeotagCameraPage
 /// ----------------------------------------------------------------------
-/// Layar Geotagged Camera Fullscreen Profesional Tulap.id:
-/// - Preview kamera 100% fullscreen (anti-black-bars, no clipping/stretching)
-/// - Tap-to-focus & exposure interaktif dengan indikator animasi
-/// - Top bar: Navigasi, Status GPS real-time & presisi akurasi, Flash switch
-/// - Floating Glass Info Panel: Judul tugas, alamat, koordinat, jam live
-/// - Bottom Controls: Galeri task photos, Shutter profesional, Flip kamera
-/// - Mode Review & Validasi Integritas Foto setelah capture
+/// Layar Geotagged Camera Fullscreen Profesional Tulap.id (Phase 1-4):
+/// - Live camera preview aspect-ratio preserving
+/// - Mode FOTO & VIDEO (Audio + Live Duration)
+/// - Top Bar: Control Panel, Flash, Rename, GPS, Switch Camera, Settings
+/// - Expandable Camera Control Panel (4-baris grid)
+/// - Indikator Level Horizon (Waterpass Sensor)
+/// - Timer Countdown Shutter (3s, 5s, 10s) dengan animasi berdenyut
+/// - Floating Location Stamp Card & Template Selector
 /// ----------------------------------------------------------------------
 class GeotagCameraPage extends StatefulWidget {
   final CameraController cameraController;
   final GeotagCameraController geotagController;
+  final CameraLensDirection currentLensDirection;
   final String officerName;
   final String agencyName;
   final String taskId;
@@ -35,6 +48,7 @@ class GeotagCameraPage extends StatefulWidget {
     super.key,
     required this.cameraController,
     required this.geotagController,
+    required this.currentLensDirection,
     required this.officerName,
     required this.agencyName,
     required this.taskId,
@@ -47,8 +61,8 @@ class GeotagCameraPage extends StatefulWidget {
 }
 
 class _GeotagCameraPageState extends State<GeotagCameraPage> {
-  FlashMode _flashMode = FlashMode.off;
   LocationIntegrityStatus? _lastShownInvalidStatus;
+  double _baseZoomScale = 1.0;
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +72,7 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
         builder: (context, controller, _) {
           final state = controller.state;
 
-          // Tampilkan modal blocking HANYA sekali saat transisi ke status invalid
+          // Tampilkan modal blocking HANYA sekali saat transisi ke status invalid (Mock GPS / Root)
           if (state.locationStatus == LocationIntegrityStatus.invalid &&
               _lastShownInvalidStatus != LocationIntegrityStatus.invalid) {
             _lastShownInvalidStatus = LocationIntegrityStatus.invalid;
@@ -69,11 +83,20 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
             _lastShownInvalidStatus = null;
           }
 
-          return Scaffold(
-            backgroundColor: Colors.black,
-            body: state.captureStatus == CaptureViewStatus.previewing
-                ? _buildPreviewScreen(context, controller)
-                : _buildLiveCameraScreen(context, controller, state),
+          return PopScope(
+            canPop: !state.isRecordingVideo,
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop) return;
+              _handleBackPress(context, controller, state);
+            },
+            child: Scaffold(
+              backgroundColor: Colors.black,
+              body: state.captureStatus == CaptureViewStatus.previewing
+                  ? _buildPhotoPreviewScreen(context, controller)
+                  : (state.recordedVideoPath != null
+                        ? _buildVideoReviewScreen(context, controller, state)
+                        : _buildLiveCameraScreen(context, controller, state)),
+            ),
           );
         },
       ),
@@ -81,7 +104,7 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
   }
 
   // ====================================================================
-  // LIVE CAMERA SCREEN (FULLSCREEN VIEWPORT + GLASS OVERLAYS)
+  // LIVE CAMERA SCREEN (FULLSCREEN VIEWPORT + CONTROLS)
   // ====================================================================
   Widget _buildLiveCameraScreen(
     BuildContext context,
@@ -95,9 +118,8 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
 
         // 1. Perhitungan Aspek Rasio Kamera Fullscreen (BoxFit.cover murni)
         var cameraRatio = widget.cameraController.value.aspectRatio;
-        // Di orientasi portrait, plugin camera mengembalikan rasio landscape (width/height > 1)
         if (cameraRatio > 1.0) {
-          cameraRatio = 1.0 / cameraRatio; // e.g. 720/1280 = 0.5625
+          cameraRatio = 1.0 / cameraRatio; // Portrait e.g. 720/1280
         }
 
         final screenRatio = screenWidth / screenHeight;
@@ -108,40 +130,88 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
         return Stack(
           fit: StackFit.expand,
           children: [
-            // Layer 1: Live Camera Feed Fullscreen
-            ClipRect(
-              child: SizedBox(
-                width: screenWidth,
-                height: screenHeight,
-                child: Center(
-                  child: Transform.scale(
-                    scale: scale,
-                    child: AspectRatio(
-                      aspectRatio: cameraRatio,
-                      child: CameraPreview(widget.cameraController),
+            // Layer 1: Live Camera Feed Fullscreen Layar Penuh Handphone (Edge-to-Edge)
+            Positioned.fill(
+              child: ClipRect(
+                child: SizedBox(
+                  width: screenWidth,
+                  height: screenHeight,
+                  child: Center(
+                    child: Transform.scale(
+                      scale: scale,
+                      child: AspectRatio(
+                        aspectRatio: cameraRatio,
+                        child: CameraPreview(widget.cameraController),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
 
-            // Layer 2: Area Sentuh Tap-to-Focus & Exposure
+            // Layer 2: Area Sentuh Tap-to-Focus, Pinch-to-Zoom, & Tutup Panel
             Positioned.fill(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTapUp: (details) =>
-                    _handleTapToFocus(details, screenWidth, screenHeight),
+                onScaleStart: (_) {
+                  if (state.isControlPanelOpen) controller.closeControlPanel();
+                  _baseZoomScale = state.zoomLevel;
+                },
+                onScaleUpdate: (details) {
+                  if (details.scale != 1.0) {
+                    final targetZoom = (_baseZoomScale * details.scale)
+                        .clamp(state.minZoomLevel, state.maxZoomLevel);
+                    controller.setZoomLevel(
+                      targetZoom,
+                      widget.cameraController,
+                    );
+                  }
+                },
+                onTapUp: (details) {
+                  if (state.isControlPanelOpen) {
+                    controller.closeControlPanel();
+                    return;
+                  }
+                  controller.handleTapToFocus(
+                    localOffset: details.localPosition,
+                    previewSize: Size(screenWidth, screenHeight),
+                    cameraController: widget.cameraController,
+                  );
+                },
               ),
             ),
 
-            // Layer 3: Indikator Animasi Titik Fokus
-            if (state.focusPoint != null)
+            // Layer 3: Grid Overlay 3x3 (Rule of Thirds)
+            CameraGridOverlay(visible: state.isGridEnabled),
+
+            // Layer 4: Indikator Level Horizon (Waterpass Sensor)
+            CameraLevelOverlay(
+              rollDegrees: state.levelDegrees,
+              isLevel: state.isLevel,
+              visible: state.cameraPreferences.levelEnabled,
+            ),
+
+            // Layer 5: Indikator Animasi Titik Fokus (Tulap.id Blue)
+            if (state.focusPoint != null &&
+                state.cameraPreferences.focusGuideEnabled)
               CameraFocusIndicator(
                 position: state.focusPoint!,
                 visible: state.isFocusIndicatorVisible,
               ),
 
-            // Layer 4: Gradien Hitam Atas & Bawah untuk Kontras & Keterbacaan Teks
+            // Layer 6: Kilatan Animasi Putih saat Pengambilan Foto (80-120ms)
+            if (state.isFlashAnimationActive)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedOpacity(
+                    opacity: state.isFlashAnimationActive ? 0.7 : 0.0,
+                    duration: const Duration(milliseconds: 100),
+                    child: Container(color: Colors.white),
+                  ),
+                ),
+              ),
+
+            // Layer 7: Gradien Atas & Bawah untuk Keterbacaan Teks
             Positioned(
               top: 0,
               left: 0,
@@ -163,7 +233,7 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
               bottom: 0,
               left: 0,
               right: 0,
-              height: 280,
+              height: 320,
               child: IgnorePointer(
                 child: Container(
                   decoration: const BoxDecoration(
@@ -177,45 +247,100 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
               ),
             ),
 
-            // Layer 5: Top Bar Kontrol (Back, Status GPS Realtime, Flash)
-            SafeArea(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Tombol Kembali
-                      _CircleIconButton(
-                        icon: Icons.arrow_back_rounded,
-                        semanticLabel: 'Kembali',
-                        onTap: () => Navigator.of(context).pop(),
+            // Layer 8: Top Control Bar
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: CameraTopControlBar(
+                isControlPanelOpen: state.isControlPanelOpen,
+                flashMode: state.flashMode,
+                isFlashSupported: state.isFlashSupported,
+                isSwitchingCamera: state.isSwitchingCamera,
+                isRecording: state.isRecordingVideo,
+                locationStatus: state.locationStatus,
+                locationTier: state.locationTier,
+                accuracyMeters: state.accuracyMeters,
+                onToggleControlPanel: controller.toggleControlPanel,
+                onCycleFlash: () => controller.cycleFlashMode(
+                  widget.cameraController,
+                  widget.currentLensDirection,
+                ),
+                onRename: () => CameraRenameSheet.show(
+                  context,
+                  currentMode: state.cameraPreferences.fileNamingMode,
+                  currentPrefix: state.cameraPreferences.customFilePrefix,
+                  taskName: widget.taskName ?? widget.taskId,
+                  isVideo: state.cameraMode == CameraCaptureMode.video,
+                  onSave: (mode, prefix) =>
+                      controller.setFileNaming(mode, prefix),
+                ),
+                onSwitchCamera: widget.onFlipCamera,
+                onOpenSettings: () {
+                  controller.closeControlPanel();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => AdvancedCameraSettingsPage(
+                        controller: controller,
                       ),
-
-                      // Badge Status GPS Realtime & Akurasi Numerik
-                      GpsStatusIndicator(
-                        status: state.locationStatus,
-                        tier: state.locationTier,
-                        accuracyMeters: state.accuracyMeters,
-                      ),
-
-                      // Tombol Flash Mode
-                      _CircleIconButton(
-                        icon: _resolveFlashIcon(),
-                        semanticLabel: 'Pengaturan Flash',
-                        onTap: _cycleFlashMode,
-                      ),
-                    ],
-                  ),
+                    ),
+                  );
+                },
+                onLocationTap: () => TemplateSelectorSheet.show(
+                  context,
+                  controller: controller,
                 ),
               ),
             ),
 
-            // Layer 6: Floating Glass Information Panel + Bottom Controls Bar
+            // Layer 9: Indikator Perekaman Video Live (Pill Merah Berkedip)
+            if (state.isRecordingVideo)
+              Positioned(
+                top: 72,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xCC0F172A),
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(
+                        color: const Color(0xFFEF4444),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFFEF4444),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '● ${state.formattedRecordingDuration}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            // Layer 10: Quick Zoom Controls & Template Pill & Live Stamp Preview & Mode Selector & Shutter
             Positioned(
               left: 0,
               right: 0,
@@ -223,11 +348,75 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Floating Dark Frosted Glass Location Card
-                  CameraLocationCard(
-                    taskName:
-                        widget.taskName ??
-                        'Dokumentasi Tugas #${widget.taskId}',
+                  // Row: Floating Quick Zoom Buttons & Template Selector Pill
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Quick Zoom (0.5x, 1x, 2x, 5x)
+                        CameraZoomControls(
+                          currentZoom: state.zoomLevel,
+                          minZoom: state.minZoomLevel,
+                          maxZoom: state.maxZoomLevel,
+                          onZoomChanged: (zoom) => controller.setZoomLevel(
+                            zoom,
+                            widget.cameraController,
+                          ),
+                        ),
+
+                        // Active Template Pill Button
+                        GestureDetector(
+                          onTap: () {
+                            TemplateSelectorSheet.show(
+                              context,
+                              controller: controller,
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.55),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFF006EE6),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.auto_awesome_motion_outlined,
+                                  color: Color(0xFF38BDF8),
+                                  size: 13,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  TemplateCatalog.getById(
+                                    state.stampConfig.templateId,
+                                  ).name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Floating Live Stamp Card
+                  CameraStampPreview(
+                    taskName: widget.taskName ?? 'Monitoring Lapangan Tulap.id',
                     officerName: widget.officerName,
                     agencyName: widget.agencyName,
                     latitude: state.latitude,
@@ -235,60 +424,71 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                     accuracyMeters: state.accuracyMeters,
                     address: state.address,
                     currentTime: state.currentTime,
+                    stampConfig: state.stampConfig,
                   ),
+                  const SizedBox(height: 6),
 
-                  const SizedBox(height: 8),
+                  // Mode Selector: FOTO vs VIDEO
+                  CameraModeSelector(
+                    selectedMode: state.cameraMode,
+                    isRecording: state.isRecordingVideo,
+                    onModeChanged: controller.setCameraMode,
+                  ),
+                  const SizedBox(height: 10),
 
-                  // Bottom Controls Bar (Gallery, Shutter, Flip Camera)
+                  // Bottom Bar: Galeri, Shutter, Flip
                   CameraBottomBar(
                     state: state,
                     onCapture: controller.onCaptureButtonPressed,
+                    onStartRecording: () =>
+                        controller.startVideoRecording(widget.cameraController),
+                    onStopRecording: () =>
+                        controller.stopVideoRecording(widget.cameraController),
                     onFlipCamera: widget.onFlipCamera,
                     onLowAccuracyTap: () =>
                         _showLowAccuracyDialog(context, controller, state),
                     taskPhotos: state.taskPhotos,
+                    onOpenGallery: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => EvidenceViewerPage(
+                            initialEvidenceList: state.taskPhotos,
+                            initialIndex: 0,
+                            taskId: widget.taskId,
+                            taskName: widget.taskName,
+                          ),
+                        ),
+                      ).then((_) => controller.refreshTaskPhotos());
+                    },
                   ),
                 ],
               ),
             ),
 
-            // Layer 7: Error Banner jika capture gagal
-            if (state.captureStatus == CaptureViewStatus.error &&
-                state.errorMessage != null)
-              Positioned(
-                top: 90,
-                left: 16,
-                right: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xEB991B1B), // Dark Red
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.error_outline_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          state.errorMessage!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+            // Layer 11: Expandable Camera Control Panel (Slide & Fade dari Atas)
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOut,
+              top: state.isControlPanelOpen ? 0 : -440,
+              left: 0,
+              right: 0,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: state.isControlPanelOpen ? 1.0 : 0.0,
+                child: CameraControlPanel(
+                  controller: controller,
+                  cameraController: widget.cameraController,
+                  currentLensDirection: widget.currentLensDirection,
+                  onClose: controller.closeControlPanel,
                 ),
+              ),
+            ),
+
+            // Layer 12: Timer Countdown Overlay (Hitung Mundur 3..2..1)
+            if (state.isCountdownActive)
+              CameraTimerCountdownOverlay(
+                remainingSeconds: state.remainingTimerSeconds,
+                onCancel: controller.cancelTimerCountdown,
               ),
           ],
         );
@@ -297,9 +497,9 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
   }
 
   // ====================================================================
-  // CAPTURED PHOTO REVIEW SCREEN (WITH AUDIT & INTEGRITY BADGES)
+  // CAPTURED PHOTO REVIEW SCREEN
   // ====================================================================
-  Widget _buildPreviewScreen(
+  Widget _buildPhotoPreviewScreen(
     BuildContext context,
     GeotagCameraController controller,
   ) {
@@ -324,7 +524,7 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
           height: double.infinity,
         ),
 
-        // 2. Header Status Bukti Terenkripsi
+        // 2. Header Status Bukti
         SafeArea(
           child: Align(
             alignment: Alignment.topCenter,
@@ -334,19 +534,19 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
               decoration: BoxDecoration(
                 color: const Color(0xD90F172A),
                 borderRadius: BorderRadius.circular(99),
-                border: Border.all(color: const Color(0xFF10B981), width: 1),
+                border: Border.all(color: const Color(0xFF38BDF8), width: 1),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(
-                    Icons.verified_user_rounded,
-                    color: Color(0xFF10B981),
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF38BDF8),
                     size: 16,
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'Foto Berhasil Diverifikasi • ±${photo.gpsAccuracyMeters.round()}m',
+                    '✓ Bukti berhasil direkam • GPS ±${photo.gpsAccuracyMeters.round()} m',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -377,7 +577,6 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
               top: false,
               child: Row(
                 children: [
-                  // Tombol Ambil Ulang
                   Expanded(
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.refresh_rounded, size: 18),
@@ -397,8 +596,6 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                     ),
                   ),
                   const SizedBox(width: 14),
-
-                  // Tombol Gunakan Foto
                   Expanded(
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.check_rounded, size: 20),
@@ -425,60 +622,155 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
   }
 
   // ====================================================================
-  // HELPER METHODS (FOCUS, FLASH, OVERRIDE MODAL)
+  // VIDEO REVIEW SCREEN
   // ====================================================================
-  void _handleTapToFocus(
-    TapUpDetails details,
-    double screenWidth,
-    double screenHeight,
-  ) async {
-    final localOffset = details.localPosition;
-    final normX = (localOffset.dx / screenWidth).clamp(0.0, 1.0);
-    final normY = (localOffset.dy / screenHeight).clamp(0.0, 1.0);
+  Widget _buildVideoReviewScreen(
+    BuildContext context,
+    GeotagCameraController controller,
+    GeotagCameraViewState state,
+  ) {
+    final videoPath = state.recordedVideoPath;
+    final durationStr = state.formattedRecordingDuration;
 
-    widget.geotagController.showFocusIndicator(localOffset);
-
-    try {
-      if (widget.cameraController.value.isInitialized) {
-        await widget.cameraController.setFocusPoint(Offset(normX, normY));
-        await widget.cameraController.setExposurePoint(Offset(normX, normY));
-      }
-    } catch (_) {
-      // Abaikan jika device tidak support manual focus point
-    }
+    return Scaffold(
+      backgroundColor: const Color(0xFF0B1220),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0x33006EE6),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF006EE6), width: 2),
+                ),
+                child: const Icon(
+                  Icons.videocam_rounded,
+                  color: Color(0xFF38BDF8),
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Video Dokumentasi Tersimpan',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Durasi: $durationStr\nLokasi file: ${videoPath?.split(Platform.pathSeparator).last ?? ""}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 36),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Rekam Ulang'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white38),
+                        minimumSize: const Size.fromHeight(50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: controller.retakeVideo,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.check_rounded, size: 20),
+                      label: const Text('Gunakan Video'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF006EE6),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: () async {
+                        final success =
+                            await controller.saveRecordedVideoEvidence(
+                              caption: widget.taskName,
+                            );
+                        if (context.mounted && success) {
+                          Navigator.of(context).pop(
+                            controller.state.lastCapturedPhoto ?? videoPath,
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  IconData _resolveFlashIcon() {
-    switch (_flashMode) {
-      case FlashMode.off:
-        return Icons.flash_off_rounded;
-      case FlashMode.torch:
-        return Icons.highlight_rounded;
-      case FlashMode.always:
-      case FlashMode.auto:
-        return Icons.flash_on_rounded;
+  // ====================================================================
+  // HELPER METHODS (BACK PRESS CONFIRMATION & OVERRIDE DIALOG)
+  // ====================================================================
+  void _handleBackPress(
+    BuildContext context,
+    GeotagCameraController controller,
+    GeotagCameraViewState state,
+  ) {
+    if (state.isRecordingVideo) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF0F172A),
+          title: const Text(
+            'Hentikan Perekaman?',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'Video sedang direkam. Apakah Anda ingin menghentikan perekaman dan keluar dari kamera?',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Batal', style: TextStyle(color: Colors.white70)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await controller.stopVideoRecording(widget.cameraController);
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
+              },
+              child: const Text('Hentikan & Keluar'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      Navigator.of(context).pop();
     }
-  }
-
-  Future<void> _cycleFlashMode() async {
-    FlashMode nextMode;
-    switch (_flashMode) {
-      case FlashMode.off:
-        nextMode = FlashMode.torch;
-        break;
-      case FlashMode.torch:
-        nextMode = FlashMode.auto;
-        break;
-      case FlashMode.auto:
-      default:
-        nextMode = FlashMode.off;
-        break;
-    }
-
-    try {
-      await widget.cameraController.setFlashMode(nextMode);
-      setState(() => _flashMode = nextMode);
-    } catch (_) {}
   }
 
   void _showLowAccuracyDialog(
@@ -575,45 +867,6 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CircleIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final String semanticLabel;
-
-  const _CircleIconButton({
-    required this.icon,
-    required this.onTap,
-    required this.semanticLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: semanticLabel,
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onTap();
-        },
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.45),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.25),
-              width: 1,
-            ),
-          ),
-          child: Icon(icon, color: Colors.white, size: 21),
         ),
       ),
     );

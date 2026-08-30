@@ -105,6 +105,14 @@ class SyncStatusRow extends StatelessWidget {
         return 'Nota Pengeluaran';
       case SyncEntityType.taskChecklist:
         return 'Checklist Tugas';
+      case SyncEntityType.activityReport:
+        return 'Laporan Kegiatan';
+      case SyncEntityType.travelMission:
+        return 'Perjalanan Dinas';
+      case SyncEntityType.supportingDocument:
+        return 'Dokumen Pendukung';
+      case SyncEntityType.lpjPackage:
+        return 'Paket LPJ';
     }
   }
 

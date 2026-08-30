@@ -3,16 +3,24 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:get_it/get_it.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../core/camera/camera_capability_service.dart';
+import '../../core/camera/camera_level_sensor_service.dart';
+import '../../core/camera/file_naming_service.dart';
 import '../../core/database/local_database.dart';
 import '../../core/geo/fast_location_service.dart';
+import '../../core/geo/mini_map_renderer.dart';
 import '../../core/geo/plus_code_generator.dart';
 import '../../core/geo/reverse_geocoder.dart';
 import '../../core/geo/static_map_thumbnail.dart';
 import '../../core/imaging/watermark_compositor.dart';
+import '../../core/map/map_launcher_service.dart';
+import '../../core/media/media_share_service.dart';
+import '../../core/media/media_thumbnail_service.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/network/network_info.dart';
 import '../../core/ocr/receipt_ocr_engine.dart';
 import '../../core/ocr/receipt_parser.dart';
+import '../../core/qr/qr_location_generator.dart';
 import '../../core/security/hash_generator.dart';
 import '../../core/security/mock_location_detector.dart';
 import '../../core/security/root_detector.dart';
@@ -21,6 +29,7 @@ import '../../core/security/oauth_sign_in_service.dart';
 import '../../core/session/auth_session_manager.dart';
 import '../../core/sync/background_sync_service.dart';
 import '../../core/theme/theme_controller.dart';
+import '../../core/localization/language_controller.dart';
 
 import '../../features/auth/data/datasources/auth_local_datasource.dart';
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
@@ -34,6 +43,7 @@ import '../../features/auth/domain/usecases/get_current_session.dart';
 import '../../features/auth/domain/usecases/is_biometric_login_enabled.dart';
 import '../../features/auth/domain/usecases/login.dart';
 import '../../features/auth/domain/usecases/login_with_apple.dart';
+import '../../features/auth/domain/usecases/login_with_facebook.dart';
 import '../../features/auth/domain/usecases/login_with_google.dart';
 import '../../features/auth/domain/usecases/logout.dart';
 import '../../features/auth/domain/usecases/reset_password.dart';
@@ -53,8 +63,11 @@ import '../../features/account/domain/usecases/save_notification_settings.dart';
 import '../../features/expense_ocr/data/datasources/expense_ocr_local_datasource.dart';
 import '../../features/expense_ocr/data/repositories/expense_ocr_repository_impl.dart';
 import '../../features/expense_ocr/domain/repositories/expense_ocr_repository.dart';
+import '../../features/expense_ocr/domain/usecases/delete_expense_note.dart';
 import '../../features/expense_ocr/domain/usecases/save_expense_note.dart';
+import '../../features/expense_ocr/domain/usecases/save_manual_expense.dart';
 import '../../features/expense_ocr/domain/usecases/scan_receipt.dart';
+import '../../features/expense_ocr/domain/usecases/update_expense_note.dart';
 
 import '../../features/notifications/data/datasources/notifications_local_datasource.dart';
 import '../../features/notifications/data/datasources/notifications_remote_datasource.dart';
@@ -69,11 +82,20 @@ import '../../features/notifications/domain/usecases/mark_all_notifications_read
 import '../../features/notifications/domain/usecases/mark_notification_read.dart';
 
 import '../../features/geotag_camera/data/datasources/geotag_camera_local_datasource.dart';
+import '../../features/geotag_camera/data/repositories/camera_preferences_repository_impl.dart';
 import '../../features/geotag_camera/data/repositories/geotag_camera_repository_impl.dart';
+import '../../features/geotag_camera/data/repositories/template_repository_impl.dart';
+import '../../features/geotag_camera/domain/repositories/camera_preferences_repository.dart';
 import '../../features/geotag_camera/domain/repositories/geotag_camera_repository.dart';
+import '../../features/geotag_camera/domain/repositories/template_repository.dart';
 import '../../features/geotag_camera/domain/usecases/capture_geotagged_photo.dart';
+import '../../features/geotag_camera/domain/usecases/create_evidence.dart';
 import '../../features/geotag_camera/domain/usecases/get_task_photo_previews.dart';
 import '../../features/geotag_camera/domain/usecases/validate_location_integrity.dart';
+import '../../features/evidence_verification/domain/usecases/verify_evidence_integrity.dart';
+import '../../features/evidence_gallery/domain/usecases/delete_evidence.dart';
+import '../../features/evidence_gallery/domain/usecases/get_activity_evidence.dart';
+import '../../features/evidence_gallery/domain/usecases/share_evidence.dart';
 
 import '../../features/sync_queue/data/datasources/sync_local_datasource.dart';
 import '../../features/sync_queue/data/datasources/sync_remote_datasource.dart';
@@ -104,6 +126,58 @@ import '../../features/task_detail/domain/usecases/record_timeline_event.dart';
 import '../../features/task_detail/domain/usecases/start_task.dart';
 import '../../features/task_detail/domain/usecases/submit_task_for_verification.dart';
 import '../../features/task_detail/domain/usecases/toggle_checklist_item.dart';
+
+import '../../features/activity_report/data/datasources/activity_report_local_datasource.dart';
+import '../../features/activity_report/data/datasources/activity_report_remote_datasource.dart';
+import '../../features/activity_report/data/repositories/activity_report_repository_impl.dart';
+import '../../features/activity_report/data/services/pdf_report_generator.dart';
+import '../../features/activity_report/data/services/report_data_assembler.dart';
+import '../../features/activity_report/data/services/report_validator.dart';
+import '../../features/activity_report/domain/repositories/activity_report_repository.dart';
+import '../../features/activity_report/domain/usecases/assemble_report_draft.dart';
+import '../../features/activity_report/domain/usecases/delete_activity_report.dart';
+import '../../features/activity_report/domain/usecases/generate_activity_report_pdf.dart';
+import '../../features/activity_report/domain/usecases/get_task_reports.dart';
+import '../../features/activity_report/domain/usecases/validate_report_draft.dart';
+import '../../features/activity_report/domain/usecases/verify_report_sha256.dart';
+
+import '../../features/travel_mission/data/datasources/travel_local_datasource.dart';
+import '../../features/travel_mission/data/datasources/travel_remote_datasource.dart';
+import '../../features/travel_mission/data/repositories/travel_repository_impl.dart';
+import '../../features/travel_mission/data/services/pdf_lpj_package_generator.dart';
+import '../../features/travel_mission/data/services/travel_completeness_service.dart';
+import '../../features/travel_mission/data/services/travel_expense_aggregator.dart';
+import '../../features/travel_mission/domain/repositories/travel_repository.dart';
+import '../../features/travel_mission/domain/usecases/add_supporting_document.dart';
+import '../../features/travel_mission/domain/usecases/create_travel_mission.dart';
+import '../../features/travel_mission/domain/usecases/generate_lpj_package.dart';
+import '../../features/travel_mission/domain/usecases/get_travel_mission_detail.dart';
+import '../../features/travel_mission/domain/usecases/get_travel_missions.dart';
+import '../../features/travel_mission/presentation/controllers/travel_mission_detail_controller.dart';
+import '../../features/travel_mission/presentation/controllers/travel_mission_list_controller.dart';
+
+import '../../features/search_archive/data/datasources/search_local_datasource.dart';
+import '../../features/search_archive/data/datasources/search_remote_datasource.dart';
+import '../../features/search_archive/data/repositories/search_archive_repository_impl.dart';
+import '../../features/search_archive/data/services/search_query_parser.dart';
+import '../../features/search_archive/data/services/search_result_merger.dart';
+import '../../features/search_archive/data/services/search_index_service.dart';
+import '../../features/search_archive/data/services/semantic_search_foundation.dart';
+import '../../features/search_archive/domain/repositories/search_archive_repository.dart';
+import '../../features/search_archive/domain/usecases/unified_search.dart';
+import '../../features/search_archive/domain/usecases/get_recent_searches.dart';
+import '../../features/search_archive/domain/usecases/save_recent_search.dart';
+import '../../features/search_archive/domain/usecases/clear_recent_searches.dart';
+import '../../features/search_archive/domain/usecases/rebuild_search_index.dart';
+import '../../features/search_archive/domain/usecases/get_available_years.dart';
+import '../../features/search_archive/presentation/controllers/search_archive_controller.dart';
+
+import '../../features/dashboard/data/datasources/dashboard_local_datasource.dart';
+import '../../features/dashboard/data/datasources/dashboard_remote_datasource.dart';
+import '../../features/dashboard/data/repositories/dashboard_repository_impl.dart';
+import '../../features/dashboard/data/services/dashboard_insight_engine.dart';
+import '../../features/dashboard/domain/repositories/dashboard_repository.dart';
+import '../../features/dashboard/domain/usecases/get_dashboard_analytics.dart';
 
 /// Service locator global - dipanggil sebagai `sl<TipeClass>()` dari
 /// mana pun di aplikasi setelah `initDependencies()` dijalankan.
@@ -169,7 +243,34 @@ Future<void> initDependencies({Database? database}) async {
     return service;
   });
   sl.registerLazySingleton<StaticMapThumbnail>(() => StaticMapThumbnail());
-  sl.registerLazySingleton<WatermarkCompositor>(() => WatermarkCompositor());
+  sl.registerLazySingleton<QrLocationGenerator>(() => QrLocationGenerator());
+  sl.registerLazySingleton<MiniMapRenderer>(() => MiniMapRenderer());
+  sl.registerLazySingleton<WatermarkCompositor>(
+    () => WatermarkCompositor(
+      qrGenerator: sl(),
+      miniMapRenderer: sl(),
+    ),
+  );
+  sl.registerLazySingleton<TemplateRepository>(
+    () => TemplateRepositoryImpl(),
+  );
+  sl.registerLazySingleton<CameraPreferencesRepository>(
+    () => CameraPreferencesRepositoryImpl(),
+  );
+  sl.registerLazySingleton<CameraCapabilityService>(
+    () => CameraCapabilityService(),
+  );
+  sl.registerLazySingleton<CameraLevelSensorService>(
+    () => CameraLevelSensorService(),
+  );
+  sl.registerLazySingleton<FileNamingService>(
+    () => FileNamingService(),
+  );
+  sl.registerLazySingleton<MediaShareService>(() => MediaShareService());
+  sl.registerLazySingleton<MapLauncherService>(() => MapLauncherService());
+  sl.registerLazySingleton<MediaThumbnailService>(
+    () => MediaThumbnailService(),
+  );
 
   sl.registerLazySingleton<ReceiptOcrEngine>(() => ReceiptOcrEngine());
   sl.registerLazySingleton<ReceiptParser>(() => ReceiptParser());
@@ -197,6 +298,7 @@ Future<void> initDependencies({Database? database}) async {
   sl.registerLazySingleton<ResetPassword>(() => ResetPassword(sl()));
   sl.registerLazySingleton<LoginWithGoogle>(() => LoginWithGoogle(sl(), sl()));
   sl.registerLazySingleton<LoginWithApple>(() => LoginWithApple(sl(), sl()));
+  sl.registerLazySingleton<LoginWithFacebook>(() => LoginWithFacebook(sl(), sl()));
   sl.registerLazySingleton<IsBiometricLoginEnabled>(
     () => IsBiometricLoginEnabled(sl()),
   );
@@ -255,12 +357,19 @@ Future<void> initDependencies({Database? database}) async {
     ),
   );
   sl.registerLazySingleton<ExpenseOcrRepository>(
-    () => ExpenseOcrRepositoryImpl(localDataSource: sl()),
+    () => ExpenseOcrRepositoryImpl(
+      localDataSource: sl(),
+      syncQueueLocalDataSource: sl(),
+      timelineLocalDataSource: sl(),
+    ),
   );
   sl.registerLazySingleton<ScanReceipt>(() => ScanReceipt(sl()));
   sl.registerLazySingleton<ConfirmAndSaveExpenseNote>(
     () => ConfirmAndSaveExpenseNote(repository: sl(), enqueueSyncItem: sl()),
   );
+  sl.registerLazySingleton<SaveManualExpense>(() => SaveManualExpense(sl()));
+  sl.registerLazySingleton<DeleteExpenseNote>(() => DeleteExpenseNote(sl()));
+  sl.registerLazySingleton<UpdateExpenseNote>(() => UpdateExpenseNote(sl()));
 
   // ============================================================
   // GEOTAG CAMERA - didaftarkan secara permanen & lengkap di sini
@@ -282,13 +391,35 @@ Future<void> initDependencies({Database? database}) async {
       plusCodeGenerator: sl(),
       reverseGeocoder: sl(),
       staticMapThumbnail: sl(),
+      templateRepository: sl(),
     ),
   );
   sl.registerLazySingleton<CaptureGeotaggedPhoto>(
     () => CaptureGeotaggedPhoto(sl()),
   );
+  sl.registerLazySingleton<CreateEvidence>(
+    () => CreateEvidence(sl()),
+  );
   sl.registerLazySingleton<GetTaskPhotoPreviews>(
     () => GetTaskPhotoPreviews(sl()),
+  );
+  sl.registerLazySingleton<VerifyEvidenceIntegrity>(
+    () => VerifyEvidenceIntegrity(
+      hashGenerator: sl(),
+      database: sl(),
+    ),
+  );
+  sl.registerLazySingleton<GetActivityEvidence>(
+    () => GetActivityEvidence(sl(), remoteDataSource: sl()),
+  );
+  sl.registerLazySingleton<DeleteEvidence>(
+    () => DeleteEvidence(
+      cameraLocalDataSource: sl(),
+      syncLocalDataSource: sl(),
+    ),
+  );
+  sl.registerLazySingleton<ShareEvidence>(
+    () => ShareEvidence(sl()),
   );
 
   // ============================================================
@@ -353,7 +484,9 @@ Future<void> initDependencies({Database? database}) async {
   sl.registerLazySingleton<AddActivityNote>(() => AddActivityNote(sl()));
 
   // --- TASK EXPENSES (Nota & Pengeluaran) ---
-  sl.registerLazySingleton<GetTaskExpenses>(() => GetTaskExpenses(sl()));
+  sl.registerLazySingleton<GetTaskExpenses>(
+    () => GetTaskExpenses(sl(), sl()),
+  );
 
   // ============================================================
   // NOTIFICATIONS (Offline-First Notification Center)
@@ -415,6 +548,9 @@ Future<void> initDependencies({Database? database}) async {
   sl.registerLazySingleton<ThemeController>(
     () => ThemeController(localDataSource: sl()),
   );
+  sl.registerLazySingleton<LanguageController>(
+    () => LanguageController(localDataSource: sl()),
+  );
   sl.registerLazySingleton<AccountRepository>(
     () => AccountRepositoryImpl(localDataSource: sl()),
   );
@@ -427,6 +563,187 @@ Future<void> initDependencies({Database? database}) async {
     () => GetStorageBreakdown(sl()),
   );
   sl.registerLazySingleton<ClearAppCache>(() => ClearAppCache(sl()));
+
+  // =====================================================================
+  // PHASE 8: SMART ACTIVITY REPORT & LPJ FOUNDATION
+  // =====================================================================
+  sl.registerLazySingleton<ActivityReportLocalDataSource>(
+    () => ActivityReportLocalDataSourceImpl(),
+  );
+  sl.registerLazySingleton<ActivityReportRemoteDataSource>(
+    () => ActivityReportRemoteDataSourceImpl(sl()),
+  );
+  sl.registerLazySingleton<ReportDataAssembler>(
+    () => ReportDataAssembler(
+      cameraLocalDataSource: sl(),
+      expenseLocalDataSource: sl(),
+      timelineLocalDataSource: sl(),
+      authRepository: sl(),
+    ),
+  );
+  sl.registerLazySingleton<ReportValidator>(() => ReportValidator());
+  sl.registerLazySingleton<PdfReportGenerator>(() => PdfReportGenerator());
+
+  sl.registerLazySingleton<ActivityReportRepository>(
+    () => ActivityReportRepositoryImpl(
+      localDataSource: sl(),
+      remoteDataSource: sl(),
+      assembler: sl(),
+      validator: sl(),
+      pdfGenerator: sl(),
+      syncLocalDataSource: sl(),
+      timelineLocalDataSource: sl(),
+    ),
+  );
+
+  sl.registerLazySingleton<AssembleReportDraft>(() => AssembleReportDraft(sl()));
+  sl.registerLazySingleton<ValidateReportDraft>(() => ValidateReportDraft(sl()));
+  sl.registerLazySingleton<GenerateActivityReportPdf>(
+    () => GenerateActivityReportPdf(sl()),
+  );
+  sl.registerLazySingleton<GetTaskReports>(() => GetTaskReports(sl()));
+  sl.registerLazySingleton<DeleteActivityReport>(() => DeleteActivityReport(sl()));
+  sl.registerLazySingleton<VerifyReportSha256>(() => VerifyReportSha256(sl()));
+
+  // =====================================================================
+  // PHASE 9: PERJALANAN DINAS + SPPD + LPJ ENGINE
+  // =====================================================================
+  sl.registerLazySingleton<TravelLocalDatasource>(
+    () => TravelLocalDatasource(),
+  );
+  sl.registerLazySingleton<TravelRemoteDatasource>(
+    () => TravelRemoteDatasource(dioClient: sl()),
+  );
+  sl.registerLazySingleton<TravelCompletenessService>(
+    () => TravelCompletenessService(),
+  );
+  sl.registerLazySingleton<TravelExpenseAggregator>(
+    () => TravelExpenseAggregator(),
+  );
+  sl.registerLazySingleton<PdfLpjPackageGenerator>(
+    () => PdfLpjPackageGenerator(),
+  );
+
+  sl.registerLazySingleton<TravelRepository>(
+    () => TravelRepositoryImpl(
+      localDatasource: sl(),
+      remoteDatasource: sl(),
+      completenessService: sl(),
+      expenseAggregator: sl(),
+      pdfGenerator: sl(),
+      syncQueueRepository: sl(),
+    ),
+  );
+
+  sl.registerLazySingleton<CreateTravelMission>(
+    () => CreateTravelMission(sl()),
+  );
+  sl.registerLazySingleton<GetTravelMissions>(
+    () => GetTravelMissions(sl()),
+  );
+  sl.registerLazySingleton<GetTravelMissionDetail>(
+    () => GetTravelMissionDetail(sl()),
+  );
+  sl.registerLazySingleton<AddSupportingDocument>(
+    () => AddSupportingDocument(sl()),
+  );
+  sl.registerLazySingleton<GenerateLpjPackage>(
+    () => GenerateLpjPackage(sl()),
+  );
+
+  sl.registerFactory<TravelMissionListController>(
+    () => TravelMissionListController(getTravelMissions: sl()),
+  );
+  sl.registerFactory<TravelMissionDetailController>(
+    () => TravelMissionDetailController(
+      getTravelMissionDetail: sl(),
+      addSupportingDocument: sl(),
+      generateLpjPackage: sl(),
+      repository: sl(),
+    ),
+  );
+
+  // =====================================================================
+  // PHASE 10: SEARCH INTELLIGENCE & UNIFIED FIELD ARCHIVE
+  // =====================================================================
+  sl.registerLazySingleton<SearchLocalDatasource>(
+    () => SearchLocalDatasourceImpl(),
+  );
+  sl.registerLazySingleton<SearchRemoteDatasource>(
+    () => SearchRemoteDatasourceImpl(client: sl()),
+  );
+  sl.registerLazySingleton<SearchQueryParser>(
+    () => SearchQueryParser(),
+  );
+  sl.registerLazySingleton<SearchResultMerger>(
+    () => SearchResultMerger(),
+  );
+  sl.registerLazySingleton<SearchIndexService>(
+    () => SearchIndexService(),
+  );
+  sl.registerLazySingleton<SemanticSearchService>(
+    () => SemanticSearchFoundationImpl(),
+  );
+
+  sl.registerLazySingleton<SearchArchiveRepository>(
+    () => SearchArchiveRepositoryImpl(
+      localDatasource: sl(),
+      remoteDatasource: sl(),
+      queryParser: sl(),
+      merger: sl(),
+      indexService: sl(),
+      networkInfo: sl(),
+    ),
+  );
+
+  sl.registerLazySingleton<UnifiedSearch>(() => UnifiedSearch(sl()));
+  sl.registerLazySingleton<GetRecentSearches>(() => GetRecentSearches(sl()));
+  sl.registerLazySingleton<SaveRecentSearch>(() => SaveRecentSearch(sl()));
+  sl.registerLazySingleton<ClearRecentSearches>(() => ClearRecentSearches(sl()));
+  sl.registerLazySingleton<RebuildSearchIndex>(() => RebuildSearchIndex(sl()));
+  sl.registerLazySingleton<GetAvailableYears>(() => GetAvailableYears(sl()));
+
+  sl.registerFactory<SearchArchiveController>(
+    () => SearchArchiveController(
+      unifiedSearch: sl(),
+      getRecentSearches: sl(),
+      saveRecentSearch: sl(),
+      clearRecentSearches: sl(),
+      rebuildSearchIndex: sl(),
+      getAvailableYears: sl(),
+    ),
+  );
+
+  // ============================================================
+  // PHASE 11: DASHBOARD & FIELD INTELLIGENCE
+  // ============================================================
+  sl.registerLazySingleton<DashboardInsightEngine>(
+    () => const DashboardInsightEngine(),
+  );
+
+  sl.registerLazySingleton<DashboardLocalDataSource>(
+    () => DashboardLocalDataSourceImpl(
+      insightEngine: sl(),
+    ),
+  );
+
+  sl.registerLazySingleton<DashboardRemoteDataSource>(
+    () => DashboardRemoteDataSourceImpl(
+      client: sl(),
+    ),
+  );
+
+  sl.registerLazySingleton<DashboardRepository>(
+    () => DashboardRepositoryImpl(
+      localDataSource: sl(),
+      remoteDataSource: sl(),
+      networkInfo: sl(),
+    ),
+  );
+
+  sl.registerLazySingleton<GetDashboardAnalytics>(
+    () => GetDashboardAnalytics(sl()),
+  );
 }
 
 /// registerCameraSession

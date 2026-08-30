@@ -81,4 +81,20 @@ class AuthRemoteDataSource {
     );
     return response.data as Map<String, dynamic>;
   }
+
+  Future<Map<String, dynamic>> loginWithFacebook({
+    required String accessToken,
+    String? email,
+    String? fullName,
+  }) async {
+    final response = await _dioClient.dio.post(
+      '/auth/facebook',
+      data: {
+        'accessToken': accessToken,
+        if (email != null && email.isNotEmpty) 'email': email,
+        if (fullName != null && fullName.isNotEmpty) 'fullName': fullName,
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
 }

@@ -12,7 +12,9 @@ import '../../../auth/domain/usecases/get_current_session.dart';
 import '../../../sync_queue/domain/entities/sync_record_entity.dart';
 import '../../../sync_queue/domain/usecases/enqueue_sync_item.dart';
 import '../../domain/entities/geotag_photo_entity.dart';
+import '../../domain/entities/watermark_template_entity.dart';
 import '../../domain/repositories/geotag_camera_repository.dart';
+import '../../domain/repositories/template_repository.dart';
 import '../datasources/geotag_camera_local_datasource.dart';
 
 /// GeotagCameraRepositoryImpl
@@ -30,6 +32,7 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
   final PlusCodeGenerator _plusCodeGenerator;
   final ReverseGeocoder _reverseGeocoder;
   final StaticMapThumbnail _staticMapThumbnail;
+  final TemplateRepository? _templateRepository;
 
   GeotagCameraRepositoryImpl({
     required GeotagCameraLocalDataSource localDataSource,
@@ -41,6 +44,7 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
     required PlusCodeGenerator plusCodeGenerator,
     required ReverseGeocoder reverseGeocoder,
     required StaticMapThumbnail staticMapThumbnail,
+    TemplateRepository? templateRepository,
   }) : _localDataSource = localDataSource,
        _mockLocationDetector = mockLocationDetector,
        _rootDetector = rootDetector,
@@ -49,7 +53,8 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
        _getCurrentSession = getCurrentSession,
        _plusCodeGenerator = plusCodeGenerator,
        _reverseGeocoder = reverseGeocoder,
-       _staticMapThumbnail = staticMapThumbnail;
+       _staticMapThumbnail = staticMapThumbnail,
+       _templateRepository = templateRepository;
 
   void attachCameraController(CameraController controller) {
     _cameraController = controller;
@@ -78,7 +83,10 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
 
       final fastLoc = await FastLocationService.instance
           .getAtomicCaptureLocation();
-      if (fastLoc.isMocked) {
+      final eval = fastLoc.position != null
+          ? _mockLocationDetector.evaluatePosition(fastLoc.position!)
+          : null;
+      if (fastLoc.isMocked || (eval?.isMockLocationDetected == true)) {
         return const Left(
           LocationInvalidFailure('Mock Location / Fake GPS terdeteksi.'),
         );
@@ -108,15 +116,24 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
 
       // Buat Short Evidence ID yang rapi & human-readable (mis. TL-20260824-0011)
       final shortEvidenceId = _generateShortEvidenceId(taskId, localTimestamp);
-      final verificationUrl =
-          'https://verify.tulap.id/e/$shortEvidenceId?t=$taskId';
+      final mapsUrl = _staticMapThumbnail.buildGoogleMapsQueryUrl(
+        latitude: lat,
+        longitude: lng,
+      );
+
+      // Konfigurasi template stamp aktif
+      final stampConfig = await _templateRepository?.getSavedConfiguration() ??
+          const StampConfiguration();
 
       final model = await _localDataSource.captureAndPersist(
         controller: _cameraController!,
         taskId: taskId,
+        userId: currentUser?.id,
         latitude: lat,
         longitude: lng,
         gpsAccuracyMeters: accuracy,
+        altitude: fastLoc.altitude,
+        heading: fastLoc.heading,
         serverTimestamp: localTimestamp,
         isMockLocationDetected: fastLoc.isMocked,
         isRootedDeviceDetected: isCompromised,
@@ -133,11 +150,14 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
           latitude: lat,
           longitude: lng,
           gpsAccuracyMeters: accuracy,
+          altitude: fastLoc.altitude,
+          heading: fastLoc.heading,
           plusCode: plusCode,
           address: address,
-          auditQrPayload: verificationUrl,
+          auditQrPayload: mapsUrl,
           isOffline: true,
           isVerified: false,
+          configuration: stampConfig,
         ),
       );
 
@@ -153,6 +173,73 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
       return const Left(CameraFailure());
     } catch (_) {
       return const Left(LocalStorageFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, GeotagPhotoEntity>> captureAndSaveVideo({
+    required String taskId,
+    required String videoPath,
+    required Duration duration,
+    String? caption,
+  }) async {
+    try {
+      final isCompromised = await _rootDetector.isDeviceCompromised();
+      if (isCompromised) {
+        return const Left(DeviceIntegrityFailure());
+      }
+
+      final fastLoc = await FastLocationService.instance
+          .getAtomicCaptureLocation();
+      if (fastLoc.isMocked) {
+        return const Left(
+          LocationInvalidFailure('Mock Location / Fake GPS terdeteksi.'),
+        );
+      }
+
+      final localTimestamp = DateTime.now();
+      final lat = fastLoc.latitude ?? 0.0;
+      final lng = fastLoc.longitude ?? 0.0;
+      final accuracy = fastLoc.accuracy ?? 10.0;
+
+      final plusCode = _plusCodeGenerator.generate(
+        latitude: lat,
+        longitude: lng,
+      );
+
+      final currentUser = await _getCurrentSession();
+      final address = fastLoc.address ?? await _tryReverseGeocode(lat, lng);
+      final shortEvidenceId = _generateShortEvidenceId(taskId, localTimestamp);
+
+      final model = await _localDataSource.persistVideoEvidence(
+        recordedTempPath: videoPath,
+        taskId: taskId,
+        userId: currentUser?.id,
+        latitude: lat,
+        longitude: lng,
+        gpsAccuracyMeters: accuracy,
+        altitude: fastLoc.altitude,
+        heading: fastLoc.heading,
+        serverTimestamp: localTimestamp,
+        durationSeconds: duration.inSeconds,
+        isMockLocationDetected: fastLoc.isMocked,
+        isRootedDeviceDetected: isCompromised,
+        plusCode: plusCode,
+        address: address,
+        caption: caption ?? 'Dokumentasi Video Lapangan',
+        shortEvidenceId: shortEvidenceId,
+      );
+
+      // Daftarkan video ke outbox sync queue
+      await _enqueueSyncItem(
+        entityType: SyncEntityType.geotagPhoto,
+        entityLocalId: model.id,
+        taskId: taskId,
+      );
+
+      return Right(model);
+    } catch (_) {
+      return const Left(LocalStorageFailure('Gagal menyimpan rekaman bukti video.'));
     }
   }
 

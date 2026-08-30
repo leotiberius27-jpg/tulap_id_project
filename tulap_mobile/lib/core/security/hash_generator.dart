@@ -18,12 +18,20 @@ import 'package:crypto/crypto.dart';
 /// pada saat pengambilan, terlepas dari kompresi yang terjadi setelahnya.
 /// ----------------------------------------------------------------------
 class HashGenerator {
-  /// Menghitung SHA-256 dari file di [filePath] dan mengembalikan
-  /// representasi hex string-nya.
+  /// Menghitung SHA-256 dari file di [filePath] menggunakan streaming
+  /// (chunked reading) agar tidak membebani memori RAM pada file video/foto besar.
   Future<String> generateSha256(String filePath) async {
     final file = File(filePath);
-    final Uint8List bytes = await file.readAsBytes();
-    final digest = sha256.convert(bytes);
+    if (!await file.exists()) {
+      throw FileSystemException('File bukti tidak ditemukan', filePath);
+    }
+    final stream = file.openRead();
+    final digest = await sha256.bind(stream).first;
     return digest.toString();
+  }
+
+  /// Menghitung SHA-256 langsung dari raw byte buffer
+  String generateSha256FromBytes(Uint8List bytes) {
+    return sha256.convert(bytes).toString();
   }
 }

@@ -56,8 +56,8 @@ class TaskStatusBanner extends StatelessWidget {
         return _StatusConfig(
           'Sedang Berjalan',
           Icons.directions_walk,
-          AppColors.action,
-          AppColors.action.withOpacity(0.1),
+          AppColors.primary,
+          AppColors.iconSoftBlue,
         );
       case TaskStatusEntity.pendingVerification:
         return _StatusConfig(

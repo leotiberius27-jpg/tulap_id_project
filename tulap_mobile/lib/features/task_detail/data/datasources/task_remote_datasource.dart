@@ -19,10 +19,6 @@ class TaskRemoteDataSource {
         )
         .toList();
 
-    // Jumlah foto/nota TIDAK disertakan langsung di response backend
-    // saat ini (endpoint GET /evidence/by-task belum dibangun) - untuk
-    // sementara dihitung dari cache lokal saja di repository, bukan
-    // dari server. Lihat catatan di TaskRepositoryImpl.
     return TaskModel.fromApiJson(
       taskResponse.data as Map<String, dynamic>,
       checklistItems: checklistItems,
@@ -45,21 +41,42 @@ class TaskRemoteDataSource {
     await _dioClient.dio.post('/tasks/$taskId/start');
   }
 
-  /// GET /tasks - backend otomatis membatasi hasil ke tugas milik user
-  /// yang login jika rolenya PEGAWAI (lihat TasksService.findAll),
-  /// jadi tidak perlu filter tambahan di sini.
-  Future<List<TaskModel>> getTasks() async {
-    final response = await _dioClient.dio.get('/tasks');
+  /// GET /tasks dengan dukungan search, filter rentang tanggal, tahun, status, dan paginasi
+  Future<List<TaskModel>> getTasks({
+    String? search,
+    String? status,
+    String? startDate,
+    String? endDate,
+    int? year,
+    String? location,
+    int? page,
+    int? pageSize,
+  }) async {
+    final response = await _dioClient.dio.get(
+      '/tasks',
+      queryParameters: {
+        if (search != null && search.isNotEmpty) 'search': search,
+        if (status != null) 'status': status,
+        if (startDate != null) 'startDate': startDate,
+        if (endDate != null) 'endDate': endDate,
+        if (year != null) 'year': year,
+        if (location != null) 'location': location,
+        if (page != null) 'page': page,
+        if (pageSize != null) 'pageSize': pageSize,
+      },
+    );
     final items = (response.data as Map<String, dynamic>)['items'] as List;
     return items
         .map((json) => TaskModel.fromApiJson(json as Map<String, dynamic>))
         .toList();
   }
 
-  /// Melempar DioException dengan response.data berisi
-  /// { message, incompleteItems } jika backend menolak karena checklist
-  /// belum lengkap (lihat TasksService.submitForVerification di
-  /// backend) - repository menerjemahkan ini jadi Failure yang sesuai.
+  /// GET /tasks/:id/evidence - Mengambil bukti cloud (foto & nota) untuk kegiatan
+  Future<Map<String, dynamic>> getTaskEvidence(String taskId) async {
+    final response = await _dioClient.dio.get('/tasks/$taskId/evidence');
+    return response.data as Map<String, dynamic>;
+  }
+
   Future<void> submitForVerification(String taskId) async {
     await _dioClient.dio.post('/tasks/$taskId/submit');
   }

@@ -12,6 +12,9 @@ import { EvidenceModule } from './modules/evidence/evidence.module';
 import { LpjModule } from './modules/lpj/lpj.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { TravelModule } from './modules/travel/travel.module';
+import { SearchModule } from './modules/search/search.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -34,6 +37,9 @@ import { RolesGuard } from './common/guards/roles.guard';
     LpjModule,
     AuditModule,
     NotificationsModule,
+    TravelModule,
+    SearchModule,
+    DashboardModule,
   ],
   providers: [
     // Urutan guard PENTING: JwtAuthGuard (autentikasi) dijalankan

@@ -10,17 +10,8 @@ import '../../../../core/ocr/receipt_ocr_engine.dart';
 import '../../../../core/ocr/receipt_parser.dart';
 import '../models/expense_note_model.dart';
 
-const int _kTargetMaxFileSizeBytes =
-    300 * 1024; // ~300KB, sama seperti foto geotag
+const int _kTargetMaxFileSizeBytes = 300 * 1024; // ~300KB
 
-/// ExpenseOcrLocalDataSource
-/// ----------------------------------------------------------------------
-/// Menggabungkan tiga hal teknis: kamera (`camera` package), OCR
-/// (`ReceiptOcrEngine`), dan penyimpanan lokal (SQLite). Method di sini
-/// mengembalikan tipe intermediate (bukan langsung ExpenseNoteModel)
-/// untuk langkah scan, karena hasil OCR mentah harus melalui Review
-/// Sheet dulu sebelum jadi data final.
-/// ----------------------------------------------------------------------
 class ExpenseOcrLocalDataSource {
   final ReceiptOcrEngine _ocrEngine;
   final ReceiptParser _parser;
@@ -35,10 +26,11 @@ class ExpenseOcrLocalDataSource {
        _parser = parser,
        _database = database;
 
+  String? _lastCompressedPath;
+  String? get lastCompressedPath => _lastCompressedPath;
+
   /// Memfoto nota dari [controller] kamera, mengompresnya, lalu
-  /// menjalankan OCR + parsing. TIDAK menyimpan apa pun ke tabel
-  /// `expense_notes` di tahap ini - hanya mengembalikan hasil parsing
-  /// sebagai draft untuk Review Sheet.
+  /// menjalankan OCR + parsing.
   Future<ParsedReceiptResult> captureAndScan(
     CameraController controller,
   ) async {
@@ -52,12 +44,8 @@ class ExpenseOcrLocalDataSource {
     final recognizedText = await _ocrEngine.recognizeText(compressedPath);
     final parsed = _parser.parse(recognizedText);
 
-    // Simpan path terkompresi di hasil parsing lewat closure sederhana -
-    // untuk kesederhanaan, path disimpan terpisah dan digabung di
-    // repository saat confirmAndSave dipanggil.
     _lastCompressedPath = compressedPath;
 
-    // Hapus file mentah, sisakan versi kompresi saja.
     final rawFileOnDisk = File(rawFile.path);
     if (await rawFileOnDisk.exists()) {
       await rawFileOnDisk.delete();
@@ -66,11 +54,14 @@ class ExpenseOcrLocalDataSource {
     return parsed;
   }
 
-  // Penyimpanan sementara path terkompresi dari scan terakhir - dibaca
-  // oleh repository segera setelah captureAndScan() selesai, dalam
-  // alur yang sama (bukan lintas sesi).
-  String? _lastCompressedPath;
-  String? get lastCompressedPath => _lastCompressedPath;
+  /// Menjalankan OCR langsung pada berkas gambar yang ada (misal dari Galeri)
+  Future<ParsedReceiptResult> scanImageFile(String imagePath) async {
+    final compressedPath = await _compressImage(imagePath);
+    final recognizedText = await _ocrEngine.recognizeText(compressedPath);
+    final parsed = _parser.parse(recognizedText);
+    _lastCompressedPath = compressedPath;
+    return parsed;
+  }
 
   Future<String> _compressImage(String originalPath) async {
     final dir = await getApplicationDocumentsDirectory();
@@ -95,15 +86,27 @@ class ExpenseOcrLocalDataSource {
     return result?.path ?? originalPath;
   }
 
-  /// Deteksi duplikat sederhana: hash dari kombinasi vendor + tanggal +
-  /// nominal (dinormalisasi ke lowercase/trim). Nota yang sama difoto
-  /// dua kali (baik sengaja maupun tidak sengaja) akan menghasilkan
-  /// hash identik, sesuai kebutuhan "Duplicate receipt detection"
-  /// (Bagian 12 dokumen requirement awal & Bagian 37 spesifikasi).
+  /// Cek apakah hash SHA-256 berkas fisik identik sudah tersimpan sebelumnya
+  Future<String?> findDuplicateByHash(String sha256Hash) async {
+    if (sha256Hash.isEmpty) return null;
+    final rows = await _database.query(
+      'expense_notes',
+      where: 'originalSha256 = ? OR processedSha256 = ?',
+      whereArgs: [sha256Hash, sha256Hash],
+      limit: 1,
+    );
+    if (rows.isNotEmpty) {
+      return rows.first['id'] as String;
+    }
+    return null;
+  }
+
+  /// Deteksi duplikat: kombinasi vendor + tanggal + nominal
   Future<String?> findDuplicateNoteId({
     required String vendorName,
     required DateTime transactionDate,
     required double totalAmount,
+    String? excludeId,
   }) async {
     final signature = _buildDuplicateSignature(
       vendorName: vendorName,
@@ -114,6 +117,8 @@ class ExpenseOcrLocalDataSource {
     final rows = await _database.query('expense_notes');
     for (final row in rows) {
       final existing = ExpenseNoteModel.fromMap(row);
+      if (excludeId != null && existing.id == excludeId) continue;
+
       final existingSignature = _buildDuplicateSignature(
         vendorName: existing.vendorName,
         transactionDate: existing.transactionDate,
@@ -139,8 +144,46 @@ class ExpenseOcrLocalDataSource {
   }
 
   Future<ExpenseNoteModel> persist(ExpenseNoteModel model) async {
-    await _database.insert('expense_notes', model.toMap());
+    await _database.insert(
+      'expense_notes',
+      model.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
     return model;
+  }
+
+  Future<ExpenseNoteModel> update(ExpenseNoteModel model) async {
+    await _database.update(
+      'expense_notes',
+      model.toMap(),
+      where: 'id = ?',
+      whereArgs: [model.id],
+    );
+    return model;
+  }
+
+  Future<void> delete(String id) async {
+    await _database.delete(
+      'expense_notes',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    await _database.delete(
+      'sync_queue',
+      where: 'entityLocalId = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<ExpenseNoteModel?> getNoteById(String id) async {
+    final rows = await _database.query(
+      'expense_notes',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return ExpenseNoteModel.fromMap(rows.first);
   }
 
   Future<List<ExpenseNoteModel>> getNotesByTask(String taskId) async {

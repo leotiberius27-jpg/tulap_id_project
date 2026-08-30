@@ -7,11 +7,7 @@ import '../repositories/expense_ocr_repository.dart';
 
 /// ConfirmAndSaveExpenseNote (UseCase)
 /// ----------------------------------------------------------------------
-/// Dipanggil saat user menekan "Simpan Nota" di Review Sheet. Menerima
-/// nilai FINAL (bisa berbeda dari hasil OCR mentah jika user melakukan
-/// koreksi manual lewat "Edit"), menyimpannya secara lokal, lalu
-/// mendaftarkan ke Sync Queue - mengikuti pola yang sama persis dengan
-/// CaptureGeotaggedPhoto di fitur geotag_camera.
+/// Dipanggil saat user menekan "Simpan Nota" di Review Sheet / Review Page.
 /// ----------------------------------------------------------------------
 class ConfirmAndSaveExpenseNote {
   final ExpenseOcrRepository _repository;
@@ -28,20 +24,32 @@ class ConfirmAndSaveExpenseNote {
     required ScannedReceiptDraft draft,
     required String finalVendorName,
     required DateTime finalTransactionDate,
+    String? finalTransactionTime,
     required double finalTotalAmount,
     required ExpenseCategoryEntity finalCategory,
+    double? finalSubtotal,
     double? finalTaxAmount,
+    double? finalDiscountAmount,
+    double? finalServiceCharge,
     String? finalReceiptNumber,
+    String? finalPaymentMethod,
+    String? finalNotes,
   }) async {
     final result = await _repository.confirmAndSave(
       taskId: taskId,
       draft: draft,
       finalVendorName: finalVendorName,
       finalTransactionDate: finalTransactionDate,
+      finalTransactionTime: finalTransactionTime,
       finalTotalAmount: finalTotalAmount,
       finalCategory: finalCategory,
+      finalSubtotal: finalSubtotal,
       finalTaxAmount: finalTaxAmount,
+      finalDiscountAmount: finalDiscountAmount,
+      finalServiceCharge: finalServiceCharge,
       finalReceiptNumber: finalReceiptNumber,
+      finalPaymentMethod: finalPaymentMethod,
+      finalNotes: finalNotes,
     );
 
     // Daftarkan ke antrian outbox hanya jika penyimpanan lokal berhasil.

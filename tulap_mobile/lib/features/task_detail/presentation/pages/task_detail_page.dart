@@ -6,12 +6,19 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/app_date_formatter.dart';
 import '../../../../core/widgets/app_state_views.dart';
+import '../../../evidence_gallery/presentation/pages/activity_gallery_page.dart';
+import '../../../evidence_gallery/presentation/pages/evidence_viewer_page.dart';
 import '../../../expense_ocr/domain/entities/expense_note_entity.dart';
+import '../../../expense_ocr/presentation/pages/activity_expenses_page.dart';
+import '../../../expense_ocr/presentation/pages/manual_expense_page.dart';
+import '../../../expense_ocr/presentation/pages/receipt_detail_page.dart';
 import '../../../expense_ocr/presentation/pages/receipt_scanner_entry_page.dart';
 import '../../../geotag_camera/domain/entities/geotag_photo_entity.dart';
 import '../../../geotag_camera/presentation/pages/geotag_camera_entry_page.dart';
 import '../../../location/presentation/pages/location_page.dart';
 import '../../domain/entities/activity_note_entity.dart';
+import '../../../activity_report/presentation/pages/report_draft_review_page.dart';
+import '../../../activity_report/presentation/pages/task_reports_list_page.dart';
 import '../../domain/entities/task_entity.dart';
 import '../controllers/task_detail_controller.dart';
 import '../widgets/activity_timeline_card.dart';
@@ -136,7 +143,14 @@ class TaskDetailPage extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.xl),
 
-                      // 9. Linimasa Kejadian Kegiatan
+                      // 9. Laporan Kegiatan & LPJ Foundation
+                      _buildReportsSection(
+                        context,
+                        task,
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // 10. Linimasa Kejadian Kegiatan
                       Text(
                         'LINIMASA KEGIATAN',
                         style: AppTypography.sectionLabel,
@@ -755,16 +769,38 @@ class TaskDetailPage extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(width: 8),
-            Text(
-              '${photos.length} bukti tersimpan',
-              style: const TextStyle(
-                fontFamily: AppTypography.fontFamily,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
+            if (photos.isNotEmpty)
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ActivityGalleryPage(
+                        taskId: task.id,
+                        taskName: task.taskName,
+                        task: task,
+                      ),
+                    ),
+                  ).then((_) => controller.loadTask());
+                },
+                child: const Text(
+                  'Lihat Semua',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              )
+            else
+              Text(
+                '${photos.length} bukti tersimpan',
+                style: const TextStyle(
+                  fontFamily: AppTypography.fontFamily,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -842,6 +878,9 @@ class TaskDetailPage extends StatelessWidget {
                     photo,
                     index,
                     photos.length,
+                    photos,
+                    task,
+                    controller,
                   ),
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
@@ -914,7 +953,29 @@ class TaskDetailPage extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(width: 8),
+            if (expenses.isNotEmpty)
+              TextButton(
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ActivityExpensesPage(task: task),
+                    ),
+                  );
+                  if (context.mounted) {
+                    controller.loadTask();
+                  }
+                },
+                child: const Text(
+                  'Lihat Semua',
+                  style: TextStyle(
+                    fontFamily: AppTypography.fontFamily,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            const SizedBox(width: 4),
             Text(
               formatter.format(totalAmount),
               style: const TextStyle(
@@ -981,7 +1042,7 @@ class TaskDetailPage extends StatelessWidget {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   padding: EdgeInsets.zero,
-                  itemCount: expenses.length,
+                  itemCount: expenses.length > 3 ? 3 : expenses.length,
                   separatorBuilder: (_, __) => const Divider(
                     color: AppColors.border,
                     height: 1,
@@ -994,8 +1055,19 @@ class TaskDetailPage extends StatelessWidget {
                       color: Colors.transparent,
                       child: ListTile(
                         dense: true,
-                        onTap: () =>
-                            _showExpenseDetailDialog(context, exp, formatter),
+                        onTap: () async {
+                          final changed = await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ReceiptDetailPage(
+                                expense: exp,
+                                task: task,
+                              ),
+                            ),
+                          );
+                          if (context.mounted && changed == true) {
+                            controller.loadTask();
+                          }
+                        },
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -1019,7 +1091,7 @@ class TaskDetailPage extends StatelessWidget {
                           ),
                         ),
                         subtitle: Text(
-                          '${exp.category.name.toUpperCase()} • ${DateFormat('dd MMM yyyy').format(exp.transactionDate)}',
+                          '${exp.category.label} • ${DateFormat('dd MMM yyyy').format(exp.transactionDate)}',
                           style: const TextStyle(
                             fontFamily: AppTypography.fontFamily,
                             fontSize: 11.5,
@@ -1060,13 +1132,27 @@ class TaskDetailPage extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        icon: const Icon(Icons.edit_note_rounded, size: 16),
+                        label: const Text('Manual'),
+                        onPressed: () async {
+                          final result = await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ManualExpensePage(taskId: task.id),
+                            ),
+                          );
+                          if (context.mounted && result != null) {
+                            controller.loadTask();
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 4),
                       TextButton.icon(
                         icon: const Icon(
                           Icons.document_scanner_rounded,
                           size: 16,
                         ),
-                        label: const Text('+ Scan Nota Lagi'),
+                        label: const Text('+ Scan Nota'),
                         onPressed: () async {
                           final note = await Navigator.of(context)
                               .push<ExpenseNoteEntity>(
@@ -1212,7 +1298,230 @@ class TaskDetailPage extends StatelessWidget {
   }
 
   // ====================================================================
-  // 8. STATUS PENYIMPANAN & SINKRONISASI
+  // 8. LAPORAN KEGIATAN (SMART ACTIVITY REPORT & LPJ)
+  // ====================================================================
+  Widget _buildReportsSection(
+    BuildContext context,
+    TaskEntity task,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'LAPORAN KEGIATAN & LPJ',
+                style: AppTypography.sectionLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton.icon(
+              icon: const Icon(Icons.history_rounded, size: 16),
+              label: const Text('Riwayat Arsip'),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => TaskReportsListPage(task: task),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.base),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.auto_awesome_rounded,
+                      color: Color(0xFF2563EB),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Kompilasi Laporan Cerdas',
+                          style: TextStyle(
+                            fontFamily: AppTypography.fontFamily,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Ekspor bukti foto geotag, linimasa, & rekap nota ke PDF resmi.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isCompact = constraints.maxWidth < 280;
+                  if (isCompact) {
+                    return Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(AppRadius.button),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                            icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                            label: const Text(
+                              'Buat Laporan',
+                              style: TextStyle(
+                                fontFamily: AppTypography.fontFamily,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ReportDraftReviewPage(task: task),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(AppRadius.button),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                            icon: const Icon(Icons.folder_open_rounded, size: 16),
+                            label: const Text(
+                              'Arsip Laporan',
+                              style: TextStyle(
+                                fontFamily: AppTypography.fontFamily,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => TaskReportsListPage(task: task),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.button),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                          label: const Text(
+                            'Buat Laporan',
+                            style: TextStyle(
+                              fontFamily: AppTypography.fontFamily,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ReportDraftReviewPage(task: task),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.button),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          icon: const Icon(Icons.folder_open_rounded, size: 18),
+                          label: const Text(
+                            'Arsip Laporan',
+                            style: TextStyle(
+                              fontFamily: AppTypography.fontFamily,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => TaskReportsListPage(task: task),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ====================================================================
+  // 9. STATUS PENYIMPANAN & SINKRONISASI
   // ====================================================================
   Widget _buildStorageSyncBar(TaskDetailState state) {
     final storedCount = state.totalLocalStoredItems;
@@ -1635,112 +1944,21 @@ class TaskDetailPage extends StatelessWidget {
     GeotagPhotoEntity photo,
     int index,
     int total,
+    List<GeotagPhotoEntity> photos,
+    TaskEntity task,
+    TaskDetailController controller,
   ) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.black,
-            foregroundColor: Colors.white,
-            title: Text(
-              'Bukti Foto #${index + 1} dari $total',
-              style: const TextStyle(
-                fontFamily: AppTypography.fontFamily,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          body: Column(
-            children: [
-              Expanded(
-                child: Center(
-                  child: InteractiveViewer(
-                    minScale: 0.8,
-                    maxScale: 4.0,
-                    child: _buildPhotoThumbnail(photo.localFilePath),
-                  ),
-                ),
-              ),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.base),
-                color: const Color(0xFF0F172A),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (photo.caption != null && photo.caption!.isNotEmpty) ...[
-                      Text(
-                        photo.caption!,
-                        style: const TextStyle(
-                          fontFamily: AppTypography.fontFamily,
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.location_on_rounded,
-                          size: 15,
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            '${photo.latitude.toStringAsFixed(5)}, ${photo.longitude.toStringAsFixed(5)} (±${photo.gpsAccuracyMeters.round()}m)',
-                            style: const TextStyle(
-                              fontFamily: AppTypography.fontFamily,
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (photo.plusCode.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.qr_code,
-                            size: 14,
-                            color: Colors.white54,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Plus Code: ${photo.plusCode}',
-                            style: const TextStyle(
-                              fontFamily: AppTypography.fontFamily,
-                              color: Colors.white54,
-                              fontSize: 11.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    Text(
-                      'Waktu: ${DateFormat('dd MMM yyyy, HH:mm:ss').format(photo.serverTimestamp)}',
-                      style: const TextStyle(
-                        fontFamily: AppTypography.fontFamily,
-                        color: Colors.white54,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        builder: (_) => EvidenceViewerPage(
+          initialEvidenceList: photos,
+          initialIndex: index,
+          taskId: task.id,
+          taskName: task.taskName,
+          task: task,
         ),
       ),
-    );
+    ).then((_) => controller.loadTask());
   }
 
   void _showExpenseDetailDialog(

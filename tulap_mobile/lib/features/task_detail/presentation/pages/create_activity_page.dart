@@ -23,7 +23,14 @@ import 'task_detail_page.dart';
 /// langsung tanpa harus menunggu dibuatkan dari admin pusat.
 /// ----------------------------------------------------------------------
 class CreateActivityPage extends StatefulWidget {
-  const CreateActivityPage({super.key});
+  final String? travelId;
+  final String? initialDestination;
+
+  const CreateActivityPage({
+    super.key,
+    this.travelId,
+    this.initialDestination,
+  });
 
   @override
   State<CreateActivityPage> createState() => _CreateActivityPageState();
@@ -32,7 +39,7 @@ class CreateActivityPage extends StatefulWidget {
 class _CreateActivityPageState extends State<CreateActivityPage> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
-  final _locationController = TextEditingController();
+  late final TextEditingController _locationController;
   final _descController = TextEditingController();
   final _budgetController = TextEditingController();
   final _newChecklistController = TextEditingController();
@@ -43,6 +50,12 @@ class _CreateActivityPageState extends State<CreateActivityPage> {
 
   bool _isDetectingLocation = false;
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _locationController = TextEditingController(text: widget.initialDestination ?? '');
+  }
 
   final List<String> _checklistItems = [
     'Tiba di Lokasi & Verifikasi Koordinat',
@@ -242,6 +255,17 @@ class _CreateActivityPageState extends State<CreateActivityPage> {
     );
 
     if (picked != null) {
+      if (picked.isBefore(_startDate)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tanggal selesai tidak boleh sebelum tanggal mulai.'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+        }
+        return;
+      }
       setState(() {
         _endDate = picked;
       });
@@ -259,15 +283,6 @@ class _CreateActivityPageState extends State<CreateActivityPage> {
   }
 
   void _removeChecklistItem(int index) {
-    if (_checklistItems.length <= 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Minimal sertakan 1 butir checklist lapangan.'),
-          backgroundColor: AppColors.warning,
-        ),
-      );
-      return;
-    }
     setState(() {
       _checklistItems.removeAt(index);
     });
@@ -287,9 +302,28 @@ class _CreateActivityPageState extends State<CreateActivityPage> {
   }
 
   Future<void> _submitActivity() async {
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mohon lengkapi semua kolom wajib di atas.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    if (_isMultiDay && _endDate.isBefore(_startDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tanggal selesai tidak boleh sebelum tanggal mulai.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
     if (_isSubmitting) return;
 
-    if (!_formKey.currentState!.validate()) return;
     if (_checklistItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -325,6 +359,7 @@ class _CreateActivityPageState extends State<CreateActivityPage> {
             : _descController.text.trim(),
         checklistLabels: _checklistItems,
         currentUser: user,
+        travelId: widget.travelId,
       );
 
       if (!mounted) return;
@@ -362,7 +397,7 @@ class _CreateActivityPageState extends State<CreateActivityPage> {
                   submitForVerification: sl<SubmitTaskForVerification>(),
                   getTaskPhotoPreviews: sl<GetTaskPhotoPreviews>(),
                   taskId: createdTask.id,
-                ),
+                )..loadTask(),
                 child: TaskDetailPage(
                   officerName: officerName,
                   agencyName: agencyName,
@@ -441,14 +476,13 @@ class _CreateActivityPageState extends State<CreateActivityPage> {
                   ),
                 ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
                       Icons.cloud_sync_rounded,
                       color: colors.primary,
                       size: 24,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
                         'Kegiatan akan disimpan terlebih dahulu di perangkat dan disinkronkan ke cloud saat koneksi tersedia.',

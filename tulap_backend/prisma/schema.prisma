@@ -93,6 +93,7 @@ model User {
   auditLogs       Audit_Log[]
   notifications   Notification[]
   revisionNotes   Task_Revision_Note[]
+  travelMissions  Travel_Mission[]
 
   @@index([roleId])
   @@index([email])
@@ -142,6 +143,10 @@ model Task_SPPD {
   creatorId String @map("creator_id")
   creator   User   @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Restrict)
 
+  // Kaitan ke Perjalanan Dinas (Travel Mission / Misi Induk)
+  travelMissionId String? @map("travel_mission_id")
+  travelMission   Travel_Mission? @relation(fields: [travelMissionId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -153,6 +158,7 @@ model Task_SPPD {
 
   @@index([assigneeId])
   @@index([creatorId])
+  @@index([travelMissionId])
   @@index([status])
   @@index([startDate, endDate]) // Optimasi pencarian rentang tanggal
   @@map("task_sppd")
@@ -383,3 +389,119 @@ model Task_Revision_Note {
   @@index([taskId])
   @@map("task_revision_notes")
 }
+
+// =====================================================================
+// 8. MODUL PERJALANAN DINAS (TRAVEL MISSION / SPPD / LPJ ENGINE)
+// =====================================================================
+
+enum TravelMissionStatus {
+  DRAFT
+  PLANNED
+  ONGOING
+  COMPLETED
+  LPJ_INCOMPLETE
+  LPJ_READY
+  ARCHIVED
+
+  @@map("travel_mission_status")
+}
+
+model Travel_Mission {
+  id String @id @default(uuid())
+  displayId String @unique @map("display_id") // PD-20260828-XXXX
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  organizationId String? @map("organization_id")
+
+  // Dasar Penugasan
+  assignmentLetterNumber String   @map("assignment_letter_number")
+  assignmentLetterDate   DateTime @map("assignment_letter_date")
+  title                  String
+  purpose                String
+
+  // Lokasi & Destinasi
+  origin       String
+  destination  String
+  destinations Json? // Multi-stops array JSON
+
+  // Waktu Perjalanan
+  departureDate DateTime @map("departure_date")
+  returnDate    DateTime @map("return_date")
+
+  // Transportasi & Estimasi
+  transportMode    String  @map("transport_mode")
+  transportDetails String? @map("transport_details")
+  status           TravelMissionStatus @default(DRAFT)
+
+  budgetEstimate    Json?   @map("budget_estimate")
+  notes             String?
+  personnelSnapshot Json?   @map("personnel_snapshot")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relasi balik
+  tasks               Task_SPPD[]
+  supportingDocuments Supporting_Document[]
+  lpjPackages         LPJ_Package[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([departureDate, returnDate])
+  @@map("travel_missions")
+}
+
+model Supporting_Document {
+  id String @id @default(uuid())
+
+  travelMissionId String         @map("travel_mission_id")
+  travelMission   Travel_Mission @relation(fields: [travelMissionId], references: [id], onDelete: Cascade)
+
+  activityId   String? @map("activity_id")
+  documentType String  @map("document_type") // ASSIGNMENT_LETTER, SPPD, TICKET, BOARDING_PASS, HOTEL_INVOICE, RECEIPT, OTHER
+  title        String
+  documentUrl  String  @map("document_url")
+  sha256       String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([travelMissionId])
+  @@index([documentType])
+  @@map("supporting_documents")
+}
+
+model LPJ_Package {
+  id String @id @default(uuid())
+
+  travelMissionId String         @map("travel_mission_id")
+  travelMission   Travel_Mission @relation(fields: [travelMissionId], references: [id], onDelete: Cascade)
+
+  packageCode String @unique @map("package_code") // LPJ-20260828-XXXX
+  versionNumber Int @default(1) @map("version_number")
+  title String
+
+  pdfUrl String? @map("pdf_url")
+  packageSha256 String @map("package_sha256")
+
+  completenessScore Decimal @map("completeness_score") @db.Decimal(5, 2)
+  totalActualExpense Decimal @map("total_actual_expense") @db.Decimal(15, 2)
+
+  activityCount Int @default(0) @map("activity_count")
+  evidenceCount Int @default(0) @map("evidence_count")
+  receiptCount  Int @default(0) @map("receipt_count")
+  documentCount Int @default(0) @map("document_count")
+
+  contentSnapshot Json @map("content_snapshot")
+  status String @default("GENERATED")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([travelMissionId])
+  @@index([packageCode])
+  @@map("lpj_packages")
+}
+

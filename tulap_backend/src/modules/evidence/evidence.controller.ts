@@ -2,6 +2,9 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
+  Get,
+  Param,
   Post,
   UploadedFile,
   UseInterceptors,
@@ -15,18 +18,18 @@ import { UploadPhotoDto } from './dto/upload-photo.dto';
 import { UploadReceiptDto } from './dto/upload-receipt.dto';
 import { EvidenceService } from './evidence.service';
 
-// Batas ukuran file - foto & nota di mobile SUDAH dikompresi ke ~300KB
-// sebelum dikirim (lihat ImageCompressor di mobile), 5MB adalah batas
-// aman dengan margin besar untuk kasus kompresi gagal/dilewati.
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
+const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100MB max (mendukung rekaman video lapangan)
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'video/mp4',
+  'video/quicktime',
+];
 
 /// EvidenceController
 /// ----------------------------------------------------------------------
-/// HANYA bisa diakses oleh PEGAWAI - endpoint ini adalah tujuan upload
-/// dari Sync Queue mobile (GeotagCameraEngine & OCR Receipt Scanner).
-/// Verifikator/Admin TIDAK mengunggah bukti lewat endpoint ini, mereka
-/// hanya membaca & memverifikasi lewat modul verification (menyusul).
+/// Endpoint manajemen dan verifikasi bukti digital kegiatan lapangan.
 /// ----------------------------------------------------------------------
 @Controller('evidence')
 export class EvidenceController {
@@ -49,15 +52,57 @@ export class EvidenceController {
   @Roles(RoleName.PEGAWAI)
   @Post('receipt')
   @UseInterceptors(
-    FileInterceptor('file', { limits: { fileSize: MAX_FILE_SIZE_BYTES } }),
+    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
   )
   async uploadReceipt(
     @Body() dto: UploadReceiptDto,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File | undefined,
     @CurrentUser() actor: AuthenticatedUser,
   ) {
-    this._validateFile(file);
+    if (file) {
+      this._validateReceiptFile(file);
+    }
     return this.evidenceService.uploadReceipt(dto, file, actor);
+  }
+
+  @Get('receipt/:id')
+  async getReceipt(
+    @Param('id') id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.evidenceService.getEvidenceReceipt(id, actor);
+  }
+
+  @Delete('receipt/:id')
+  async deleteReceipt(
+    @Param('id') id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.evidenceService.deleteEvidenceReceipt(id, actor);
+  }
+
+  @Get('photo/:id')
+  async getPhoto(
+    @Param('id') id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.evidenceService.getEvidencePhoto(id, actor);
+  }
+
+  @Get('photo/:id/verify')
+  async verifyPhoto(
+    @Param('id') id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.evidenceService.verifyEvidencePhoto(id, actor);
+  }
+
+  @Delete('photo/:id')
+  async deletePhoto(
+    @Param('id') id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.evidenceService.deleteEvidencePhoto(id, actor);
   }
 
   private _validateFile(file: Express.Multer.File | undefined) {
@@ -66,7 +111,19 @@ export class EvidenceController {
     }
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
       throw new BadRequestException(
-        'Format file tidak didukung. Gunakan JPG atau PNG.',
+        'Format file tidak didukung. Gunakan JPG, PNG, atau MP4.',
+      );
+    }
+  }
+
+  private _validateReceiptFile(file: Express.Multer.File | undefined) {
+    if (!file) {
+      throw new BadRequestException('File nota wajib disertakan.');
+    }
+    const allowedReceiptMimes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedReceiptMimes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Format nota tidak didukung. Gunakan JPG atau PNG.',
       );
     }
   }

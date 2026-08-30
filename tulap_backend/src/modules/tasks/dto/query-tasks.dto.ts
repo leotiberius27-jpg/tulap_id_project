@@ -1,5 +1,15 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsISO8601,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
 import { TaskStatus } from '@prisma/client';
 
 export class QueryTasksDto {
@@ -23,4 +33,28 @@ export class QueryTasksDto {
   @IsUUID()
   @IsOptional()
   assigneeId?: string;
+
+  @IsString()
+  @IsOptional()
+  search?: string;
+
+  @IsISO8601()
+  @IsOptional()
+  startDate?: string;
+
+  @IsISO8601()
+  @IsOptional()
+  endDate?: string;
+
+  @IsInt()
+  @Min(2000)
+  @Max(2100)
+  @IsOptional()
+  @Type(() => Number)
+  year?: number;
+
+  @IsString()
+  @IsOptional()
+  location?: string;
 }
+

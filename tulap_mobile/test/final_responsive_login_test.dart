@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tulap_mobile/core/error/failures.dart';
+import 'package:tulap_mobile/core/security/biometric_auth_service.dart';
 import 'package:tulap_mobile/core/security/oauth_sign_in_service.dart';
 import 'package:tulap_mobile/features/auth/domain/entities/auth_user_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/repositories/auth_repository.dart';
@@ -10,6 +11,7 @@ import 'package:tulap_mobile/features/auth/domain/usecases/get_current_session.d
 import 'package:tulap_mobile/features/auth/domain/usecases/is_biometric_login_enabled.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login_with_apple.dart';
+import 'package:tulap_mobile/features/auth/domain/usecases/login_with_facebook.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login_with_google.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/restore_biometric_session.dart';
 import 'package:tulap_mobile/features/auth/presentation/pages/login_page.dart';
@@ -18,8 +20,27 @@ import 'package:tulap_mobile/features/task_detail/domain/repositories/task_repos
 import 'package:tulap_mobile/features/task_detail/domain/usecases/get_active_tasks.dart';
 import 'package:tulap_mobile/features/task_detail/domain/usecases/pick_active_task.dart';
 
+class _FakeBiometricAuthService implements BiometricAuthService {
+  bool available = true;
+  bool shouldSucceed = true;
+  int authenticateCallCount = 0;
+
+  @override
+  Future<bool> isAvailable() async => available;
+
+  @override
+  Future<bool> authenticate(String reason) async {
+    authenticateCallCount++;
+    return shouldSucceed;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class _FakeAuthRepository implements AuthRepository {
   bool failNextLogin = false;
+  bool biometricEnabled = false;
   String? lastLoginEmail;
   String? lastLoginPassword;
 
@@ -54,7 +75,7 @@ class _FakeAuthRepository implements AuthRepository {
     return const Right(
       AuthUserEntity(
         id: 'usr-google',
-        fullName: 'Google User',
+        fullName: 'Leonardo',
         email: 'google@tulap.id',
         role: 'PEGAWAI',
       ),
@@ -69,8 +90,24 @@ class _FakeAuthRepository implements AuthRepository {
     return const Right(
       AuthUserEntity(
         id: 'usr-apple',
-        fullName: 'Apple User',
+        fullName: 'Leonardo',
         email: 'apple@tulap.id',
+        role: 'PEGAWAI',
+      ),
+    );
+  }
+
+  @override
+  Future<Either<Failure, AuthUserEntity>> loginWithFacebook({
+    required String accessToken,
+    String? email,
+    String? fullName,
+  }) async {
+    return const Right(
+      AuthUserEntity(
+        id: 'usr-facebook',
+        fullName: 'Leonardo',
+        email: 'facebook@tulap.id',
         role: 'PEGAWAI',
       ),
     );
@@ -80,10 +117,15 @@ class _FakeAuthRepository implements AuthRepository {
   Future<AuthUserEntity?> getCurrentSession() async => null;
 
   @override
-  Future<bool> isBiometricLoginEnabled() async => false;
+  Future<bool> isBiometricLoginEnabled() async => biometricEnabled;
 
   @override
-  Future<AuthUserEntity?> restoreBiometricSession() async => null;
+  Future<AuthUserEntity?> restoreBiometricSession() async => const AuthUserEntity(
+        id: 'usr-biometric',
+        fullName: 'Leonardo',
+        email: 'leo@tulap.id',
+        role: 'PEGAWAI',
+      );
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -96,13 +138,23 @@ class _FakeOAuthService implements OAuthSignInService {
     return (
       idToken: 'mock-google-token',
       email: 'google@tulap.id',
-      displayName: 'Google User',
+      displayName: 'Leonardo',
     );
   }
 
   @override
   Future<({String identityToken, String? fullName})?> signInWithApple() async {
-    return (identityToken: 'mock-apple-token', fullName: 'Apple User');
+    return (identityToken: 'mock-apple-token', fullName: 'Leonardo');
+  }
+
+  @override
+  Future<({String accessToken, String? email, String? displayName})?>
+  signInWithFacebook() async {
+    return (
+      accessToken: 'mock-facebook-token',
+      email: 'facebook@tulap.id',
+      displayName: 'Leonardo',
+    );
   }
 
   @override
@@ -125,18 +177,22 @@ void main() {
   late _FakeAuthRepository fakeRepo;
   late _FakeOAuthService fakeOAuth;
   late _FakeTaskRepository fakeTaskRepo;
+  late _FakeBiometricAuthService fakeBiometric;
 
   setUp(() {
     fakeRepo = _FakeAuthRepository();
     fakeOAuth = _FakeOAuthService();
     fakeTaskRepo = _FakeTaskRepository();
+    fakeBiometric = _FakeBiometricAuthService();
     final sl = GetIt.instance;
     sl.reset();
 
     sl.registerLazySingleton<Login>(() => Login(fakeRepo));
     sl.registerLazySingleton<LoginWithGoogle>(() => LoginWithGoogle(fakeRepo));
     sl.registerLazySingleton<LoginWithApple>(() => LoginWithApple(fakeRepo));
+    sl.registerLazySingleton<LoginWithFacebook>(() => LoginWithFacebook(fakeRepo));
     sl.registerLazySingleton<OAuthSignInService>(() => fakeOAuth);
+    sl.registerLazySingleton<BiometricAuthService>(() => fakeBiometric);
     sl.registerLazySingleton<IsBiometricLoginEnabled>(
       () => IsBiometricLoginEnabled(fakeRepo),
     );
@@ -215,7 +271,7 @@ void main() {
           expect(find.text('Masuk'), findsOneWidget);
           expect(find.text('Lupa password?'), findsOneWidget);
           expect(find.text('Google'), findsOneWidget);
-          expect(find.text('Apple'), findsOneWidget);
+          expect(find.text('Facebook'), findsOneWidget);
           expect(find.text('Daftar'), findsOneWidget);
 
           expect(tester.takeException(), isNull);
@@ -335,7 +391,7 @@ void main() {
       expect(loggedInUser?.id, 'usr-google');
     });
 
-    testWidgets('Triggers Apple Sign-In on tap', (tester) async {
+    testWidgets('Triggers Facebook Sign-In on tap', (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -343,10 +399,53 @@ void main() {
       AuthUserEntity? loggedInUser;
       await openLoginPage(tester, onSuccess: (user) => loggedInUser = user);
 
-      await tester.tap(find.text('Apple'));
+      await tester.tap(find.text('Facebook'));
       await tester.pumpAndSettle();
 
-      expect(loggedInUser?.id, 'usr-apple');
+      expect(loggedInUser?.id, 'usr-facebook');
+    });
+
+    testWidgets('Fingerprint biometric is tested first and fails if fingerprint does not match', (tester) async {
+      fakeRepo.biometricEnabled = true;
+      fakeBiometric.shouldSucceed = false; // Fingerprint test fails / does not match
+
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      AuthUserEntity? loggedInUser;
+      await openLoginPage(tester, onSuccess: (user) => loggedInUser = user);
+
+      final biometricBtn = find.widgetWithText(OutlinedButton, 'Masuk dengan Biometrik');
+      expect(biometricBtn, findsOneWidget);
+
+      await tester.tap(biometricBtn);
+      await tester.pumpAndSettle();
+
+      expect(fakeBiometric.authenticateCallCount, 1);
+      expect(loggedInUser, isNull);
+      expect(find.text('Sidik jari tidak cocok atau verifikasi dibatalkan.'), findsOneWidget);
+    });
+
+    testWidgets('Fingerprint biometric is tested first and logs in only when matching', (tester) async {
+      fakeRepo.biometricEnabled = true;
+      fakeBiometric.shouldSucceed = true; // Fingerprint test succeeds / matches
+
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      AuthUserEntity? loggedInUser;
+      await openLoginPage(tester, onSuccess: (user) => loggedInUser = user);
+
+      final biometricBtn = find.widgetWithText(OutlinedButton, 'Masuk dengan Biometrik');
+      expect(biometricBtn, findsOneWidget);
+
+      await tester.tap(biometricBtn);
+      await tester.pumpAndSettle();
+
+      expect(fakeBiometric.authenticateCallCount, 1);
+      expect(loggedInUser?.id, 'usr-biometric');
     });
   });
 }

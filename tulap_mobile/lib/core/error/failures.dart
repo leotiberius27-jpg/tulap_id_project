@@ -75,3 +75,10 @@ class ValidationFailure extends Failure {
   ]);
 }
 
+/// Gagal karena data tidak ditemukan
+class NotFoundFailure extends Failure {
+  const NotFoundFailure([
+    super.message = 'Data tidak ditemukan.',
+  ]);
+}
+

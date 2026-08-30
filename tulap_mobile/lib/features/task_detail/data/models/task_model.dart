@@ -93,6 +93,7 @@ class TaskModel extends TaskEntity {
     super.isSelfCreated,
     super.syncStatus,
     super.syncVersion,
+    super.travelId,
     super.startedAt,
     super.completedAt,
     super.createdAt,
@@ -132,6 +133,7 @@ class TaskModel extends TaskEntity {
       isSelfCreated: (json['isSelfCreated'] as bool?) ?? false,
       syncStatus: 'SYNCED',
       syncVersion: (json['syncVersion'] as int?) ?? 1,
+      travelId: (json['travelMissionId'] ?? json['travelId'] ?? json['travel_mission_id']) as String?,
       startedAt: json['startedAt'] != null
           ? DateTime.tryParse(json['startedAt'] as String)
           : null,
@@ -165,6 +167,7 @@ class TaskModel extends TaskEntity {
       'isSelfCreated': isSelfCreated ? 1 : 0,
       'syncStatus': syncStatus,
       'syncVersion': syncVersion,
+      'travelId': travelId,
       'startedAt': startedAt?.toIso8601String(),
       'completedAt': completedAt?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),
@@ -199,6 +202,7 @@ class TaskModel extends TaskEntity {
       isSelfCreated: map['isSelfCreated'] == 1,
       syncStatus: (map['syncStatus'] as String?) ?? 'SYNCED',
       syncVersion: (map['syncVersion'] as int?) ?? 1,
+      travelId: map['travelId'] as String?,
       startedAt: map['startedAt'] != null
           ? DateTime.tryParse(map['startedAt'] as String)
           : null,

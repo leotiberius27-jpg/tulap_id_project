@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../../evidence_verification/presentation/pages/evidence_detail_page.dart';
 import '../../domain/entities/geotag_photo_entity.dart';
 
 /// TaskPhotoGallerySheet
@@ -99,44 +100,53 @@ class TaskPhotoGallerySheet extends StatelessWidget {
                     itemCount: photos.length,
                     itemBuilder: (context, index) {
                       final photo = photos[index];
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Image.file(
-                              File(photo.localFilePath),
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                color: Colors.white10,
-                                child: const Icon(
-                                  Icons.broken_image_outlined,
-                                  color: Colors.white30,
-                                ),
-                              ),
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => EvidenceDetailPage(photo: photo),
                             ),
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 3,
-                                  horizontal: 4,
-                                ),
-                                color: Colors.black54,
-                                child: Text(
-                                  '±${photo.gpsAccuracyMeters.round()}m',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.bold,
+                          );
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.file(
+                                File(photo.localFilePath),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: Colors.white10,
+                                  child: const Icon(
+                                    Icons.broken_image_outlined,
+                                    color: Colors.white30,
                                   ),
-                                  textAlign: TextAlign.center,
                                 ),
                               ),
-                            ),
-                          ],
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 3,
+                                    horizontal: 4,
+                                  ),
+                                  color: Colors.black54,
+                                  child: Text(
+                                    '±${photo.gpsAccuracyMeters.round()}m',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },

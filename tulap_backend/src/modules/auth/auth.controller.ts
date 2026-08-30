@@ -10,6 +10,7 @@ import { Throttle } from '@nestjs/throttler';
 import { RoleName } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { AppleAuthDto } from './dto/apple-auth.dto';
+import { FacebookAuthDto } from './dto/facebook-auth.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { LoginDto } from './dto/login.dto';
@@ -141,5 +142,17 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   loginWithApple(@Body() dto: AppleAuthDto) {
     return this.authService.loginWithApple(dto);
+  }
+
+  /**
+   * POST /auth/facebook
+   * Masuk/daftar otomatis lewat Facebook Login.
+   */
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Public()
+  @Post('facebook')
+  @HttpCode(HttpStatus.OK)
+  loginWithFacebook(@Body() dto: FacebookAuthDto) {
+    return this.authService.loginWithFacebook(dto);
   }
 }

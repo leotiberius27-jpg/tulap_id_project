@@ -84,6 +84,9 @@ class TaskEntity {
   final String syncStatus;
   final int syncVersion;
 
+  /// Kaitan ke Perjalanan Dinas (opsional jika aktivitas berdiri sendiri)
+  final String? travelId;
+
   /// Timestamp pencatatan waktu kegiatan di lapangan (offline/cloud-aware)
   final DateTime? startedAt;
   final DateTime? completedAt;
@@ -109,6 +112,7 @@ class TaskEntity {
     this.isSelfCreated = false,
     this.syncStatus = 'SYNCED',
     this.syncVersion = 1,
+    this.travelId,
     this.startedAt,
     this.completedAt,
     this.createdAt,
@@ -143,6 +147,7 @@ class TaskEntity {
       isSelfCreated: isSelfCreated,
       syncStatus: syncStatus,
       syncVersion: syncVersion,
+      travelId: travelId,
       startedAt: startedAt,
       completedAt: completedAt,
       createdAt: createdAt,
@@ -169,6 +174,7 @@ class TaskEntity {
     bool? isSelfCreated,
     String? syncStatus,
     int? syncVersion,
+    String? travelId,
     DateTime? startedAt,
     DateTime? completedAt,
     DateTime? createdAt,
@@ -193,6 +199,7 @@ class TaskEntity {
       isSelfCreated: isSelfCreated ?? this.isSelfCreated,
       syncStatus: syncStatus ?? this.syncStatus,
       syncVersion: syncVersion ?? this.syncVersion,
+      travelId: travelId ?? this.travelId,
       startedAt: startedAt ?? this.startedAt,
       completedAt: completedAt ?? this.completedAt,
       createdAt: createdAt ?? this.createdAt,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tulap_mobile/app/di/injection_container.dart';
+import 'package:tulap_mobile/core/localization/app_language.dart';
+import 'package:tulap_mobile/core/localization/language_controller.dart';
 import 'package:tulap_mobile/core/theme/app_theme.dart';
 import 'package:tulap_mobile/core/theme/theme_controller.dart';
 import 'package:tulap_mobile/features/account/data/datasources/account_local_datasource.dart';
@@ -10,6 +12,7 @@ import 'package:tulap_mobile/features/account/presentation/pages/display_setting
 
 class FakeAccountLocalDataSource implements AccountLocalDataSource {
   AppThemeMode savedMode = AppThemeMode.system;
+  AppLanguage savedLanguage = AppLanguage.id;
 
   @override
   Future<AppThemeMode> getThemeMode() async => savedMode;
@@ -17,6 +20,14 @@ class FakeAccountLocalDataSource implements AccountLocalDataSource {
   @override
   Future<void> saveThemeMode(AppThemeMode mode) async {
     savedMode = mode;
+  }
+
+  @override
+  Future<AppLanguage> getLanguage() async => savedLanguage;
+
+  @override
+  Future<void> saveLanguage(AppLanguage language) async {
+    savedLanguage = language;
   }
 
   @override
@@ -51,20 +62,30 @@ void main() {
 
   late FakeAccountLocalDataSource fakeDataSource;
   late ThemeController themeController;
+  late LanguageController languageController;
 
   setUp(() {
     fakeDataSource = FakeAccountLocalDataSource();
     themeController = ThemeController(localDataSource: fakeDataSource);
+    languageController = LanguageController(localDataSource: fakeDataSource);
 
     if (sl.isRegistered<ThemeController>()) {
       sl.unregister<ThemeController>();
     }
     sl.registerSingleton<ThemeController>(themeController);
+
+    if (sl.isRegistered<LanguageController>()) {
+      sl.unregister<LanguageController>();
+    }
+    sl.registerSingleton<LanguageController>(languageController);
   });
 
   tearDown(() {
     if (sl.isRegistered<ThemeController>()) {
       sl.unregister<ThemeController>();
+    }
+    if (sl.isRegistered<LanguageController>()) {
+      sl.unregister<LanguageController>();
     }
   });
 
@@ -74,12 +95,12 @@ void main() {
       expect(AppThemeMode.fromCode('light'), AppThemeMode.light);
       expect(AppThemeMode.fromCode('dark'), AppThemeMode.dark);
       expect(AppThemeMode.fromCode('SYSTEM'), AppThemeMode.system);
-      expect(AppThemeMode.fromCode(null), AppThemeMode.system);
-      expect(AppThemeMode.fromCode('invalid'), AppThemeMode.system);
+      expect(AppThemeMode.fromCode(null), AppThemeMode.light);
+      expect(AppThemeMode.fromCode('invalid'), AppThemeMode.light);
     });
 
     test('toFlutterThemeMode maps correctly to Flutter ThemeMode', () {
-      expect(AppThemeMode.system.toFlutterThemeMode(), ThemeMode.system);
+      expect(AppThemeMode.system.toFlutterThemeMode(), ThemeMode.light);
       expect(AppThemeMode.light.toFlutterThemeMode(), ThemeMode.light);
       expect(AppThemeMode.dark.toFlutterThemeMode(), ThemeMode.dark);
     });
@@ -95,16 +116,16 @@ void main() {
       expect(AppThemeMode.light.label, 'Mode Terang');
       expect(AppThemeMode.dark.label, 'Mode Gelap');
 
-      expect(AppThemeMode.system.subtitle, 'Menyesuaikan tema perangkat');
+      expect(AppThemeMode.system.subtitle, 'Standar tampilan terang');
       expect(AppThemeMode.light.subtitle, 'Tampilan terang Tulap.id');
       expect(AppThemeMode.dark.subtitle, 'Nyaman digunakan di kondisi minim cahaya');
     });
   });
 
   group('2. ThemeController State Management Tests', () {
-    test('Default mode is system', () {
-      expect(themeController.appThemeMode, AppThemeMode.system);
-      expect(themeController.themeMode, ThemeMode.system);
+    test('Default mode is light', () {
+      expect(themeController.appThemeMode, AppThemeMode.light);
+      expect(themeController.themeMode, ThemeMode.light);
     });
 
     test('loadTheme loads persisted preference', () async {
@@ -120,20 +141,20 @@ void main() {
       int listenerCalls = 0;
       themeController.addListener(() => listenerCalls++);
 
-      await themeController.setThemeMode(AppThemeMode.light);
-      expect(themeController.appThemeMode, AppThemeMode.light);
-      expect(themeController.themeMode, ThemeMode.light);
-      expect(fakeDataSource.savedMode, AppThemeMode.light);
-      expect(listenerCalls, 1);
-
       await themeController.setThemeMode(AppThemeMode.dark);
       expect(themeController.appThemeMode, AppThemeMode.dark);
       expect(themeController.themeMode, ThemeMode.dark);
       expect(fakeDataSource.savedMode, AppThemeMode.dark);
+      expect(listenerCalls, 1);
+
+      await themeController.setThemeMode(AppThemeMode.light);
+      expect(themeController.appThemeMode, AppThemeMode.light);
+      expect(themeController.themeMode, ThemeMode.light);
+      expect(fakeDataSource.savedMode, AppThemeMode.light);
       expect(listenerCalls, 2);
 
       // Setting same mode does not notify unnecessarily
-      await themeController.setThemeMode(AppThemeMode.dark);
+      await themeController.setThemeMode(AppThemeMode.light);
       expect(listenerCalls, 2);
     });
   });
@@ -141,22 +162,22 @@ void main() {
   group('3. TulapThemeColors & AppTheme Token Integrity Tests', () {
     test('Light palette integrity matches specifications', () {
       const light = TulapThemeColors.light;
-      expect(light.background, const Color(0xFFF7F9FC));
+      expect(light.background, const Color(0xFFF8FAFC));
       expect(light.surface, const Color(0xFFFFFFFF));
-      expect(light.primary, const Color(0xFF00529C));
-      expect(light.action, const Color(0xFF0072CE));
-      expect(light.textPrimary, const Color(0xFF172033));
+      expect(light.primary, const Color(0xFF0066FE));
+      expect(light.action, const Color(0xFF0066FE));
+      expect(light.textPrimary, const Color(0xFF0F172A));
     });
 
-    test('Dark palette integrity matches specifications (Dark Navy #0B1220)', () {
+    test('Dark palette integrity matches specifications', () {
       const dark = TulapThemeColors.dark;
-      expect(dark.background, const Color(0xFF0B1220));
-      expect(dark.surface, const Color(0xFF111C2E));
-      expect(dark.surfaceElevated, const Color(0xFF16243A));
-      expect(dark.primary, const Color(0xFF4DA3FF));
-      expect(dark.action, const Color(0xFF38BDF8));
-      expect(dark.textPrimary, const Color(0xFFF8FAFC));
-      expect(dark.border, const Color(0xFF27364B));
+      expect(dark.background, const Color(0xFF131314));
+      expect(dark.surface, const Color(0xFF1E1F20));
+      expect(dark.surfaceElevated, const Color(0xFF282A2C));
+      expect(dark.primary, const Color(0xFFA8C7FA));
+      expect(dark.action, const Color(0xFFA8C7FA));
+      expect(dark.textPrimary, const Color(0xFFE3E3E3));
+      expect(dark.border, const Color(0xFF444746));
     });
 
     test('AppTheme.light and AppTheme.dark have correct brightness and extensions', () {
@@ -191,7 +212,7 @@ void main() {
       expect(find.text('Mode Terang'), findsOneWidget);
       expect(find.text('Mode Gelap'), findsOneWidget);
 
-      expect(find.text('Menyesuaikan tema perangkat'), findsOneWidget);
+      expect(find.text('Standar tampilan terang'), findsOneWidget);
       expect(find.text('Tampilan terang Tulap.id'), findsOneWidget);
       expect(find.text('Nyaman digunakan di kondisi minim cahaya'), findsOneWidget);
     });
@@ -200,7 +221,7 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      expect(themeController.appThemeMode, AppThemeMode.system);
+      expect(themeController.appThemeMode, AppThemeMode.light);
 
       await tester.tap(find.text('Mode Gelap'));
       await tester.pumpAndSettle();
@@ -210,6 +231,8 @@ void main() {
     });
 
     testWidgets('Tapping Mode Terang updates ThemeController immediately', (tester) async {
+      await themeController.setThemeMode(AppThemeMode.dark);
+
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
@@ -221,7 +244,7 @@ void main() {
     });
 
     testWidgets('Tapping Ikuti Sistem updates ThemeController immediately', (tester) async {
-      themeController.setThemeMode(AppThemeMode.dark);
+      await themeController.setThemeMode(AppThemeMode.dark);
 
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();

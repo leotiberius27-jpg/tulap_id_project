@@ -14,6 +14,7 @@ import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { MailerService } from '../../infrastructure/mailer/mailer.service';
 import { AuditService } from '../audit/audit.service';
 import { AppleAuthDto } from './dto/apple-auth.dto';
+import { FacebookAuthDto } from './dto/facebook-auth.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { LoginDto } from './dto/login.dto';
@@ -382,6 +383,15 @@ export class AuthService {
       dto.fullName,
     );
     return this.loginOrCreateFromOAuth(profile, 'appleId');
+  }
+
+  async loginWithFacebook(dto: FacebookAuthDto) {
+    const profile = await this.oauthVerifier.verifyFacebookAccessToken(
+      dto.accessToken,
+      dto.fullName,
+      dto.email,
+    );
+    return this.loginOrCreateFromOAuth(profile, 'googleId');
   }
 
   /**

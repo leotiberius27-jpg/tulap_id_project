@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../evidence_gallery/presentation/pages/evidence_viewer_page.dart';
+import '../../../evidence_verification/presentation/pages/evidence_detail_page.dart';
 import '../../../geotag_camera/domain/entities/geotag_photo_entity.dart';
 import '../../domain/entities/task_entity.dart';
 import 'task_status_banner.dart';
@@ -299,23 +301,12 @@ class _TaskGalleryHeroState extends State<TaskGalleryHero> {
   void _openFullscreenImage(BuildContext context, GeotagPhotoEntity photo) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.black,
-            foregroundColor: Colors.white,
-            title: Text(
-              photo.caption ?? 'Bukti Foto Kegiatan',
-              style: const TextStyle(fontSize: 15),
-            ),
-          ),
-          body: Center(
-            child: InteractiveViewer(
-              minScale: 0.8,
-              maxScale: 4.0,
-              child: _PhotoItem(photo: photo, fit: BoxFit.contain),
-            ),
-          ),
+        builder: (_) => EvidenceViewerPage(
+          initialEvidenceList: widget.photos,
+          initialIndex: _page,
+          taskId: widget.task.id,
+          taskName: widget.task.taskName,
+          task: widget.task,
         ),
       ),
     );

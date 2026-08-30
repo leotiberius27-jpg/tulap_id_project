@@ -254,7 +254,7 @@ class TaskLocalDataSource {
       {
         'id': 'photo-sample-01',
         'taskId': 'TL-202608-0001',
-        'localFilePath': 'assets/images/referensi/01.png',
+        'localFilePath': 'assets/images/hero_illustration.png',
         'latitude': -4.546123,
         'longitude': 136.887421,
         'gpsAccuracyMeters': 5.0,
@@ -271,7 +271,7 @@ class TaskLocalDataSource {
       {
         'id': 'photo-sample-02',
         'taskId': 'TL-202608-0001',
-        'localFilePath': 'assets/images/referensi/02.png',
+        'localFilePath': 'assets/images/hero_illustration.png',
         'latitude': -4.546135,
         'longitude': 136.887430,
         'gpsAccuracyMeters': 6.0,
@@ -305,7 +305,7 @@ class TaskLocalDataSource {
       {
         'id': 'photo-sample-04',
         'taskId': 'TL-202608-0001',
-        'localFilePath': 'assets/images/referensi/01.png',
+        'localFilePath': 'assets/images/hero_illustration.png',
         'latitude': -4.546140,
         'longitude': 136.887440,
         'gpsAccuracyMeters': 5.5,

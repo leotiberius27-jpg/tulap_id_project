@@ -1,19 +1,25 @@
-import { Body, Controller, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { RoleName } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { GenerateLpjDto } from './dto/generate-lpj.dto';
+import { UploadReportDto } from './dto/upload-report.dto';
 import { LpjService } from './lpj.service';
 
-/// LpjController
-/// ----------------------------------------------------------------------
-/// `POST /lpj/generate` sesuai Bagian 29 (API Domain Recommendation).
-/// Hanya Verifikator/Admin/Super Admin yang boleh generate LPJ, sesuai
-/// Permission Model Bagian 26 (tanggung jawab BENDAHARA - termasuk
-/// generate LPJ - sudah digabung ke VERIFIKATOR).
-/// ----------------------------------------------------------------------
 @Controller('lpj')
 export class LpjController {
   constructor(private readonly lpjService: LpjService) {}
@@ -34,4 +40,39 @@ export class LpjController {
     });
     res.send(buffer);
   }
+
+  @Post('report/upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadReport(
+    @Body() dto: UploadReportDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.lpjService.uploadReport(dto, file, actor);
+  }
+
+  @Get('report/task/:taskId')
+  async getTaskReports(
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.lpjService.getTaskReports(taskId, actor);
+  }
+
+  @Get('report/:id')
+  async getReportById(
+    @Param('id', ParseUUIDPipe) reportId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.lpjService.getReportById(reportId, actor);
+  }
+
+  @Delete('report/:id')
+  async deleteReport(
+    @Param('id', ParseUUIDPipe) reportId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.lpjService.deleteReport(reportId, actor);
+  }
 }
+

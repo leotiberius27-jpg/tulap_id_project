@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../features/account/data/datasources/account_local_datasource.dart';
 import 'app_theme_mode.dart';
 
@@ -11,7 +11,7 @@ import 'app_theme_mode.dart';
 /// ----------------------------------------------------------------------
 class ThemeController extends ChangeNotifier {
   final AccountLocalDataSource _localDataSource;
-  AppThemeMode _currentMode = AppThemeMode.system;
+  AppThemeMode _currentMode = AppThemeMode.light;
   bool _isLoaded = false;
 
   ThemeController({required AccountLocalDataSource localDataSource})

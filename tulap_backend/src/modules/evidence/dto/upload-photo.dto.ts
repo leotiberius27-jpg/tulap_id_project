@@ -66,4 +66,34 @@ export class UploadPhotoDto {
   @IsString()
   @IsOptional()
   caption?: string;
+
+  @IsString()
+  @IsOptional()
+  id?: string;
+
+  @IsString()
+  @IsOptional()
+  mediaType?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  durationSeconds?: number;
+
+  @IsString()
+  @IsOptional()
+  originalHash?: string;
+
+  @IsString()
+  @IsOptional()
+  finalHash?: string;
+
+  @IsString()
+  @IsOptional()
+  shortEvidenceId?: string;
+
+  @IsISO8601()
+  @IsOptional()
+  deviceTimestamp?: string;
 }
+

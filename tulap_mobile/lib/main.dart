@@ -1,15 +1,17 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'app/di/injection_container.dart';
 import 'app/presentation/main_shell.dart';
+import 'core/localization/app_localizations.dart';
+import 'core/localization/language_controller.dart';
 import 'core/session/auth_session_manager.dart';
 import 'core/sync/background_sync_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
-import 'features/auth/domain/usecases/get_current_session.dart';
-import 'features/auth/presentation/pages/welcome_page.dart';
+import 'features/auth/presentation/pages/login_page.dart';
 
 /// main.dart
 /// ----------------------------------------------------------------------
@@ -17,7 +19,7 @@ import 'features/auth/presentation/pages/welcome_page.dart';
 ///   1. WidgetsFlutterBinding - agar plugin native (sqflite, camera,
 ///      geolocator) siap dipanggil sebelum widget tree dibangun.
 ///   2. initDependencies() - merangkai seluruh service locator.
-///   3. Preload theme mode dari local secure storage (mencegah flash theme).
+///   3. Preload theme mode & language dari local secure storage (mencegah flash).
 ///   4. Mulai BackgroundSyncService.
 ///   5. runApp()
 /// ----------------------------------------------------------------------
@@ -30,13 +32,15 @@ Future<void> main() async {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
 
-      // WatermarkOverlay memformat tanggal dengan locale 'id_ID'
+      // WatermarkOverlay & App memformat tanggal dengan locale 'id_ID' dan 'en_US'
       await initializeDateFormatting('id_ID', null);
+      await initializeDateFormatting('en_US', null);
 
       await initDependencies();
 
-      // Memuat preferensi tema sebelum runApp untuk mencegah flash
+      // Memuat preferensi tema & bahasa sebelum runApp untuk mencegah flash
       await sl<ThemeController>().loadTheme();
+      await sl<LanguageController>().loadLanguage();
 
       sl<BackgroundSyncService>().start();
 
@@ -72,9 +76,10 @@ class TulapApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeController = sl<ThemeController>();
+    final languageController = sl<LanguageController>();
 
     return ListenableBuilder(
-      listenable: themeController,
+      listenable: Listenable.merge([themeController, languageController]),
       builder: (context, _) {
         return MaterialApp(
           title: 'Tulap.id',
@@ -82,6 +87,17 @@ class TulapApp extends StatelessWidget {
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: themeController.themeMode,
+          locale: languageController.currentLocale,
+          supportedLocales: const [
+            Locale('id', 'ID'),
+            Locale('en', 'US'),
+          ],
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           home: const AuthGate(),
         );
       },
@@ -100,17 +116,33 @@ class TulapApp extends StatelessWidget {
 /// AccountPage._confirmLogout) - karena itu class ini publik, bukan
 /// privat seperti sebelumnya.
 /// ----------------------------------------------------------------------
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  late final Future<dynamic> _sessionFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionFuture = sl<AuthSessionManager>().loadInitialSession();
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: sl<AuthSessionManager>().loadInitialSession(),
+      future: _sessionFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            backgroundColor: AppColors.background,
+            body: Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
           );
         }
 
@@ -118,7 +150,7 @@ class AuthGate extends StatelessWidget {
           return const MainShell();
         }
 
-        return WelcomePage(
+        return LoginPage(
           onLoginSuccess: (_) {
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(builder: (_) => const MainShell()),

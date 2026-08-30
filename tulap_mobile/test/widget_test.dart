@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tulap_mobile/app/di/injection_container.dart';
 import 'package:tulap_mobile/core/error/failures.dart';
+import 'package:tulap_mobile/core/localization/app_language.dart';
+import 'package:tulap_mobile/core/localization/language_controller.dart';
 import 'package:tulap_mobile/core/network/network_info.dart';
 import 'package:tulap_mobile/core/security/biometric_auth_service.dart';
 import 'package:tulap_mobile/core/session/auth_session_manager.dart';
@@ -21,7 +23,29 @@ import 'package:tulap_mobile/features/auth/domain/usecases/get_biometric_greetin
 import 'package:tulap_mobile/features/auth/domain/usecases/get_current_session.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/restore_biometric_session.dart';
+import 'package:tulap_mobile/core/security/oauth_sign_in_service.dart';
+import 'package:tulap_mobile/features/auth/domain/usecases/is_biometric_login_enabled.dart';
+import 'package:tulap_mobile/features/auth/domain/usecases/login_with_apple.dart';
+import 'package:tulap_mobile/features/auth/domain/usecases/login_with_facebook.dart';
+import 'package:tulap_mobile/features/auth/domain/usecases/login_with_google.dart';
 import 'package:tulap_mobile/main.dart';
+
+class _FakeOAuthSignInService implements OAuthSignInService {
+  @override
+  Future<({String idToken, String? email, String? displayName})?>
+  signInWithGoogle() async => null;
+
+  @override
+  Future<({String identityToken, String? fullName})?>
+  signInWithApple() async => null;
+
+  @override
+  Future<({String accessToken, String? email, String? displayName})?>
+  signInWithFacebook() async => null;
+
+  @override
+  Future<void> signOutGoogle() async {}
+}
 
 /// Menghindari MissingPluginException dari `connectivity_plus` di
 /// lingkungan widget test (tidak ada platform channel sungguhan) -
@@ -91,6 +115,15 @@ class _NoSessionAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, AuthUserEntity>> loginWithFacebook({
+    required String accessToken,
+    String? email,
+    String? fullName,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<bool> isBiometricLoginEnabled() async => false;
 
   @override
@@ -121,6 +154,12 @@ class _FakeAccountLocalDataSource implements AccountLocalDataSource {
 
   @override
   Future<void> saveThemeMode(AppThemeMode mode) async {}
+
+  @override
+  Future<AppLanguage> getLanguage() async => AppLanguage.id;
+
+  @override
+  Future<void> saveLanguage(AppLanguage language) async {}
 
   @override
   Future<CameraSettingsEntity> getCameraSettings() async => const CameraSettingsEntity();
@@ -156,6 +195,9 @@ void main() {
     sl.registerLazySingleton<ThemeController>(
       () => ThemeController(localDataSource: fakeAccountLocalDataSource),
     );
+    sl.registerLazySingleton<LanguageController>(
+      () => LanguageController(localDataSource: fakeAccountLocalDataSource),
+    );
     sl.registerLazySingleton<AuthRepository>(() => fakeRepository);
     sl.registerLazySingleton<AuthSessionManager>(
       () => AuthSessionManager(authRepository: fakeRepository),
@@ -172,6 +214,21 @@ void main() {
     );
     sl.registerLazySingleton<RestoreBiometricSession>(
       () => RestoreBiometricSession(fakeRepository, sl<AuthSessionManager>()),
+    );
+    sl.registerLazySingleton<LoginWithGoogle>(
+      () => LoginWithGoogle(fakeRepository, sl<AuthSessionManager>()),
+    );
+    sl.registerLazySingleton<LoginWithApple>(
+      () => LoginWithApple(fakeRepository, sl<AuthSessionManager>()),
+    );
+    sl.registerLazySingleton<LoginWithFacebook>(
+      () => LoginWithFacebook(fakeRepository, sl<AuthSessionManager>()),
+    );
+    sl.registerLazySingleton<OAuthSignInService>(
+      () => _FakeOAuthSignInService(),
+    );
+    sl.registerLazySingleton<IsBiometricLoginEnabled>(
+      () => IsBiometricLoginEnabled(fakeRepository),
     );
     sl.registerLazySingleton<BiometricAuthService>(
       () => BiometricAuthService(),

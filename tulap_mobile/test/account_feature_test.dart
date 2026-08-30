@@ -6,6 +6,8 @@ import 'package:tulap_mobile/app/di/injection_container.dart';
 import 'package:tulap_mobile/core/error/failures.dart';
 import 'package:tulap_mobile/core/security/biometric_auth_service.dart';
 import 'package:tulap_mobile/core/sync/background_sync_service.dart';
+import 'package:tulap_mobile/core/localization/app_language.dart';
+import 'package:tulap_mobile/core/localization/language_controller.dart';
 import 'package:tulap_mobile/core/theme/app_theme_mode.dart';
 import 'package:tulap_mobile/features/account/data/datasources/account_local_datasource.dart';
 import 'package:tulap_mobile/features/account/data/repositories/account_repository_impl.dart';
@@ -153,6 +155,13 @@ class _MockAuthRepository implements AuthRepository {
   }) async => Right(currentUser!);
 
   @override
+  Future<Either<Failure, AuthUserEntity>> loginWithFacebook({
+    required String accessToken,
+    String? email,
+    String? fullName,
+  }) async => Right(currentUser!);
+
+  @override
   Future<Either<Failure, AuthUserEntity>> updateProfile({
     required String fullName,
     String? phoneNumber,
@@ -228,6 +237,16 @@ class _MockAccountLocalDataSource implements AccountLocalDataSource {
     themeMode = mode;
   }
 
+  AppLanguage language = AppLanguage.id;
+
+  @override
+  Future<AppLanguage> getLanguage() async => language;
+
+  @override
+  Future<void> saveLanguage(AppLanguage lang) async {
+    language = lang;
+  }
+
   @override
   Future<StorageBreakdownEntity> getStorageBreakdown() async {
     return const StorageBreakdownEntity(
@@ -295,6 +314,9 @@ void main() {
 
     if (sl.isRegistered<BiometricAuthService>()) sl.unregister<BiometricAuthService>();
     sl.registerSingleton<BiometricAuthService>(mockBiometric);
+
+    if (sl.isRegistered<LanguageController>()) sl.unregister<LanguageController>();
+    sl.registerSingleton<LanguageController>(LanguageController(localDataSource: mockAccountLocal));
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
@@ -378,6 +400,10 @@ void main() {
       expect(restored.phoneNumber, equals('0812345678'));
       expect(restored.photoUrl, equals('https://tulap.id/photo.jpg'));
       expect(restored.authProvider, equals('google'));
+
+      final modified = user.copyWith(photoUrl: '/local/app_docs/photo.jpg');
+      expect(modified.photoUrl, equals('/local/app_docs/photo.jpg'));
+      expect(modified.fullName, equals('Budi Santoso'));
     });
   });
 

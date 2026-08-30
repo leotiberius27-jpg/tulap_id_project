@@ -49,6 +49,12 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Aplikasi Tulap.id memerlukan izin kamera untuk mengambil foto dan video bukti kegiatan dinas lapangan.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Aplikasi Tulap.id memerlukan izin mikrofon untuk merekam audio pada video dokumentasi lapangan.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Aplikasi Tulap.id memerlukan izin lokasi untuk mencatat koordinat GPS pada bukti dokumentasi tugas.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

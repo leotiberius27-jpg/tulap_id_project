@@ -2,6 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
+import '../../domain/repositories/expense_ocr_repository.dart';
 import '../../domain/usecases/save_expense_note.dart';
 import '../../domain/usecases/scan_receipt.dart';
 import '../controllers/receipt_scanner_controller.dart';
@@ -62,13 +63,7 @@ class _ReceiptScannerEntryPageState extends State<ReceiptScannerEntryPage> {
 
       final controller = CameraController(
         backCamera,
-        // .medium, bukan .high - lihat catatan detail di
-        // geotag_camera_entry_page.dart (bug preview pecah di chipset
-        // kelas bawah karena camera_android_camerax membuka 3 stream
-        // sekaligus). Sama-sama berlaku di sini karena OCR juga hanya
-        // butuh gambar cukup jelas untuk dibaca teks, bukan resolusi
-        // maksimal.
-        ResolutionPreset.medium,
+        ResolutionPreset.high,
         enableAudio: false, // Bukti nota tidak butuh audio
       );
 
@@ -81,6 +76,7 @@ class _ReceiptScannerEntryPageState extends State<ReceiptScannerEntryPage> {
       final receiptController = ReceiptScannerController(
         scanReceipt: sl<ScanReceipt>(),
         confirmAndSave: sl<ConfirmAndSaveExpenseNote>(),
+        repository: sl<ExpenseOcrRepository>(),
         taskId: widget.taskId,
       );
 

@@ -46,13 +46,13 @@ class AuthRepositoryImpl implements AuthRepository {
         json['user'] as Map<String, dynamic>,
       );
 
-      await _localDataSource.saveSession(
+      final savedUser = await _localDataSource.saveSession(
         accessToken: json['accessToken'] as String,
         refreshToken: json['refreshToken'] as String,
         user: user,
       );
 
-      return Right(user);
+      return Right(savedUser);
     } catch (e) {
       if (e is DioException &&
           e.response != null &&
@@ -71,12 +71,12 @@ class AuthRepositoryImpl implements AuthRepository {
             role: 'PEGAWAI',
             instansiName: 'BPKAD Kabupaten Mimika',
           );
-      await _localDataSource.saveSession(
+      final savedDemo = await _localDataSource.saveSession(
         accessToken: 'mock-access-token-local',
         refreshToken: 'mock-refresh-token-local',
         user: demoUser,
       );
-      return Right(demoUser);
+      return Right(savedDemo);
     }
   }
 
@@ -111,13 +111,13 @@ class AuthRepositoryImpl implements AuthRepository {
         json['user'] as Map<String, dynamic>,
       );
 
-      await _localDataSource.saveSession(
+      final savedUser = await _localDataSource.saveSession(
         accessToken: json['accessToken'] as String,
         refreshToken: json['refreshToken'] as String,
         user: user,
       );
 
-      return Right(user);
+      return Right(savedUser);
     } catch (e) {
       if (e is DioException &&
           e.response != null &&
@@ -134,12 +134,12 @@ class AuthRepositoryImpl implements AuthRepository {
             ? instansiName.trim()
             : 'BPKAD Kabupaten Mimika',
       );
-      await _localDataSource.saveSession(
+      final savedRegistered = await _localDataSource.saveSession(
         accessToken: 'mock-access-token-reg',
         refreshToken: 'mock-refresh-token-reg',
         user: registeredUser,
       );
-      return Right(registeredUser);
+      return Right(savedRegistered);
     }
   }
 
@@ -202,12 +202,12 @@ class AuthRepositoryImpl implements AuthRepository {
       final user = AuthUserModel.fromLoginJson(
         json['user'] as Map<String, dynamic>,
       );
-      await _localDataSource.saveSession(
+      final savedUser = await _localDataSource.saveSession(
         accessToken: json['accessToken'] as String,
         refreshToken: json['refreshToken'] as String,
         user: user,
       );
-      return Right(user);
+      return Right(savedUser);
     } catch (e) {
       if (e is DioException &&
           e.response != null &&
@@ -216,9 +216,20 @@ class AuthRepositoryImpl implements AuthRepository {
         return Left(AuthFailure(e.response?.data['message'] as String));
       }
       final userEmail = email ?? 'leonardo@tulap.id';
-      final userName = (displayName != null && displayName.trim().isNotEmpty)
-          ? displayName.trim()
-          : _extractPrettyName(userEmail);
+      final cleanDisplayName = displayName
+          ?.replaceAll(
+            RegExp(
+              r'\s*\((?:Google|Google User)\)',
+              caseSensitive: false,
+            ),
+            '',
+          )
+          .replaceAll(RegExp(r'\bGoogle User\b', caseSensitive: false), '')
+          .trim();
+      final userName =
+          (cleanDisplayName != null && cleanDisplayName.isNotEmpty)
+              ? cleanDisplayName
+              : _extractPrettyName(userEmail);
       final googleUser = AuthUserModel(
         id: 'usr_google_${DateTime.now().millisecondsSinceEpoch}',
         fullName: userName,
@@ -226,12 +237,12 @@ class AuthRepositoryImpl implements AuthRepository {
         role: 'PEGAWAI',
         instansiName: 'BPKAD Kabupaten Mimika',
       );
-      await _localDataSource.saveSession(
+      final savedGoogle = await _localDataSource.saveSession(
         accessToken: 'mock-google-access-token',
         refreshToken: 'mock-google-refresh-token',
         user: googleUser,
       );
-      return Right(googleUser);
+      return Right(savedGoogle);
     }
   }
 
@@ -258,12 +269,12 @@ class AuthRepositoryImpl implements AuthRepository {
       final user = AuthUserModel.fromLoginJson(
         json['user'] as Map<String, dynamic>,
       );
-      await _localDataSource.saveSession(
+      final savedUser = await _localDataSource.saveSession(
         accessToken: json['accessToken'] as String,
         refreshToken: json['refreshToken'] as String,
         user: user,
       );
-      return Right(user);
+      return Right(savedUser);
     } catch (e) {
       if (e is DioException &&
           e.response != null &&
@@ -278,12 +289,72 @@ class AuthRepositoryImpl implements AuthRepository {
         role: 'PEGAWAI',
         instansiName: 'BPKAD Kabupaten Mimika',
       );
-      await _localDataSource.saveSession(
+      final savedApple = await _localDataSource.saveSession(
         accessToken: 'mock-apple-access-token',
         refreshToken: 'mock-apple-refresh-token',
         user: appleUser,
       );
-      return Right(appleUser);
+      return Right(savedApple);
+    }
+  }
+
+  @override
+  Future<Either<Failure, AuthUserEntity>> loginWithFacebook({
+    required String accessToken,
+    String? email,
+    String? fullName,
+  }) async {
+    try {
+      final json = await _remoteDataSource.loginWithFacebook(
+        accessToken: accessToken,
+        email: email,
+        fullName: fullName,
+      );
+      final user = AuthUserModel.fromLoginJson(
+        json['user'] as Map<String, dynamic>,
+      );
+      final savedUser = await _localDataSource.saveSession(
+        accessToken: json['accessToken'] as String,
+        refreshToken: json['refreshToken'] as String,
+        user: user,
+      );
+      return Right(savedUser);
+    } catch (e) {
+      if (e is DioException &&
+          e.response != null &&
+          e.response?.data is Map &&
+          e.response?.data['message'] is String) {
+        return Left(AuthFailure(e.response?.data['message'] as String));
+      }
+      final userEmail = email ?? 'petugas.lapangan@facebook.com';
+      final cleanFullName = fullName
+          ?.replaceAll(
+            RegExp(
+              r'\s*\((?:Facebook|Facebook User)\)',
+              caseSensitive: false,
+            ),
+            '',
+          )
+          .replaceAll(RegExp(r'\bFacebook User\b', caseSensitive: false), '')
+          .trim();
+      final userName =
+          (cleanFullName != null && cleanFullName.isNotEmpty)
+              ? cleanFullName
+              : _extractPrettyName(userEmail);
+
+      final fbUser = AuthUserModel(
+        id: 'usr_fb_${DateTime.now().millisecondsSinceEpoch}',
+        fullName: userName,
+        email: userEmail,
+        role: 'PEGAWAI',
+        instansiName: 'BPKAD Kabupaten Mimika',
+      );
+      final savedFb = await _localDataSource.saveSession(
+        accessToken: 'mock-fb-access-token',
+        refreshToken: 'mock-fb-refresh-token',
+        user: fbUser,
+      );
+      return Right(savedFb);
     }
   }
 
@@ -312,12 +383,12 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<AuthUserEntity?> restoreBiometricSession() async {
     final user = await _localDataSource.restoreBiometricSession();
     if (user != null) return user;
-    await _localDataSource.saveSession(
+    final savedDemo = await _localDataSource.saveSession(
       accessToken: 'mock-biometric-access-token',
       refreshToken: 'mock-biometric-refresh-token',
       user: _defaultDemoUser,
     );
-    return _defaultDemoUser;
+    return savedDemo;
   }
 
   @override

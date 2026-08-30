@@ -64,6 +64,14 @@ class _DummyGeotagCameraRepository implements GeotagCameraRepository {
   }) => throw UnimplementedError();
 
   @override
+  Future<Either<Failure, GeotagPhotoEntity>> captureAndSaveVideo({
+    required String taskId,
+    required String videoPath,
+    required Duration duration,
+    String? caption,
+  }) => throw UnimplementedError();
+
+  @override
   Future<Either<Failure, void>> deleteLocalPhoto(String photoId) =>
       throw UnimplementedError();
 

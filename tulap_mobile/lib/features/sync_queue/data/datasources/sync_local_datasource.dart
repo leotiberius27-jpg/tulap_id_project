@@ -61,4 +61,12 @@ class SyncLocalDataSource {
   Future<void> deleteRecord(String id) async {
     await _database.delete('sync_queue', where: 'id = ?', whereArgs: [id]);
   }
+
+  Future<void> deleteRecordsByEntityLocalId(String entityLocalId) async {
+    await _database.delete(
+      'sync_queue',
+      where: 'entityLocalId = ?',
+      whereArgs: [entityLocalId],
+    );
+  }
 }

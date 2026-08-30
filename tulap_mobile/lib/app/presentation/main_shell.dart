@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../core/session/auth_session_manager.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/account/presentation/pages/account_page.dart';
@@ -14,6 +15,9 @@ import '../../features/task_detail/domain/usecases/get_active_tasks.dart';
 import '../../features/task_detail/domain/usecases/pick_active_task.dart';
 import '../../features/task_list/presentation/controllers/task_list_controller.dart';
 import '../../features/task_list/presentation/pages/task_list_page.dart';
+import '../../features/travel_mission/domain/repositories/travel_repository.dart';
+import '../../features/travel_mission/presentation/controllers/travel_mission_detail_controller.dart';
+import '../../features/travel_mission/presentation/controllers/travel_mission_list_controller.dart';
 import '../di/injection_container.dart';
 
 /// MainShell
@@ -71,7 +75,7 @@ class _MainShellState extends State<MainShell> {
       getCurrentSession: sl<GetCurrentSession>(),
     );
     _pages = [
-      const HomePage(),
+      HomePage(onNavigateToTab: _onTabSelected),
       ChangeNotifierProvider<TaskListController>.value(
         value: _taskListController,
         child: const TaskListPage(),
@@ -85,6 +89,16 @@ class _MainShellState extends State<MainShell> {
     _user = _authSessionManager.currentUser;
     _authSessionManager.addListener(_onUserSessionChanged);
     _loadUser();
+  }
+
+  void _onTabSelected(int i) {
+    HapticFeedback.selectionClick();
+    final isSwitchingTab = i != _index;
+    setState(() => _index = i);
+    if (!isSwitchingTab) return;
+    if (i == 0 || i == 3) _loadUser();
+    if (i == 1) _taskListController.load();
+    if (i == 2) _historyController.load();
   }
 
   void _onUserSessionChanged() {
@@ -141,25 +155,28 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: IndexedStack(index: _index, children: _pages),
-      floatingActionButton: TulapAnimatedCameraFab(
-        isLoading: _isResolvingTask,
-        onPressed: _onCameraPressed,
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: TulapAnimatedBottomBar(
-        currentIndex: _index,
-        onTap: (i) {
-          HapticFeedback.selectionClick();
-          final isSwitchingTab = i != _index;
-          setState(() => _index = i);
-          if (!isSwitchingTab) return;
-          if (i == 0 || i == 3) _loadUser();
-          if (i == 1) _taskListController.load();
-          if (i == 2) _historyController.load();
-        },
+    return MultiProvider(
+      providers: [
+        Provider<TravelRepository>.value(value: sl<TravelRepository>()),
+        ChangeNotifierProvider<TravelMissionListController>(
+          create: (_) => sl<TravelMissionListController>(),
+        ),
+        ChangeNotifierProvider<TravelMissionDetailController>(
+          create: (_) => sl<TravelMissionDetailController>(),
+        ),
+      ],
+      child: Scaffold(
+        extendBody: true,
+        body: IndexedStack(index: _index, children: _pages),
+        floatingActionButton: TulapAnimatedCameraFab(
+          isLoading: _isResolvingTask,
+          onPressed: _onCameraPressed,
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        bottomNavigationBar: TulapAnimatedBottomBar(
+          currentIndex: _index,
+          onTap: _onTabSelected,
+        ),
       ),
     );
   }
@@ -182,15 +199,16 @@ class TulapAnimatedBottomBar extends StatelessWidget {
     required this.onTap,
   });
 
-  static const _navItems = [
-    (icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Beranda'),
-    (icon: Icons.assignment_outlined, activeIcon: Icons.assignment_rounded, label: 'Tugas'),
-    (icon: Icons.history_rounded, activeIcon: Icons.history_rounded, label: 'Riwayat'),
-    (icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: 'Akun'),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final navItems = [
+      (icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: l10n.tabHome),
+      (icon: Icons.assignment_outlined, activeIcon: Icons.assignment_rounded, label: l10n.tabTasks),
+      (icon: Icons.history_rounded, activeIcon: Icons.history_rounded, label: l10n.tabHistory),
+      (icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: l10n.tabAccount),
+    ];
+
     final mediaQuery = MediaQuery.of(context);
     final disableAnimations = mediaQuery.disableAnimations;
     final animDuration = disableAnimations
@@ -219,7 +237,7 @@ class TulapAnimatedBottomBar extends StatelessWidget {
           final activeSlotIndex =
               currentIndex < 2 ? currentIndex : currentIndex + 1;
           final targetCenterX = slotWidth * (activeSlotIndex + 0.5);
-          final activeIcon = _navItems[currentIndex].activeIcon;
+          final activeIcon = navItems[currentIndex].activeIcon;
 
           return TweenAnimationBuilder<double>(
             tween: Tween<double>(begin: targetCenterX, end: targetCenterX),
@@ -295,23 +313,23 @@ class TulapAnimatedBottomBar extends StatelessWidget {
                     height: barHeight,
                     child: Row(
                       children: [
-                        // Slot 0: Beranda
+                        // Slot 0: Beranda / Home
                         Expanded(
                           child: _CurvedNavItem(
-                            icon: _navItems[0].icon,
-                            activeIcon: _navItems[0].activeIcon,
-                            label: _navItems[0].label,
+                            icon: navItems[0].icon,
+                            activeIcon: navItems[0].activeIcon,
+                            label: navItems[0].label,
                             isActive: currentIndex == 0,
                             onTap: () => onTap(0),
                           ),
                         ),
 
-                        // Slot 1: Tugas
+                        // Slot 1: Tugas / Tasks
                         Expanded(
                           child: _CurvedNavItem(
-                            icon: _navItems[1].icon,
-                            activeIcon: _navItems[1].activeIcon,
-                            label: _navItems[1].label,
+                            icon: navItems[1].icon,
+                            activeIcon: navItems[1].activeIcon,
+                            label: navItems[1].label,
                             isActive: currentIndex == 1,
                             onTap: () => onTap(1),
                           ),
@@ -320,23 +338,23 @@ class TulapAnimatedBottomBar extends StatelessWidget {
                         // Slot 2: Center Spacer for Prominent Camera FAB
                         SizedBox(width: slotWidth),
 
-                        // Slot 3: Riwayat
+                        // Slot 3: Riwayat / History
                         Expanded(
                           child: _CurvedNavItem(
-                            icon: _navItems[2].icon,
-                            activeIcon: _navItems[2].activeIcon,
-                            label: _navItems[2].label,
+                            icon: navItems[2].icon,
+                            activeIcon: navItems[2].activeIcon,
+                            label: navItems[2].label,
                             isActive: currentIndex == 2,
                             onTap: () => onTap(2),
                           ),
                         ),
 
-                        // Slot 4: Akun
+                        // Slot 4: Akun / Account
                         Expanded(
                           child: _CurvedNavItem(
-                            icon: _navItems[3].icon,
-                            activeIcon: _navItems[3].activeIcon,
-                            label: _navItems[3].label,
+                            icon: navItems[3].icon,
+                            activeIcon: navItems[3].activeIcon,
+                            label: navItems[3].label,
                             isActive: currentIndex == 3,
                             onTap: () => onTap(3),
                           ),

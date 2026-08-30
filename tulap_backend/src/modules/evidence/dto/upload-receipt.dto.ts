@@ -17,16 +17,27 @@ const VALID_CATEGORIES = [
   'retail',
   'konsumsi',
   'transportasiLain',
+  'atk',
+  'perlengkapan',
   'lainnya',
+  'BBM',
+  'TOL',
+  'PENGINAPAN',
+  'RETAIL',
+  'KONSUMSI',
+  'TRANSPORTASI_LAIN',
+  'LAINNYA',
 ];
 
 /// UploadReceiptDto
 /// ----------------------------------------------------------------------
-/// Selaras dengan payload dari ExpenseNoteModel.toUploadPayload() di
-/// mobile. Kategori dikirim sebagai string camelCase dari mobile,
-/// dipetakan ke enum Prisma ExpenseCategory di EvidenceService.
+/// Selaras dengan payload dari ExpenseNoteModel.toUploadPayload() di mobile.
 /// ----------------------------------------------------------------------
 export class UploadReceiptDto {
+  @IsUUID()
+  @IsOptional()
+  id?: string;
+
   @IsUUID()
   @IsNotEmpty()
   taskId: string;
@@ -39,6 +50,10 @@ export class UploadReceiptDto {
   @IsNotEmpty()
   transactionDate: string;
 
+  @IsString()
+  @IsOptional()
+  transactionTime?: string;
+
   @IsNumber()
   @Min(0)
   @Type(() => Number)
@@ -48,7 +63,25 @@ export class UploadReceiptDto {
   @Min(0)
   @IsOptional()
   @Type(() => Number)
+  subtotal?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  @Type(() => Number)
   taxAmount?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  @Type(() => Number)
+  discountAmount?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  @Type(() => Number)
+  serviceCharge?: number;
 
   @IsString()
   @IsOptional()
@@ -59,6 +92,14 @@ export class UploadReceiptDto {
 
   @IsString()
   @IsOptional()
+  paymentMethod?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
+  @IsString()
+  @IsOptional()
   ocrRawText?: string;
 
   @IsNumber()
@@ -66,4 +107,16 @@ export class UploadReceiptDto {
   @IsOptional()
   @Type(() => Number)
   ocrConfidence?: number;
+
+  @IsString()
+  @IsOptional()
+  originalSha256?: string;
+
+  @IsString()
+  @IsOptional()
+  processedSha256?: string;
+
+  @IsString()
+  @IsOptional()
+  source?: string;
 }

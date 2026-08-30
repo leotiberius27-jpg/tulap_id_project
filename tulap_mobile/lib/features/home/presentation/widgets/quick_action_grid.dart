@@ -53,27 +53,31 @@ class QuickActionGrid extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _QuickActionButton(
-            icon: Icons.camera_alt_outlined,
+            icon: Icons.camera_alt_rounded,
             label: 'Foto',
             iconBackground: AppColors.iconSoftBlue,
+            iconColor: AppColors.primary,
             onTap: onFotoKegiatan,
           ),
           _QuickActionButton(
-            icon: Icons.receipt_long_outlined,
+            icon: Icons.receipt_long_rounded,
             label: 'Nota',
-            iconBackground: AppColors.iconSoftCyan,
+            iconBackground: AppColors.iconSoftAmber,
+            iconColor: AppColors.warning,
             onTap: onScanNota,
           ),
           _QuickActionButton(
-            icon: Icons.location_on_outlined,
+            icon: Icons.location_on_rounded,
             label: 'Lokasi',
             iconBackground: AppColors.iconSoftTeal,
+            iconColor: AppColors.success,
             onTap: onLokasi,
           ),
           _QuickActionButton(
-            icon: Icons.description_outlined,
+            icon: Icons.description_rounded,
             label: 'LPJ',
             iconBackground: AppColors.iconSoftIndigo,
+            iconColor: const Color(0xFF7C3AED),
             onTap: onLihatLpj,
           ),
         ],
@@ -86,12 +90,14 @@ class _QuickActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color iconBackground;
+  final Color iconColor;
   final VoidCallback? onTap;
 
   const _QuickActionButton({
     required this.icon,
     required this.label,
     required this.iconBackground,
+    required this.iconColor,
     required this.onTap,
   });
 
@@ -126,7 +132,7 @@ class _QuickActionButton extends StatelessWidget {
               ),
               child: Icon(
                 icon,
-                color: isEnabled ? AppColors.action : AppColors.textSecondary,
+                color: isEnabled ? iconColor : AppColors.textSecondary,
                 size: 22,
               ),
             ),

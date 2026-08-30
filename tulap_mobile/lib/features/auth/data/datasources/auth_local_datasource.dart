@@ -26,18 +26,68 @@ class AuthLocalDataSource {
   AuthLocalDataSource({FlutterSecureStorage? secureStorage})
     : _secureStorage = secureStorage ?? const FlutterSecureStorage();
 
-  Future<void> saveSession({
+  Future<AuthUserModel> saveSession({
     required String accessToken,
     required String refreshToken,
     required AuthUserModel user,
   }) async {
+    // Ambil profil tersimpan lokal sebelumnya untuk mempertahankan foto & kustomisasi
+    final existingRegistered = await getRegisteredUserProfile(user.email);
+
+    final effectivePhotoUrl =
+        (user.photoUrl != null && user.photoUrl!.trim().isNotEmpty)
+            ? user.photoUrl
+            : existingRegistered?.photoUrl;
+
+    final effectiveInstansi =
+        (user.instansiName != null && user.instansiName!.trim().isNotEmpty)
+            ? user.instansiName
+            : existingRegistered?.instansiName;
+
+    final effectiveNip =
+        (user.nip != null && user.nip!.trim().isNotEmpty)
+            ? user.nip
+            : existingRegistered?.nip;
+
+    final effectivePhone =
+        (user.phoneNumber != null && user.phoneNumber!.trim().isNotEmpty)
+            ? user.phoneNumber
+            : existingRegistered?.phoneNumber;
+
+    final cleanedName = user.fullName
+        .replaceAll(
+          RegExp(
+            r'\s*\((?:Google|Google User|Apple|Apple User)\)',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .replaceAll(RegExp(r'\bGoogle User\b', caseSensitive: false), '')
+        .trim();
+
+    final effectiveFullName =
+        (cleanedName.isNotEmpty)
+            ? cleanedName
+            : (existingRegistered?.fullName.isNotEmpty == true
+                ? existingRegistered!.fullName
+                : user.fullName);
+
+    final finalUser = user.copyWith(
+      fullName: effectiveFullName,
+      photoUrl: effectivePhotoUrl,
+      instansiName: effectiveInstansi,
+      nip: effectiveNip,
+      phoneNumber: effectivePhone,
+    );
+
     await _secureStorage.write(key: _accessTokenKey, value: accessToken);
     await _secureStorage.write(key: _refreshTokenKey, value: refreshToken);
     await _secureStorage.write(
       key: _userProfileKey,
-      value: jsonEncode(user.toStorageMap()),
+      value: jsonEncode(finalUser.toStorageMap()),
     );
-    await saveRegisteredUserProfile(user);
+    await saveRegisteredUserProfile(finalUser);
+    return finalUser;
   }
 
   Future<void> saveRegisteredUserProfile(AuthUserModel user) async {

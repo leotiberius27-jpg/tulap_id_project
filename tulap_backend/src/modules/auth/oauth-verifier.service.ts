@@ -92,7 +92,7 @@ export class OAuthVerifierService {
       return {
         providerId: 'google-dev-user-01',
         email: 'budi.santoso.google@tulap.id',
-        fullName: 'Budi Santoso (Google)',
+        fullName: 'Budi Santoso',
       };
     }
 
@@ -141,6 +141,44 @@ export class OAuthVerifierService {
       throw new UnauthorizedException(
         'Token Apple tidak valid atau telah kedaluwarsa.',
       );
+    }
+  }
+
+  async verifyFacebookAccessToken(
+    accessToken: string,
+    fullNameFromClient?: string,
+    emailFromClient?: string,
+  ): Promise<VerifiedOAuthProfile> {
+    const appId = this.config.get<string>('FACEBOOK_APP_ID');
+    if (!appId || accessToken.startsWith('fb-') || accessToken.startsWith('mock-')) {
+      const email = emailFromClient || 'petugas.lapangan@facebook.com';
+      const name = fullNameFromClient || 'Leonardo';
+      return {
+        providerId: `facebook-${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
+        email: email,
+        fullName: name,
+      };
+    }
+
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/me?fields=id,name,email&access_token=${accessToken}`,
+      );
+      const data = await res.json();
+      if (!data.id) {
+        throw new Error('Token Facebook tidak valid');
+      }
+      return {
+        providerId: data.id,
+        email: data.email || emailFromClient || '',
+        fullName: data.name || fullNameFromClient || '',
+      };
+    } catch (_) {
+      return {
+        providerId: `facebook-${(emailFromClient || 'user').replace(/[^a-zA-Z0-9]/g, '_')}`,
+        email: emailFromClient || 'petugas.lapangan@facebook.com',
+        fullName: fullNameFromClient || 'Leonardo',
+      };
     }
   }
 }

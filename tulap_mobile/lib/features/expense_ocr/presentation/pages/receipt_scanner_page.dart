@@ -3,15 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../domain/entities/expense_note_entity.dart';
 import '../controllers/receipt_scanner_controller.dart';
 import '../widgets/receipt_review_sheet.dart';
+import 'manual_expense_page.dart';
 
 /// ReceiptScannerPage
 /// ----------------------------------------------------------------------
-/// Alur: Scan Nota -> Kamera -> OCR -> Review (bottom sheet) -> Confirm
-/// (Bagian 9 spesifikasi). Halaman ini sengaja TIDAK full-screen seperti
-/// GeotagCameraPage - nota adalah dokumen datar yang lebih nyaman
-/// difoto dengan guide framing sederhana, bukan watermark live overlay.
+/// Scanner Kamera Khusus Dokumen Nota:
+/// - Framing guide persegi panjang dokumen
+/// - Tombol senter / flash
+/// - Tombol Import dari Galeri
+/// - Tombol Input Manual tanpa nota fisik
 /// ----------------------------------------------------------------------
 class ReceiptScannerPage extends StatelessWidget {
   final CameraController cameraController;
@@ -24,9 +27,6 @@ class ReceiptScannerPage extends StatelessWidget {
       builder: (context, controller, _) {
         final state = controller.state;
 
-        // Begitu status reviewing, tampilkan Review Sheet secara modal
-        // di atas live camera - user masih bisa melihat konteks kamera
-        // di belakang sheet.
         if (state.status == ReceiptScanStatus.reviewing ||
             state.status == ReceiptScanStatus.saving) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -36,19 +36,75 @@ class ReceiptScannerPage extends StatelessWidget {
           });
         }
 
-        return Scaffold(
-          backgroundColor: Colors.black,
-          body: Stack(
-            children: [
-              Positioned.fill(child: CameraPreview(cameraController)),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final screenWidth = constraints.maxWidth;
+            final screenHeight = constraints.maxHeight;
 
-              // Frame guide sederhana untuk membantu user mengambil
-              // foto nota yang rata & terbaca OCR
-              const Center(child: _ReceiptFrameGuide()),
+            var cameraRatio = cameraController.value.aspectRatio;
+            if (cameraRatio > 1.0) {
+              cameraRatio = 1.0 / cameraRatio;
+            }
 
+            final screenRatio = screenWidth / screenHeight;
+            final scale = screenRatio < cameraRatio
+                ? (cameraRatio / screenRatio)
+                : (screenRatio / cameraRatio);
+
+            return Scaffold(
+              backgroundColor: Colors.black,
+              body: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Fullscreen Edge-to-Edge Camera Preview
+                  Center(
+                    child: ClipRect(
+                      child: SizedBox(
+                        width: screenWidth,
+                        height: screenHeight,
+                        child: Center(
+                          child: Transform.scale(
+                            scale: scale,
+                            child: AspectRatio(
+                              aspectRatio: cameraRatio,
+                              child: CameraPreview(cameraController),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Tap to Focus & Exposure Area
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapUp: (details) {
+                        try {
+                          final offset = details.localPosition;
+                          final x = (offset.dx / screenWidth).clamp(0.0, 1.0);
+                          final y = (offset.dy / screenHeight).clamp(0.0, 1.0);
+                          cameraController.setFocusPoint(Offset(x, y));
+                          cameraController.setExposurePoint(Offset(x, y));
+                        } catch (_) {}
+                      },
+                    ),
+                  ),
+
+                  // Semi-transparent overlay with document crop window
+                  const Positioned.fill(
+                    child: IgnorePointer(
+                      child: _DocumentScanOverlay(),
+                    ),
+                  ),
+
+              // Header Bar
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.base),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.base,
+                    vertical: AppSpacing.sm,
+                  ),
                   child: Row(
                     children: [
                       _CircleIconButton(
@@ -58,78 +114,166 @@ class ReceiptScannerPage extends StatelessWidget {
                       ),
                       const Spacer(),
                       const Text(
-                        'Scan Nota',
+                        'Scan Nota Pengeluaran',
                         style: TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
                         ),
                       ),
                       const Spacer(),
-                      const SizedBox(width: 40), // Penyeimbang tombol back
+                      _CircleIconButton(
+                        icon: state.isFlashOn ? Icons.flash_on : Icons.flash_off,
+                        semanticLabel: 'Flash',
+                        color: state.isFlashOn ? Colors.amber : Colors.white,
+                        onTap: () => controller.toggleFlash(cameraController),
+                      ),
                     ],
                   ),
                 ),
               ),
 
+              // Bottom Controls Bar
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 32,
+                bottom: 36,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (state.status == ReceiptScanStatus.scanning) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
+                          horizontal: AppSpacing.base,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Membaca teks nota (OCR)...',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.base),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
+                          color: Colors.black.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: const Text(
-                          'Memproses nota...',
+                          'Posisikan nota di dalam bingkai',
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.md),
+                      const SizedBox(height: AppSpacing.base),
                     ],
-                    Center(
-                      child: Semantics(
-                        button: true,
-                        label: 'Ambil foto nota',
-                        enabled: state.status != ReceiptScanStatus.scanning,
-                        child: GestureDetector(
-                          onTap: state.status == ReceiptScanStatus.scanning
-                              ? null
-                              : () {
-                                  HapticFeedback.mediumImpact();
-                                  controller.captureAndScan();
-                                },
-                          child: Container(
-                            width: 76,
-                            height: 76,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 4),
-                              color: Colors.white.withOpacity(0.25),
-                            ),
-                            child: state.status == ReceiptScanStatus.scanning
-                                ? const Padding(
-                                    padding: EdgeInsets.all(20),
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 3,
-                                    ),
-                                  )
-                                : null,
+
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          // Tombol Galeri
+                          _ActionButton(
+                            icon: Icons.photo_library_rounded,
+                            label: 'Galeri',
+                            onTap: state.status == ReceiptScanStatus.scanning
+                                ? null
+                                : () => controller.importFromGalleryAndScan(),
                           ),
-                        ),
+
+                          // Tombol Shutter
+                          Semantics(
+                            button: true,
+                            label: 'Ambil foto nota',
+                            enabled: state.status != ReceiptScanStatus.scanning,
+                            child: GestureDetector(
+                              onTap: state.status == ReceiptScanStatus.scanning
+                                  ? null
+                                  : () {
+                                      HapticFeedback.mediumImpact();
+                                      controller.captureAndScan();
+                                    },
+                              child: Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 4),
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                ),
+                                child: state.status == ReceiptScanStatus.scanning
+                                    ? const Padding(
+                                        padding: EdgeInsets.all(22),
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 3,
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Container(
+                                          width: 62,
+                                          height: 62,
+                                          decoration: const BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+
+                          // Tombol Manual
+                          _ActionButton(
+                            icon: Icons.edit_note_rounded,
+                            label: 'Manual',
+                            onTap: state.status == ReceiptScanStatus.scanning
+                                ? null
+                                : () async {
+                                    final saved = await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => ManualExpensePage(
+                                          taskId: controller.taskId,
+                                        ),
+                                      ),
+                                    );
+                                    if (context.mounted && saved != null) {
+                                      Navigator.of(context).pop(saved);
+                                    }
+                                  },
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -140,14 +284,16 @@ class ReceiptScannerPage extends StatelessWidget {
                 _ErrorBanner(
                   message:
                       state.errorMessage ??
-                      'Nominal kurang jelas, mohon periksa.',
+                      'Gagal membaca nota. Coba foto ulang.',
                 ),
             ],
           ),
         );
       },
     );
-  }
+  },
+);
+}
 
   void _showReviewSheet(
     BuildContext context,
@@ -159,69 +305,152 @@ class ReceiptScannerPage extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
       backgroundColor: Colors.transparent,
-      builder: (_) => ReceiptReviewSheet(
-        draft: draft,
-        isSaving: controller.state.status == ReceiptScanStatus.saving,
-        onSave:
-            ({
-              required vendorName,
-              required transactionDate,
-              required totalAmount,
-              required category,
-              taxAmount,
-              receiptNumber,
-            }) async {
-              final result = await controller.confirmSave(
-                vendorName: vendorName,
-                transactionDate: transactionDate,
-                totalAmount: totalAmount,
-                category: category,
-                taxAmount: taxAmount,
-                receiptNumber: receiptNumber,
-              );
+      enableDrag: true,
+      builder: (_) {
+        return ReceiptReviewSheet(
+          draft: draft,
+          isSaving: controller.state.status == ReceiptScanStatus.saving,
+          duplicateWarning: controller.state.duplicateWarning,
+          onSave: ({
+            required String vendorName,
+            required DateTime transactionDate,
+            String? transactionTime,
+            required double totalAmount,
+            required ExpenseCategoryEntity category,
+            double? subtotal,
+            double? taxAmount,
+            double? discountAmount,
+            double? serviceCharge,
+            String? receiptNumber,
+            String? paymentMethod,
+            String? notes,
+          }) async {
+            final result = await controller.confirmSave(
+              vendorName: vendorName,
+              transactionDate: transactionDate,
+              transactionTime: transactionTime,
+              totalAmount: totalAmount,
+              category: category,
+              subtotal: subtotal,
+              taxAmount: taxAmount,
+              discountAmount: discountAmount,
+              serviceCharge: serviceCharge,
+              receiptNumber: receiptNumber,
+              paymentMethod: paymentMethod,
+              notes: notes,
+            );
 
-              if (!context.mounted) return;
-
+            if (context.mounted) {
+              Navigator.of(context).pop(); // Tutup Review Sheet
               if (result.isSuccess) {
-                Navigator.of(context).pop(); // Tutup sheet
-                Navigator.of(
-                  context,
-                ).pop(result.savedNote); // Kembali ke Detail Tugas
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      result.errorMessage ?? 'Nota belum berhasil disimpan.',
-                    ),
-                  ),
-                );
+                Navigator.of(context).pop(result.savedNote); // Kembali ke Task Detail
               }
-            },
+            }
+          },
+        );
+      },
+    ).whenComplete(() {
+      if (controller.state.status == ReceiptScanStatus.reviewing) {
+        controller.discardAndRescan();
+      }
+    });
+  }
+}
+
+class _DocumentScanOverlay extends StatelessWidget {
+  const _DocumentScanOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth * 0.85;
+        final height = constraints.maxHeight * 0.58;
+
+        return Stack(
+          children: [
+            Center(
+              child: Container(
+                width: width,
+                height: height,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary, width: 2.5),
+                ),
+                child: Stack(
+                  children: [
+                    // 4 Corner brackets
+                    Positioned(top: -2, left: -2, child: _CornerBracket(isTop: true, isLeft: true)),
+                    Positioned(top: -2, right: -2, child: _CornerBracket(isTop: true, isLeft: false)),
+                    Positioned(bottom: -2, left: -2, child: _CornerBracket(isTop: false, isLeft: true)),
+                    Positioned(bottom: -2, right: -2, child: _CornerBracket(isTop: false, isLeft: false)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CornerBracket extends StatelessWidget {
+  final bool isTop;
+  final bool isLeft;
+
+  const _CornerBracket({required this.isTop, required this.isLeft});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        border: Border(
+          top: isTop ? const BorderSide(color: Colors.white, width: 4) : BorderSide.none,
+          bottom: !isTop ? const BorderSide(color: Colors.white, width: 4) : BorderSide.none,
+          left: isLeft ? const BorderSide(color: Colors.white, width: 4) : BorderSide.none,
+          right: !isLeft ? const BorderSide(color: Colors.white, width: 4) : BorderSide.none,
+        ),
       ),
     );
   }
 }
 
-class _ReceiptFrameGuide extends StatelessWidget {
-  const _ReceiptFrameGuide();
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 260,
-      height: 360,
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.white70, width: 2),
-        borderRadius: BorderRadius.circular(AppRadius.small),
-      ),
-      child: const Center(
-        child: Text(
-          'Posisikan nota di dalam bingkai',
-          style: TextStyle(color: Colors.white70, fontSize: 12),
-          textAlign: TextAlign.center,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(30),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 28),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -230,13 +459,15 @@ class _ReceiptFrameGuide extends StatelessWidget {
 
 class _CircleIconButton extends StatelessWidget {
   final IconData icon;
-  final VoidCallback onTap;
   final String semanticLabel;
+  final VoidCallback onTap;
+  final Color color;
 
   const _CircleIconButton({
     required this.icon,
-    required this.onTap,
     required this.semanticLabel,
+    required this.onTap,
+    this.color = Colors.white,
   });
 
   @override
@@ -247,13 +478,13 @@ class _CircleIconButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 40,
-          height: 40,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.4),
             shape: BoxShape.circle,
+            color: Colors.black.withValues(alpha: 0.45),
           ),
-          child: Icon(icon, color: Colors.white, size: 20),
+          child: Icon(icon, color: color, size: 22),
         ),
       ),
     );
@@ -262,6 +493,7 @@ class _CircleIconButton extends StatelessWidget {
 
 class _ErrorBanner extends StatelessWidget {
   final String message;
+
   const _ErrorBanner({required this.message});
 
   @override
@@ -270,15 +502,37 @@ class _ErrorBanner extends StatelessWidget {
       top: 90,
       left: AppSpacing.base,
       right: AppSpacing.base,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.dangerSoft,
-          borderRadius: BorderRadius.circular(AppRadius.small),
-        ),
-        child: Text(
-          message,
-          style: AppTypography.small.copyWith(color: AppColors.danger),
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.danger,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black38,
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

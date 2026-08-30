@@ -29,7 +29,7 @@ void main() {
       (i) => GeotagPhotoEntity(
         id: 'photo-$i',
         taskId: 'TL-202608-0001',
-        localFilePath: 'assets/images/referensi/01.png',
+        localFilePath: 'assets/images/hero_illustration.png',
         latitude: -4.546123 + (i * 0.0001),
         longitude: 136.887421 + (i * 0.0001),
         gpsAccuracyMeters: 5.0 + i,

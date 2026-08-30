@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../app/presentation/main_shell.dart';
+import '../../../../core/security/biometric_auth_service.dart';
 import '../../../../core/security/oauth_sign_in_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/google_logo_icon.dart';
@@ -10,6 +11,7 @@ import '../../domain/entities/auth_user_entity.dart';
 import '../../domain/usecases/is_biometric_login_enabled.dart';
 import '../../domain/usecases/login.dart';
 import '../../domain/usecases/login_with_apple.dart';
+import '../../domain/usecases/login_with_facebook.dart';
 import '../../domain/usecases/login_with_google.dart';
 import '../../domain/usecases/restore_biometric_session.dart';
 import '../controllers/login_controller.dart';
@@ -20,7 +22,7 @@ import 'register_page.dart';
 /// ----------------------------------------------------------------------
 /// Layar Masuk resmi Tulap.id (Clean, Minimal, Modern & Responsive).
 /// Mengikuti struktur visual: Logo -> Selamat Datang -> Form Email/Password
-/// -> Lupa Password -> Tombol Masuk -> Divider -> Social Login (Google/Apple)
+/// -> Lupa Password -> Tombol Masuk -> Divider -> Social Login (Google/Facebook)
 /// -> Quick Biometric -> Register -> Terms/Privacy.
 /// ----------------------------------------------------------------------
 class LoginPage extends StatelessWidget {
@@ -34,13 +36,17 @@ class LoginPage extends StatelessWidget {
       create: (_) => LoginController(
         login: sl<Login>(),
         loginWithGoogle: sl<LoginWithGoogle>(),
-        loginWithApple: sl<LoginWithApple>(),
+        loginWithApple: sl.isRegistered<LoginWithApple>() ? sl<LoginWithApple>() : null,
+        loginWithFacebook: sl.isRegistered<LoginWithFacebook>() ? sl<LoginWithFacebook>() : null,
         oauthSignInService: sl<OAuthSignInService>(),
         restoreBiometricSession: sl.isRegistered<RestoreBiometricSession>()
             ? sl<RestoreBiometricSession>()
             : null,
         isBiometricLoginEnabled: sl.isRegistered<IsBiometricLoginEnabled>()
             ? sl<IsBiometricLoginEnabled>()
+            : null,
+        biometricAuthService: sl.isRegistered<BiometricAuthService>()
+            ? sl<BiometricAuthService>()
             : null,
       ),
       child: _LoginView(onLoginSuccess: onLoginSuccess),
@@ -107,10 +113,10 @@ class _LoginViewState extends State<_LoginView> {
     _onSuccess(controller);
   }
 
-  Future<void> _submitApple(LoginController controller) async {
+  Future<void> _submitFacebook(LoginController controller) async {
     FocusScope.of(context).unfocus();
     HapticFeedback.lightImpact();
-    final success = await controller.submitWithApple();
+    final success = await controller.submitWithFacebook();
     if (!mounted || success != true) return;
     _onSuccess(controller);
   }
@@ -621,7 +627,7 @@ class _LoginViewState extends State<_LoginView> {
                             ),
                             const SizedBox(height: 12),
 
-                            // Tombol Google & Apple
+                            // Tombol Google & Facebook
                             if (isNarrow)
                               Column(
                                 children: [
@@ -634,15 +640,15 @@ class _LoginViewState extends State<_LoginView> {
                                   ),
                                   const SizedBox(height: 8),
                                   _buildSocialButton(
-                                    label: 'Apple',
+                                    label: 'Facebook',
                                     icon: const Icon(
-                                      Icons.apple,
-                                      color: Colors.black,
-                                      size: 22,
+                                      Icons.facebook,
+                                      color: Color(0xFF1877F2),
+                                      size: 24,
                                     ),
                                     onTap: isBusy
                                         ? null
-                                        : () => _submitApple(controller),
+                                        : () => _submitFacebook(controller),
                                   ),
                                 ],
                               )
@@ -661,15 +667,15 @@ class _LoginViewState extends State<_LoginView> {
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: _buildSocialButton(
-                                      label: 'Apple',
+                                      label: 'Facebook',
                                       icon: const Icon(
-                                        Icons.apple,
-                                        color: Colors.black,
-                                        size: 22,
+                                        Icons.facebook,
+                                        color: Color(0xFF1877F2),
+                                        size: 24,
                                       ),
                                       onTap: isBusy
                                           ? null
-                                          : () => _submitApple(controller),
+                                          : () => _submitFacebook(controller),
                                     ),
                                   ),
                                 ],

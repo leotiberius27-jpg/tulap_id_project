@@ -22,12 +22,14 @@ import '../widgets/account_menu_row.dart';
 import '../widgets/account_section_card.dart';
 import '../widgets/logout_protection_dialog.dart';
 import '../widgets/profile_header_card.dart';
+import '../../../../core/localization/language_controller.dart';
 import 'about_tulap_page.dart';
 import 'camera_settings_page.dart';
 import 'device_storage_page.dart';
 import 'display_settings_page.dart';
 import 'edit_profile_page.dart';
 import 'help_support_page.dart';
+import 'language_settings_page.dart';
 import 'location_settings_page.dart';
 import 'notification_settings_page.dart';
 import 'privacy_page.dart';
@@ -214,7 +216,35 @@ class _AccountView extends StatelessWidget {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (controller.state.pendingSyncCount > 0)
+                            if (controller.state.isSyncing)
+                              const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primary,
+                                ),
+                              )
+                            else if (controller.state.failedSyncCount > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.dangerSoft,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  '${controller.state.failedSyncCount}',
+                                  style: AppTypography.small.copyWith(
+                                    color: AppColors.danger,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              )
+                            else if (controller.state.pendingSyncCount > 0)
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
@@ -247,11 +277,16 @@ class _AccountView extends StatelessWidget {
                             ),
                           ],
                         ),
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SyncCenterPage(),
-                          ),
-                        ),
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const SyncCenterPage(),
+                            ),
+                          );
+                          if (context.mounted) {
+                            controller.refresh();
+                          }
+                        },
                       ),
                       AccountMenuRow(
                         icon: Icons.storage_outlined,
@@ -321,11 +356,22 @@ class _AccountView extends StatelessWidget {
                         icon: Icons.palette_outlined,
                         iconBgColor: AppColors.iconSoftCyan,
                         title: 'Tampilan',
-                        subtitle: 'Tema standar lapangan berlatar kontras',
-                        showDivider: false,
+                        subtitle: 'Mode terang, gelap, & sistem',
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const DisplaySettingsPage(),
+                          ),
+                        ),
+                      ),
+                      AccountMenuRow(
+                        icon: Icons.language_rounded,
+                        iconBgColor: AppColors.iconSoftBlue,
+                        title: 'Bahasa / Language',
+                        subtitle: sl<LanguageController>().currentLanguage.label,
+                        showDivider: false,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const LanguageSettingsPage(),
                           ),
                         ),
                       ),

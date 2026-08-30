@@ -102,10 +102,8 @@ class _LivingHeroSceneState extends State<LivingHeroScene>
                             'assets/images/hero_illustration.png',
                             fit: BoxFit.contain,
                             alignment: Alignment.bottomCenter,
-                            errorBuilder: (_, __, ___) => Image.asset(
-                              'assets/images/referensi/01.png',
-                              fit: BoxFit.cover,
-                            ),
+                            errorBuilder: (_, __, ___) =>
+                                const SizedBox.shrink(),
                           ),
                         ),
 

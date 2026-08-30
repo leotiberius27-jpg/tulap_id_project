@@ -122,6 +122,37 @@ export class TasksService {
       where.status = query.status;
     }
 
+    if (query.search) {
+      const s = query.search.trim();
+      where.OR = [
+        { taskName: { contains: s, mode: 'insensitive' } },
+        { taskCode: { contains: s, mode: 'insensitive' } },
+        { destination: { contains: s, mode: 'insensitive' } },
+        { description: { contains: s, mode: 'insensitive' } },
+      ];
+    }
+
+    if (query.location) {
+      where.destination = { contains: query.location.trim(), mode: 'insensitive' };
+    }
+
+    if (query.startDate || query.endDate) {
+      where.startDate = {};
+      if (query.startDate) {
+        where.startDate.gte = new Date(query.startDate);
+      }
+      if (query.endDate) {
+        where.startDate.lte = new Date(query.endDate);
+      }
+    } else if (query.year) {
+      const startOfYear = new Date(query.year, 0, 1);
+      const endOfYear = new Date(query.year + 1, 0, 1);
+      where.startDate = {
+        gte: startOfYear,
+        lt: endOfYear,
+      };
+    }
+
     const [items, total] = await Promise.all([
       this.prisma.task_SPPD.findMany({
         where,
@@ -431,6 +462,13 @@ export class TasksService {
       },
       creator: {
         select: { id: true, fullName: true, email: true },
+      },
+      _count: {
+        select: {
+          geotagPhotos: true,
+          expenseNotes: true,
+          checklistItems: true,
+        },
       },
       revisionNotes: {
         orderBy: { createdAt: 'desc' as const },

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 /// AppThemeMode
 /// ----------------------------------------------------------------------
@@ -15,7 +15,7 @@ enum AppThemeMode {
   ThemeMode toFlutterThemeMode() {
     switch (this) {
       case AppThemeMode.system:
-        return ThemeMode.system;
+        return ThemeMode.light; // Ikuti Sistem dibuat otomatis ke Mode Terang
       case AppThemeMode.light:
         return ThemeMode.light;
       case AppThemeMode.dark:
@@ -27,13 +27,13 @@ enum AppThemeMode {
 
   static AppThemeMode fromCode(String? code) {
     switch (code?.toLowerCase().trim()) {
-      case 'light':
-        return AppThemeMode.light;
       case 'dark':
         return AppThemeMode.dark;
       case 'system':
-      default:
         return AppThemeMode.system;
+      case 'light':
+      default:
+        return AppThemeMode.light;
     }
   }
 
@@ -51,7 +51,7 @@ enum AppThemeMode {
   String get subtitle {
     switch (this) {
       case AppThemeMode.system:
-        return 'Menyesuaikan tema perangkat';
+        return 'Standar tampilan terang';
       case AppThemeMode.light:
         return 'Tampilan terang Tulap.id';
       case AppThemeMode.dark:

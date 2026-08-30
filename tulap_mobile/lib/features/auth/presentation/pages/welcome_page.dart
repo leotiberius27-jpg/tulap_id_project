@@ -5,7 +5,6 @@ import '../../../../app/di/injection_container.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/security/biometric_auth_service.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/hero_video_scene.dart';
 import '../../../../core/widgets/micro_interactions.dart';
 import '../../domain/entities/auth_user_entity.dart';
 import '../../domain/usecases/get_biometric_greeting_user.dart';
@@ -134,12 +133,21 @@ class _WelcomeViewState extends State<_WelcomeView>
             fit: StackFit.expand,
             children: [
               // ========================================================
-              // LAYER BELAKANG: HERO VIDEO BACKGROUND (Non-Interaktif)
+              // LAYER BELAKANG: CLEAN BRAND GRADIENT (Distraction-Free)
               // ========================================================
-              const Positioned.fill(
-                child: HeroVideoScene(
-                  fit: BoxFit.cover,
-                  alignment: Alignment.topCenter,
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xFF003E9A),
+                        Color(0xFF0056D2),
+                        Color(0xFF1E88E5),
+                      ],
+                    ),
+                  ),
                 ),
               ),
 

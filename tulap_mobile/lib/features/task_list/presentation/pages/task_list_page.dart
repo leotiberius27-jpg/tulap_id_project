@@ -14,6 +14,7 @@ import '../../../task_detail/presentation/controllers/task_detail_controller.dar
 import '../../../task_detail/presentation/pages/create_activity_page.dart';
 import '../../../task_detail/presentation/pages/task_detail_page.dart';
 import '../../../task_detail/presentation/widgets/task_status_banner.dart';
+import '../../../travel_mission/presentation/pages/travel_mission_list_page.dart';
 import '../controllers/task_list_controller.dart';
 
 /// TaskListPage (Tugas & Kegiatan)
@@ -46,6 +47,15 @@ class _TaskListView extends StatelessWidget {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.flight_takeoff_rounded),
+            tooltip: 'Perjalanan Dinas (SPPD)',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const TravelMissionListPage()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.add_circle_outline_rounded),
             tooltip: 'Buat Kegiatan Lapangan',

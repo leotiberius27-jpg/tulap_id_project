@@ -5,7 +5,15 @@
 /// entri outbox dengan tipe ini, tanpa SyncQueue perlu tahu detail
 /// internal masing-masing fitur.
 /// ----------------------------------------------------------------------
-enum SyncEntityType { geotagPhoto, expenseNote, taskChecklist }
+enum SyncEntityType {
+  geotagPhoto,
+  expenseNote,
+  taskChecklist,
+  activityReport,
+  travelMission,
+  supportingDocument,
+  lpjPackage,
+}
 
 /// SyncStatus
 /// ----------------------------------------------------------------------
@@ -53,6 +61,14 @@ class SyncRecordEntity {
   static const int maxAutoRetryAttempts = 5;
 
   bool get hasExceededRetryLimit => attemptCount >= maxAutoRetryAttempts;
+
+  bool get canAutoRetry =>
+      !hasExceededRetryLimit &&
+      status != SyncStatus.synced &&
+      status != SyncStatus.failed;
+
+  bool get isFailedPermanent =>
+      hasExceededRetryLimit || status == SyncStatus.failed;
 
   SyncRecordEntity copyWith({
     SyncStatus? status,

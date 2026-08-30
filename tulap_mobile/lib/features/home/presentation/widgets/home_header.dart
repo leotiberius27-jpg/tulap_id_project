@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/user_avatar.dart';
 
@@ -18,6 +19,7 @@ class HomeHeader extends StatelessWidget {
   final int unreadNotificationCount;
   final VoidCallback onNotificationTap;
   final VoidCallback? onProfileTap;
+  final VoidCallback? onLogoTap;
 
   const HomeHeader({
     super.key,
@@ -27,6 +29,7 @@ class HomeHeader extends StatelessWidget {
     this.unreadNotificationCount = 0,
     required this.onNotificationTap,
     this.onProfileTap,
+    this.onLogoTap,
   });
 
   String get _dynamicGreeting {
@@ -66,30 +69,38 @@ class HomeHeader extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 1. Logo Tulap.id
-          Container(
-            width: isSmallScreen ? 38 : 46,
-            height: isSmallScreen ? 38 : 46,
-            decoration: BoxDecoration(
-              color: colors.surface,
+          // 1. Logo Tulap.id (Navigasi ke Pengaturan)
+          Semantics(
+            button: true,
+            label: 'Pengaturan',
+            child: InkWell(
+              onTap: onLogoTap,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: colors.border.withValues(alpha: 0.5)),
-              boxShadow: [
-                BoxShadow(
-                  color: colors.shadowSoft,
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+              child: Container(
+                width: isSmallScreen ? 38 : 46,
+                height: isSmallScreen ? 38 : 46,
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: colors.border.withValues(alpha: 0.5)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.shadowSoft,
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            padding: const EdgeInsets.all(6),
-            child: Image.asset(
-              'assets/images/logo.png',
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Icon(
-                Icons.task_alt_rounded,
-                color: colors.primary,
-                size: 24,
+                padding: const EdgeInsets.all(6),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Icon(
+                    Icons.task_alt_rounded,
+                    color: colors.primary,
+                    size: 24,
+                  ),
+                ),
               ),
             ),
           ),
@@ -102,7 +113,7 @@ class HomeHeader extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _dynamicGreeting,
+                  context.l10n.greeting(DateTime.now().hour),
                   style: AppTypography.small.copyWith(
                     fontSize: isSmallScreen ? 12.5 : 14,
                     color: colors.textSecondary,

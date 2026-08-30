@@ -26,6 +26,75 @@ enum LocationTier {
   mocked,
 }
 
+/// LocationQuality
+/// ----------------------------------------------------------------------
+/// Klasifikasi kualitas akurasi lokasi menurut standar forensik Tulap.id:
+/// - excellent : 0 - 10 meter (Sangat Akurat)
+/// - good      : >10 - 25 meter (Akurat)
+/// - acceptable: >25 - 50 meter (Tersedia)
+/// - poor      : >50 meter (Akurasi Rendah)
+/// ----------------------------------------------------------------------
+enum LocationQuality {
+  excellent,
+  good,
+  acceptable,
+  poor;
+
+  static LocationQuality fromAccuracy(double? accuracy) {
+    if (accuracy == null) return LocationQuality.poor;
+    if (accuracy <= 10.0) return LocationQuality.excellent;
+    if (accuracy <= 25.0) return LocationQuality.good;
+    if (accuracy <= 50.0) return LocationQuality.acceptable;
+    return LocationQuality.poor;
+  }
+
+  String labelIndonesian(double? accuracy) {
+    final accStr = accuracy != null ? '±${accuracy.round()} m' : '±-- m';
+    switch (this) {
+      case LocationQuality.excellent:
+        return '✓ Lokasi sangat akurat · $accStr';
+      case LocationQuality.good:
+        return '✓ Lokasi akurat · $accStr';
+      case LocationQuality.acceptable:
+        return '● Lokasi tersedia · $accStr';
+      case LocationQuality.poor:
+        return '⚠ Akurasi rendah · $accStr';
+    }
+  }
+}
+
+/// LocationSnapshot
+/// ----------------------------------------------------------------------
+/// Snapshot atomik lokasi pada detik media diambil (shutter foto / start video).
+/// ----------------------------------------------------------------------
+class LocationSnapshot {
+  final double latitude;
+  final double longitude;
+  final double accuracy;
+  final double? altitude;
+  final double? heading;
+  final double? speed;
+  final DateTime recordedAt;
+  final String source;
+  final bool isMock;
+  final String? address;
+
+  const LocationSnapshot({
+    required this.latitude,
+    required this.longitude,
+    required this.accuracy,
+    this.altitude,
+    this.heading,
+    this.speed,
+    required this.recordedAt,
+    this.source = 'GPS_FUSED',
+    this.isMock = false,
+    this.address,
+  });
+
+  LocationQuality get quality => LocationQuality.fromAccuracy(accuracy);
+}
+
 /// FastLocationData
 /// ----------------------------------------------------------------------
 /// Representasi terpadu state lokasi real-time.
@@ -36,6 +105,8 @@ class FastLocationData {
   final double? latitude;
   final double? longitude;
   final double? accuracy;
+  final double? altitude;
+  final double? heading;
   final String? address;
   final DateTime timestamp;
   final bool isMocked;
@@ -48,6 +119,8 @@ class FastLocationData {
     this.latitude,
     this.longitude,
     this.accuracy,
+    this.altitude,
+    this.heading,
     this.address,
     required this.timestamp,
     this.isMocked = false,
@@ -60,12 +133,33 @@ class FastLocationData {
   bool get isUsableForCapture =>
       (tier == LocationTier.verified || isGpsLocked) && !isMocked;
 
+  LocationQuality get quality => LocationQuality.fromAccuracy(accuracy);
+  String get qualityBadgeText => quality.labelIndonesian(accuracy);
+
+  LocationSnapshot? toSnapshot({String source = 'GPS_FUSED'}) {
+    if (latitude == null || longitude == null) return null;
+    return LocationSnapshot(
+      latitude: latitude!,
+      longitude: longitude!,
+      accuracy: accuracy ?? 100.0,
+      altitude: altitude ?? position?.altitude,
+      heading: heading ?? position?.heading,
+      speed: position?.speed,
+      recordedAt: timestamp,
+      source: source,
+      isMock: isMocked,
+      address: address,
+    );
+  }
+
   FastLocationData copyWith({
     LocationTier? tier,
     Position? position,
     double? latitude,
     double? longitude,
     double? accuracy,
+    double? altitude,
+    double? heading,
     String? address,
     DateTime? timestamp,
     bool? isMocked,
@@ -78,6 +172,8 @@ class FastLocationData {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       accuracy: accuracy ?? this.accuracy,
+      altitude: altitude ?? this.altitude,
+      heading: heading ?? this.heading,
       address: address ?? this.address,
       timestamp: timestamp ?? this.timestamp,
       isMocked: isMocked ?? this.isMocked,

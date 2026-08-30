@@ -1,10 +1,13 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/session/auth_session_manager.dart';
 import '../../../../core/sync/background_sync_service.dart';
 import '../../../auth/domain/entities/auth_user_entity.dart';
 import '../../../auth/domain/usecases/get_current_session.dart';
+import '../../../dashboard/domain/entities/dashboard_period.dart';
+import '../../../dashboard/domain/entities/dashboard_summary_entity.dart';
+import '../../../dashboard/domain/usecases/get_dashboard_analytics.dart';
 import '../../../geotag_camera/domain/usecases/get_task_photo_previews.dart';
 import '../../../notifications/domain/services/notification_coordinator.dart';
 import '../../../notifications/domain/usecases/get_unread_notification_count.dart';
@@ -31,6 +34,11 @@ class HomeState {
   final bool isSyncing;
   final String? errorMessage;
 
+  // Phase 11: Dashboard & Field Intelligence
+  final DashboardPeriod? selectedPeriod;
+  final DashboardSummaryEntity? dashboardSummary;
+  final bool isLoadingDashboard;
+
   const HomeState({
     this.status = HomeStatus.loading,
     this.user,
@@ -44,7 +52,13 @@ class HomeState {
     this.allSynced = false,
     this.isSyncing = false,
     this.errorMessage,
+    this.selectedPeriod,
+    this.dashboardSummary,
+    this.isLoadingDashboard = false,
   });
+
+  /// Helper getter for safe selected period
+  DashboardPeriod get safePeriod => selectedPeriod ?? DashboardPeriod.thisMonth();
 
   /// Daftar kegiatan prioritas di carousel horizontal (maksimal 5 kegiatan)
   List<TaskEntity> get topActivities {
@@ -117,6 +131,9 @@ class HomeState {
     bool? allSynced,
     bool? isSyncing,
     String? errorMessage,
+    DashboardPeriod? selectedPeriod,
+    DashboardSummaryEntity? dashboardSummary,
+    bool? isLoadingDashboard,
   }) {
     return HomeState(
       status: status ?? this.status,
@@ -132,13 +149,14 @@ class HomeState {
       allSynced: allSynced ?? this.allSynced,
       isSyncing: isSyncing ?? this.isSyncing,
       errorMessage: errorMessage ?? this.errorMessage,
+      selectedPeriod: selectedPeriod ?? safePeriod,
+      dashboardSummary: dashboardSummary ?? this.dashboardSummary,
+      isLoadingDashboard: isLoadingDashboard ?? this.isLoadingDashboard,
     );
   }
 }
 
 /// HomeController
-/// ----------------------------------------------------------------------
-/// Mengelola state Beranda secara reaktif, data-driven, dan offline-first.
 /// ----------------------------------------------------------------------
 class HomeController extends ChangeNotifier {
   final GetCurrentSession _getCurrentSession;
@@ -151,10 +169,11 @@ class HomeController extends ChangeNotifier {
   final GetTaskPhotoPreviews? _getTaskPhotoPreviews;
   final GetUnreadNotificationCount? _getUnreadNotificationCount;
   final NotificationCoordinator? _notificationCoordinator;
+  final GetDashboardAnalytics? _getDashboardAnalytics;
 
   StreamSubscription<int>? _unreadSubscription;
 
-  HomeState _state = const HomeState();
+  HomeState _state = HomeState(selectedPeriod: DashboardPeriod.thisMonth());
   HomeState get state => _state;
 
   HomeController({
@@ -168,6 +187,7 @@ class HomeController extends ChangeNotifier {
     GetTaskPhotoPreviews? getTaskPhotoPreviews,
     GetUnreadNotificationCount? getUnreadNotificationCount,
     NotificationCoordinator? notificationCoordinator,
+    GetDashboardAnalytics? getDashboardAnalytics,
   })  : _getCurrentSession = getCurrentSession,
         _getActiveTasks = getActiveTasks,
         _getTaskDetail = getTaskDetail,
@@ -177,7 +197,8 @@ class HomeController extends ChangeNotifier {
         _authSessionManager = authSessionManager,
         _getTaskPhotoPreviews = getTaskPhotoPreviews,
         _getUnreadNotificationCount = getUnreadNotificationCount,
-        _notificationCoordinator = notificationCoordinator {
+        _notificationCoordinator = notificationCoordinator,
+        _getDashboardAnalytics = getDashboardAnalytics {
     loadHome();
     _backgroundSyncService.addListener(_onBackgroundSyncChanged);
     _authSessionManager?.addListener(_onUserSessionChanged);
@@ -266,7 +287,7 @@ class HomeController extends ChangeNotifier {
   Future<void> load() => loadHome();
 
   Future<void> loadHome() async {
-    _update(const HomeState(status: HomeStatus.loading));
+    _update(_state.copyWith(status: HomeStatus.loading));
 
     final user = _authSessionManager?.currentUser ?? await _getCurrentSession();
     if (_authSessionManager != null && _authSessionManager.currentUser == null && user != null) {
@@ -342,6 +363,14 @@ class HomeController extends ChangeNotifier {
     final unreadResult = await _getUnreadNotificationCount?.call();
     final unreadCount = unreadResult?.fold((_) => 0, (c) => c) ?? 0;
 
+    // Phase 11: Muat analitik dashboard
+    DashboardSummaryEntity? dashboardSummary;
+    final activePeriod = _state.safePeriod;
+    if (_getDashboardAnalytics != null) {
+      final summaryResult = await _getDashboardAnalytics(period: activePeriod);
+      dashboardSummary = summaryResult.fold((_) => null, (s) => s);
+    }
+
     _update(
       HomeState(
         status: HomeStatus.loaded,
@@ -354,8 +383,32 @@ class HomeController extends ChangeNotifier {
         pendingSyncCount: pendingCount,
         unreadNotificationCount: unreadCount,
         allSynced: records.isNotEmpty && pendingCount == 0,
+        selectedPeriod: activePeriod,
+        dashboardSummary: dashboardSummary,
+        isLoadingDashboard: false,
       ),
     );
+  }
+
+  /// Change dashboard analytics period
+  Future<void> onPeriodChanged(DashboardPeriod newPeriod) async {
+    _update(_state.copyWith(
+      selectedPeriod: newPeriod,
+      isLoadingDashboard: true,
+    ));
+
+    if (_getDashboardAnalytics != null) {
+      final result = await _getDashboardAnalytics(period: newPeriod);
+      result.fold(
+        (_) => _update(_state.copyWith(isLoadingDashboard: false)),
+        (summary) => _update(_state.copyWith(
+          dashboardSummary: summary,
+          isLoadingDashboard: false,
+        )),
+      );
+    } else {
+      _update(_state.copyWith(isLoadingDashboard: false));
+    }
   }
 
   void setCategory(HomeCategory category) {

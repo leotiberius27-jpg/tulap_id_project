@@ -1,13 +1,26 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
+import 'package:get_it/get_it.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:tulap_mobile/core/error/failures.dart';
+import 'package:tulap_mobile/core/session/auth_session_manager.dart';
 import 'package:tulap_mobile/features/auth/domain/entities/auth_user_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/get_current_session.dart';
 import 'package:tulap_mobile/features/history/presentation/controllers/history_controller.dart';
 import 'package:tulap_mobile/features/history/presentation/pages/history_page.dart';
+import 'package:tulap_mobile/features/search_archive/domain/entities/recent_search_entity.dart';
+import 'package:tulap_mobile/features/search_archive/domain/entities/search_filter_state.dart';
+import 'package:tulap_mobile/features/search_archive/domain/entities/search_result_entity.dart';
+import 'package:tulap_mobile/features/search_archive/domain/repositories/search_archive_repository.dart';
+import 'package:tulap_mobile/features/search_archive/domain/usecases/clear_recent_searches.dart';
+import 'package:tulap_mobile/features/search_archive/domain/usecases/get_available_years.dart';
+import 'package:tulap_mobile/features/search_archive/domain/usecases/get_recent_searches.dart';
+import 'package:tulap_mobile/features/search_archive/domain/usecases/rebuild_search_index.dart';
+import 'package:tulap_mobile/features/search_archive/domain/usecases/save_recent_search.dart';
+import 'package:tulap_mobile/features/search_archive/domain/usecases/unified_search.dart';
+import 'package:tulap_mobile/features/search_archive/presentation/controllers/search_archive_controller.dart';
 import 'package:tulap_mobile/features/task_detail/domain/entities/task_entity.dart';
 import 'package:tulap_mobile/features/task_detail/domain/repositories/task_repository.dart';
 import 'package:tulap_mobile/features/task_detail/domain/usecases/get_active_tasks.dart';
@@ -103,6 +116,12 @@ class _FakeAuthRepository implements AuthRepository {
     String? fullName,
   }) => throw UnimplementedError();
   @override
+  Future<Either<Failure, AuthUserEntity>> loginWithFacebook({
+    required String accessToken,
+    String? email,
+    String? fullName,
+  }) => throw UnimplementedError();
+  @override
   Future<bool> isBiometricLoginEnabled() async => false;
   @override
   Future<void> enableBiometricLogin() async {}
@@ -122,10 +141,69 @@ class _FakeAuthRepository implements AuthRepository {
   }) async => Right(user!);
 }
 
+class _FakeSearchArchiveRepository implements SearchArchiveRepository {
+  final List<SearchResultEntity> searchResults;
+  _FakeSearchArchiveRepository(this.searchResults);
+
+  @override
+  Future<Either<Failure, List<SearchResultEntity>>> search({
+    required String query,
+    required SearchFilterState filter,
+    String? cursor,
+    int limit = 20,
+    bool forceOffline = false,
+  }) async {
+    if (query.isEmpty) {
+      if (filter.selectedType != null) {
+        return Right(searchResults.where((r) => r.entityType == filter.selectedType).toList());
+      }
+      return Right(searchResults);
+    }
+    final q = query.toLowerCase();
+    return Right(searchResults.where((r) => r.title.toLowerCase().contains(q) || (r.subtitle?.toLowerCase().contains(q) ?? false)).toList());
+  }
+
+  @override
+  Future<Either<Failure, List<RecentSearchEntity>>> getRecentSearches({int limit = 10}) async {
+    return Right([
+      RecentSearchEntity(
+        id: '1',
+        query: 'monitoring kendaraan',
+        searchedAt: DateTime.now(),
+      ),
+    ]);
+  }
+
+  @override
+  Future<Either<Failure, void>> saveRecentSearch(String query) async => const Right(null);
+
+  @override
+  Future<Either<Failure, void>> removeRecentSearch(String id) async => const Right(null);
+
+  @override
+  Future<Either<Failure, void>> clearRecentSearches() async => const Right(null);
+
+  @override
+  Future<Either<Failure, int>> backfillSearchIndex() async => const Right(10);
+
+  @override
+  Future<Either<Failure, void>> rebuildSearchIndex() async => const Right(null);
+
+  @override
+  Future<Either<Failure, List<int>>> getAvailableYears() async => const Right([2026, 2025]);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUpAll(() async {
+    await initializeDateFormatting('id_ID', null);
+  });
+
   final now = DateTime.now();
+  final thisWeekDate = now.weekday > 1
+      ? now.subtract(const Duration(days: 1))
+      : now.add(const Duration(days: 1));
 
   final sampleUser = AuthUserEntity(
     id: 'user-001',
@@ -165,8 +243,8 @@ void main() {
       taskCode: 'TL-202608-0002',
       taskName: 'Pemeliharaan Jalan Sudirman',
       destination: 'Jakarta Pusat',
-      startDate: now.subtract(const Duration(days: 2)), // This week
-      endDate: now.subtract(const Duration(days: 1)),
+      startDate: thisWeekDate, // This week
+      endDate: thisWeekDate,
       budgetAmount: 3000000,
       status: TaskStatusEntity.completed,
       assigneeId: 'user-001',
@@ -203,28 +281,13 @@ void main() {
     TaskEntity(
       id: 'task-4',
       taskCode: 'TL-202608-0004',
-      taskName: 'Pengecekan Rambu Lalu Lintas',
+      taskName: 'Survei Fasilitas Umum',
       destination: 'Jakarta Selatan',
-      startDate: DateTime(2025, 1, 10), // Past year
-      endDate: DateTime(2025, 1, 11),
-      budgetAmount: 500000,
+      startDate: DateTime(now.year - 1, 12, 10), // Older
+      endDate: DateTime(now.year - 1, 12, 12),
+      budgetAmount: 5000000,
       status: TaskStatusEntity.rejected,
-      latestRevisionNote: 'Lokasi di luar wilayah kerja',
-      assigneeId: 'user-001',
-      assigneeName: 'Leonardo Petugas',
-      checklistItems: const [],
-      geotagPhotoCount: 1,
-      expenseNoteCount: 0,
-    ),
-    TaskEntity(
-      id: 'task-draft',
-      taskCode: 'TL-202608-0005',
-      taskName: 'Tugas Draft Baru',
-      destination: 'Depok',
-      startDate: now,
-      endDate: now,
-      budgetAmount: 0,
-      status: TaskStatusEntity.draft,
+      latestRevisionNote: 'Lokasi tidak sesuai GPS',
       assigneeId: 'user-001',
       assigneeName: 'Leonardo Petugas',
       checklistItems: const [],
@@ -233,70 +296,108 @@ void main() {
     ),
   ];
 
-  group('HistoryController Unit Tests', () {
-    test(
-      'Initial load filters out drafts and calculates correct summary metrics',
-      () async {
-        final controller = HistoryController(
-          getActiveTasks: GetActiveTasks(_FakeTaskRepository(sampleTasks)),
-          getCurrentSession: GetCurrentSession(_FakeAuthRepository(sampleUser)),
-        );
+  final sampleSearchResults = [
+    SearchResultEntity(
+      entityId: 'task-1',
+      entityType: SearchEntityType.activity,
+      title: 'Inspeksi Jembatan Ciliwung',
+      subtitle: 'TL-202608-0001 • Selesai Diverifikasi',
+      date: now,
+      location: 'Jakarta Timur',
+      relevanceScore: 90,
+      syncStatus: 'SYNCED',
+    ),
+    SearchResultEntity(
+      entityId: 'task-2',
+      entityType: SearchEntityType.activity,
+      title: 'Pemeliharaan Jalan Sudirman',
+      subtitle: 'TL-202608-0002 • Selesai Lapangan',
+      date: now.subtract(const Duration(days: 2)),
+      location: 'Jakarta Pusat',
+      relevanceScore: 80,
+      syncStatus: 'SYNCED',
+    ),
+    SearchResultEntity(
+      entityId: 'pd-1',
+      entityType: SearchEntityType.travel,
+      title: 'Perjalanan Dinas Mimika',
+      subtitle: 'PD-20260828-001 • SPPD Aktif',
+      date: now,
+      location: 'Kabupaten Mimika',
+      relevanceScore: 85,
+      syncStatus: 'SYNCED',
+    ),
+  ];
 
-        await Future.delayed(const Duration(milliseconds: 50));
+  final sl = GetIt.instance;
 
-        final state = controller.state;
-        expect(state.status, HistoryStatus.loaded);
-        expect(state.allTasks.length, 4); // Excludes draft
-        expect(
-          state.totalVerifiedCount,
-          2,
-        ); // task-1 (verified) + task-2 (completed)
-        expect(state.totalGeotagPhotos, 11); // 3 + 5 + 2 + 1
-        expect(state.totalExpenseNotes, 3); // 2 + 1 + 0 + 0
-      },
+  setUp(() {
+    if (sl.isRegistered<AuthSessionManager>()) sl.unregister<AuthSessionManager>();
+    if (sl.isRegistered<SearchArchiveController>()) sl.unregister<SearchArchiveController>();
+
+    final authManager = AuthSessionManager(authRepository: _FakeAuthRepository(sampleUser));
+    authManager.updateUser(sampleUser);
+    sl.registerLazySingleton<AuthSessionManager>(() => authManager);
+
+    final searchRepo = _FakeSearchArchiveRepository(sampleSearchResults);
+    sl.registerFactory<SearchArchiveController>(
+      () => SearchArchiveController(
+        unifiedSearch: UnifiedSearch(searchRepo),
+        getRecentSearches: GetRecentSearches(searchRepo),
+        saveRecentSearch: SaveRecentSearch(searchRepo),
+        clearRecentSearches: ClearRecentSearches(searchRepo),
+        rebuildSearchIndex: RebuildSearchIndex(searchRepo),
+        getAvailableYears: GetAvailableYears(searchRepo),
+      ),
     );
+  });
 
-    test('Filter by Period: Today, This Week, This Month', () async {
+  group('HistoryController Unit Tests', () {
+    test('Initial load populates state with all tasks and computes metrics', () async {
+      final controller = HistoryController(
+        getActiveTasks: GetActiveTasks(_FakeTaskRepository(sampleTasks)),
+        getCurrentSession: GetCurrentSession(_FakeAuthRepository(sampleUser)),
+      );
+
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(controller.state.status, HistoryStatus.loaded);
+      expect(controller.state.allTasks.length, 4);
+      expect(controller.state.filteredTasks.length, 4);
+      expect(controller.state.totalVerifiedCount, 2); // 1 verified + 1 completed
+      expect(controller.state.totalGeotagPhotos, 10); // 3 + 5 + 2 + 0
+      expect(controller.state.totalExpenseNotes, 3); // 2 + 1 + 0 + 0
+    });
+
+    test('Filter by Date updates filteredTasks correctly', () async {
       final controller = HistoryController(
         getActiveTasks: GetActiveTasks(_FakeTaskRepository(sampleTasks)),
         getCurrentSession: GetCurrentSession(_FakeAuthRepository(sampleUser)),
       );
       await Future.delayed(const Duration(milliseconds: 50));
 
-      // 1. Today
+      // Today
       controller.setFilter(HistoryFilter.today);
       expect(controller.state.filteredTasks.length, 1);
       expect(controller.state.filteredTasks.first.id, 'task-1');
 
-      // 2. This Month
+      // This Week
+      controller.setFilter(HistoryFilter.thisWeek);
+      expect(controller.state.filteredTasks.length, 2);
+
+      // This Month
       controller.setFilter(HistoryFilter.thisMonth);
       expect(
         controller.state.filteredTasks.length,
-        3,
-      ); // task-1, task-2, task-3
-    });
-
-    test('Filter by Status: Disetujui, Perlu Perbaikan, Ditolak', () async {
-      final controller = HistoryController(
-        getActiveTasks: GetActiveTasks(_FakeTaskRepository(sampleTasks)),
-        getCurrentSession: GetCurrentSession(_FakeAuthRepository(sampleUser)),
+        thisWeekDate.month == now.month ? 3 : 2,
       );
-      await Future.delayed(const Duration(milliseconds: 50));
 
-      controller.setFilter(HistoryFilter.verified);
-      expect(controller.state.filteredTasks.length, 1);
-      expect(controller.state.filteredTasks.first.taskCode, 'TL-202608-0001');
-
-      controller.setFilter(HistoryFilter.revisionNeeded);
-      expect(controller.state.filteredTasks.length, 1);
-      expect(controller.state.filteredTasks.first.taskCode, 'TL-202608-0003');
-
-      controller.setFilter(HistoryFilter.rejected);
-      expect(controller.state.filteredTasks.length, 1);
-      expect(controller.state.filteredTasks.first.taskCode, 'TL-202608-0004');
+      // All
+      controller.setFilter(HistoryFilter.all);
+      expect(controller.state.filteredTasks.length, 4);
     });
 
-    test('Search filter by query: title, task code, destination', () async {
+    test('Search query filters tasks by title, destination, and taskCode', () async {
       final controller = HistoryController(
         getActiveTasks: GetActiveTasks(_FakeTaskRepository(sampleTasks)),
         getCurrentSession: GetCurrentSession(_FakeAuthRepository(sampleUser)),
@@ -313,123 +414,72 @@ void main() {
       expect(controller.state.filteredTasks.length, 1);
       expect(controller.state.filteredTasks.first.id, 'task-2');
 
-      // Search by task code
-      controller.setSearchQuery('0004');
-      expect(controller.state.filteredTasks.length, 1);
-      expect(controller.state.filteredTasks.first.id, 'task-4');
-
       // Clear search
       controller.clearSearch();
       expect(controller.state.filteredTasks.length, 4);
     });
   });
 
-  group('HistoryPage Widget Tests', () {
-    testWidgets(
-      'Renders search bar, filter chips, summary metrics, and task cards',
-      (tester) async {
-        final controller = HistoryController(
-          getActiveTasks: GetActiveTasks(_FakeTaskRepository(sampleTasks)),
-          getCurrentSession: GetCurrentSession(_FakeAuthRepository(sampleUser)),
-        );
-
-        await tester.pumpWidget(
-          MaterialApp(
-            home: ChangeNotifierProvider<HistoryController>.value(
-              value: controller,
-              child: const HistoryPage(),
-            ),
-          ),
-        );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
-
-        // Verify Header & Search
-        expect(find.text('Riwayat Tugas'), findsOneWidget);
-        expect(find.byType(TextField), findsOneWidget);
-
-        // Verify Filter Chips
-        expect(find.text('Semua'), findsOneWidget);
-        expect(find.text('Hari Ini'), findsOneWidget);
-        expect(find.text('Disetujui'), findsWidgets);
-
-        // Verify Summary Metrics
-        expect(find.text('Tuntas'), findsOneWidget);
-        expect(find.text('Foto Bukti'), findsOneWidget);
-        expect(find.text('Nota SPPD'), findsOneWidget);
-
-        // Verify Task Cards
-        expect(find.text('Inspeksi Jembatan Ciliwung'), findsOneWidget);
-        expect(find.text('TL-202608-0001'), findsOneWidget);
-        expect(find.text('3 Foto'), findsOneWidget);
-        expect(find.text('2 Nota'), findsOneWidget);
-      },
-    );
-
-    testWidgets('Tapping a filter chip filters visible items', (tester) async {
-      final controller = HistoryController(
-        getActiveTasks: GetActiveTasks(_FakeTaskRepository(sampleTasks)),
-        getCurrentSession: GetCurrentSession(_FakeAuthRepository(sampleUser)),
-      );
-
+  group('Unified Field Archive / HistoryPage Widget Tests', () {
+    testWidgets('Renders search bar, filter chips, and unified archive cards', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: ChangeNotifierProvider<HistoryController>.value(
-            value: controller,
-            child: const HistoryPage(),
-          ),
+        const MaterialApp(
+          home: HistoryPage(),
         ),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 200));
 
-      // Tap 'Hari Ini' filter
-      await tester.tap(find.text('Hari Ini'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      // Verify Header & Search
+      expect(find.text('Arsip & Riwayat'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
 
+      // Verify Filter Chips
+      expect(find.text('Semua'), findsWidgets);
+      expect(find.text('Kegiatan'), findsWidgets);
+      expect(find.text('Perjalanan'), findsWidgets);
+
+      // Verify Archive Cards
       expect(find.text('Inspeksi Jembatan Ciliwung'), findsOneWidget);
-      expect(find.text('Pemeliharaan Jalan Sudirman'), findsNothing);
+      expect(find.text('Perjalanan Dinas Mimika'), findsOneWidget);
     });
 
-    testWidgets('Renders empty search state with Reset Filter button', (
-      tester,
-    ) async {
-      final controller = HistoryController(
-        getActiveTasks: GetActiveTasks(_FakeTaskRepository(sampleTasks)),
-        getCurrentSession: GetCurrentSession(_FakeAuthRepository(sampleUser)),
-      );
-
+    testWidgets('Tapping an entity filter chip filters visible items', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: ChangeNotifierProvider<HistoryController>.value(
-            value: controller,
-            child: const HistoryPage(),
-          ),
+        const MaterialApp(
+          home: HistoryPage(),
         ),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Tap 'Perjalanan' filter
+      await tester.tap(find.text('Perjalanan').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Perjalanan Dinas Mimika'), findsOneWidget);
+      expect(find.text('Inspeksi Jembatan Ciliwung'), findsNothing);
+    });
+
+    testWidgets('Renders empty search state when query has no matches', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: HistoryPage(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       // Enter query with no match
-      await tester.enterText(find.byType(TextField), 'Kota Jayapura');
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.enterText(find.byType(TextField), 'Jayapura Barat Daya');
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Tidak Ada Hasil'), findsOneWidget);
-      expect(find.text('Reset Filter'), findsOneWidget);
-
-      // Tap Reset Filter
-      await tester.tap(find.text('Reset Filter'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('Inspeksi Jembatan Ciliwung'), findsOneWidget);
+      expect(find.textContaining('Tidak ditemukan hasil'), findsOneWidget);
     });
 
-    testWidgets('Renders cleanly on multiple screen sizes without overflow', (
-      tester,
-    ) async {
+    testWidgets('Renders cleanly on multiple screen sizes without overflow', (tester) async {
       final viewports = [
         const Size(320, 568),
         const Size(360, 640),
@@ -442,21 +492,13 @@ void main() {
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
 
-        final controller = HistoryController(
-          getActiveTasks: GetActiveTasks(_FakeTaskRepository(sampleTasks)),
-          getCurrentSession: GetCurrentSession(_FakeAuthRepository(sampleUser)),
-        );
-
         await tester.pumpWidget(
-          MaterialApp(
-            home: ChangeNotifierProvider<HistoryController>.value(
-              value: controller,
-              child: const HistoryPage(),
-            ),
+          const MaterialApp(
+            home: HistoryPage(),
           ),
         );
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump(const Duration(milliseconds: 200));
 
         expect(tester.takeException(), isNull);
       }

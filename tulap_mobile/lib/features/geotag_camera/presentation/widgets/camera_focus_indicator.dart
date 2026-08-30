@@ -51,19 +51,25 @@ class _FocusPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width / 2) - 4;
 
-    // 1. Cincin utama warna kuning fokus kamera profesional
-    final ringPaint = Paint()
-      ..color = const Color(0xFFFFD54F)
+    // 1. Cincin luar putih transparan untuk kontras latar belakang gelap/terang
+    final outerRingPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.35)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
+      ..strokeWidth = 3.2;
+    canvas.drawCircle(center, radius, outerRingPaint);
 
+    // 2. Cincin utama warna Tulap.id Blue (#006EE6) & Sky Blue (#38BDF8)
+    final ringPaint = Paint()
+      ..color = const Color(0xFF006EE6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
     canvas.drawCircle(center, radius, ringPaint);
 
-    // 2. Tanda crosshair 4 sisi
+    // 3. Tanda crosshair 4 sisi dengan aksen Cyan/Sky Blue cerah
     final crossPaint = Paint()
-      ..color = const Color(0xFFFFD54F)
+      ..color = const Color(0xFF38BDF8)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
+      ..strokeWidth = 1.8
       ..strokeCap = StrokeCap.round;
 
     const crossLen = 6.0;
@@ -92,11 +98,11 @@ class _FocusPainter extends CustomPainter {
       crossPaint,
     );
 
-    // 3. Titik pusat halus
+    // 4. Titik pusat halus
     final dotPaint = Paint()
-      ..color = const Color(0xFFFFD54F)
+      ..color = Colors.white
       ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, 1.8, dotPaint);
+    canvas.drawCircle(center, 2.0, dotPaint);
   }
 
   @override

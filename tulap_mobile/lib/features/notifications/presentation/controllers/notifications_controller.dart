@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import '../../domain/entities/notification_entity.dart';
 import '../../domain/usecases/delete_read_notifications.dart';
 import '../../domain/usecases/get_notifications.dart';
@@ -38,6 +38,8 @@ class NotificationsController extends ChangeNotifier {
 
   NotificationsState _state = const NotificationsState();
   NotificationsState get state => _state;
+  bool _disposed = false;
+  dynamic _subscription;
 
   NotificationsController({
     required GetNotifications getNotifications,
@@ -51,8 +53,8 @@ class NotificationsController extends ChangeNotifier {
         _deleteReadNotifications = deleteReadNotifications,
         _getUnreadNotificationCount = getUnreadNotificationCount {
     load();
-    _getUnreadNotificationCount?.stream.listen((count) {
-      if (_state.unreadCount != count) {
+    _subscription = _getUnreadNotificationCount?.stream.listen((count) {
+      if (!_disposed && _state.unreadCount != count) {
         _update(
           NotificationsState(
             status: _state.status,
@@ -67,8 +69,16 @@ class NotificationsController extends ChangeNotifier {
   }
 
   void _update(NotificationsState newState) {
+    if (_disposed) return;
     _state = newState;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _subscription?.cancel();
+    super.dispose();
   }
 
   Future<void> load() async {

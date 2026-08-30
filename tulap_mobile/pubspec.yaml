@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -46,7 +48,7 @@ dependencies:
   uuid: ^4.5.1                # Generate ID lokal untuk foto sebelum sync
   dartz: ^0.10.1              # Either<Failure, T> untuk error handling functional
   provider: ^6.1.2            # State management ringan untuk controller
-  intl: ^0.19.0                # Format tanggal/jam Bahasa Indonesia di watermark
+  intl: ^0.20.2                # Format tanggal/jam Bahasa Indonesia di watermark
   dio: ^5.7.0                  # HTTP client untuk komunikasi ke backend NestJS
   connectivity_plus: ^6.1.0   # Deteksi status koneksi internet
   flutter_secure_storage: ^9.2.2  # Simpan JWT access/refresh token dengan aman
@@ -61,6 +63,10 @@ dependencies:
   sign_in_with_apple: ^6.1.4  # Tombol "Lanjutkan dengan Apple" (iOS)
   video_player: ^2.9.2        # Pemutar video loop ilustrasi 04.mp4
   image_picker: ^1.1.2        # Pilih foto profil dari galeri / kamera
+  sensors_plus: ^6.1.1        # Deteksi orientasi & level horizon kamera
+  share_plus: ^10.1.4          # Bagikan foto dan video bukti kegiatan lapangan
+  pdf: ^3.13.0
+  printing: ^5.15.0
 
 dev_dependencies:
   flutter_test:
@@ -79,6 +85,8 @@ dev_dependencies:
 # Jalankan: dart run flutter_launcher_icons
 flutter_launcher_icons:
   android: true
+  ios: true
+  remove_alpha_ios: true
   image_path: assets/images/logo.png
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: assets/images/logo.png
@@ -97,8 +105,6 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/
-    - assets/images/referensi/
-    - assets/videos/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

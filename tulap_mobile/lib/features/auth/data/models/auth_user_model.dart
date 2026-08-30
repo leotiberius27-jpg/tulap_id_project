@@ -29,6 +29,31 @@ class AuthUserModel extends AuthUserEntity {
     );
   }
 
+  @override
+  AuthUserModel copyWith({
+    String? id,
+    String? fullName,
+    String? email,
+    String? role,
+    String? instansiName,
+    String? nip,
+    String? phoneNumber,
+    String? photoUrl,
+    String? authProvider,
+  }) {
+    return AuthUserModel(
+      id: id ?? this.id,
+      fullName: fullName ?? this.fullName,
+      email: email ?? this.email,
+      role: role ?? this.role,
+      instansiName: instansiName ?? this.instansiName,
+      nip: nip ?? this.nip,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      photoUrl: photoUrl ?? this.photoUrl,
+      authProvider: authProvider ?? this.authProvider,
+    );
+  }
+
   /// Untuk disimpan sebagai JSON string di flutter_secure_storage.
   Map<String, dynamic> toStorageMap() {
     return {

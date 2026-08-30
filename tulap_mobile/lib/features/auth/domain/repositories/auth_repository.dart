@@ -54,6 +54,12 @@ abstract class AuthRepository {
     String? fullName,
   });
 
+  Future<Either<Failure, AuthUserEntity>> loginWithFacebook({
+    required String accessToken,
+    String? email,
+    String? fullName,
+  });
+
   /// Apakah "Masuk Cepat dengan Biometrik" sedang aktif di perangkat ini.
   Future<bool> isBiometricLoginEnabled();
 

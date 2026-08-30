@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import '../../../../core/localization/app_language.dart';
 import '../../../../core/theme/app_theme_mode.dart';
 import '../../domain/entities/account_settings_entity.dart';
 import '../../domain/entities/storage_breakdown_entity.dart';
@@ -14,6 +15,8 @@ abstract class AccountLocalDataSource {
   Future<void> saveNotificationSettings(NotificationSettingsEntity settings);
   Future<AppThemeMode> getThemeMode();
   Future<void> saveThemeMode(AppThemeMode mode);
+  Future<AppLanguage> getLanguage();
+  Future<void> saveLanguage(AppLanguage language);
   Future<StorageBreakdownEntity> getStorageBreakdown();
   Future<int> clearTemporaryCache();
 }
@@ -22,6 +25,7 @@ class AccountLocalDataSourceImpl implements AccountLocalDataSource {
   static const String _kCameraSettingsKey = 'settings_camera_watermark';
   static const String _kNotificationSettingsKey = 'settings_notifications';
   static const String _kThemeModeKey = 'settings_app_theme_mode';
+  static const String _kLanguageKey = 'settings_app_language';
 
   final FlutterSecureStorage _secureStorage;
   final Database? _database;
@@ -78,9 +82,10 @@ class AccountLocalDataSourceImpl implements AccountLocalDataSource {
   Future<AppThemeMode> getThemeMode() async {
     try {
       final raw = await _secureStorage.read(key: _kThemeModeKey);
+      if (raw == null) return AppThemeMode.light;
       return AppThemeMode.fromCode(raw);
     } catch (_) {
-      return AppThemeMode.system;
+      return AppThemeMode.light;
     }
   }
 
@@ -90,6 +95,27 @@ class AccountLocalDataSourceImpl implements AccountLocalDataSource {
       await _secureStorage.write(
         key: _kThemeModeKey,
         value: mode.toCode(),
+      );
+    } catch (_) {}
+  }
+
+  @override
+  Future<AppLanguage> getLanguage() async {
+    try {
+      final raw = await _secureStorage.read(key: _kLanguageKey);
+      if (raw == null) return AppLanguage.id;
+      return AppLanguage.fromCode(raw);
+    } catch (_) {
+      return AppLanguage.id;
+    }
+  }
+
+  @override
+  Future<void> saveLanguage(AppLanguage language) async {
+    try {
+      await _secureStorage.write(
+        key: _kLanguageKey,
+        value: language.code,
       );
     } catch (_) {}
   }

@@ -1,13 +1,15 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../../../app/di/injection_container.dart';
+import '../../../../core/localization/app_language.dart';
+import '../../../../core/localization/language_controller.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_controller.dart';
 
 /// DisplaySettingsPage (Akun -> Tampilan)
 /// ----------------------------------------------------------------------
-/// Pengaturan tema tampilan global (Sistem, Terang, Gelap).
-/// Perubahan tema diterapkan secara instan ke seluruh aplikasi dan
-/// tersimpan secara persisten ke local storage.
+/// Pengaturan tema tampilan global (Sistem, Terang, Gelap) dan
+/// pengaturan dwibahasa (Bahasa Indonesia & English).
+/// Perubahan diterapkan secara instan ke seluruh aplikasi.
 /// ----------------------------------------------------------------------
 class DisplaySettingsPage extends StatelessWidget {
   const DisplaySettingsPage({super.key});
@@ -15,6 +17,7 @@ class DisplaySettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeController = sl<ThemeController>();
+    final languageController = sl<LanguageController>();
     final colors = context.tulapColors;
 
     return Scaffold(
@@ -110,40 +113,39 @@ class DisplaySettingsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.lg),
 
-                  _buildSectionTitle(context, 'VISUALISASI KONTRAS LAPANGAN'),
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.base),
-                    decoration: _cardDecoration(context),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Desain Tulap.id dirancang dengan palet institusional berbasis Dark Navy (#0B1220) untuk kondisi minim cahaya dan Light Crisp (#F7F9FC) untuk siang hari di lapangan agar tulisan, watermark, dan tombol aksi tetap terbaca dengan jelas.',
-                          style: AppTypography.small.copyWith(
-                            color: colors.textSecondary,
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Row(
+                  _buildSectionTitle(context, 'BAHASA / LANGUAGE'),
+                  ListenableBuilder(
+                    listenable: languageController,
+                    builder: (context, _) {
+                      final currentLang = languageController.currentLanguage;
+                      return Container(
+                        decoration: _cardDecoration(context),
+                        child: Column(
                           children: [
-                            _buildColorSample(context, 'Primary', colors.primary, Colors.white),
-                            const SizedBox(width: 8),
-                            _buildColorSample(context, 'Action', colors.action, Colors.white),
-                            const SizedBox(width: 8),
-                            _buildColorSample(context, 'Success', colors.success, Colors.white),
-                            const SizedBox(width: 8),
-                            _buildColorSample(
-                              context,
-                              'Surface',
-                              colors.surface,
-                              colors.textPrimary,
-                              hasBorder: true,
+                            // 1. Bahasa Indonesia
+                            _buildLanguageOption(
+                              context: context,
+                              flag: AppLanguage.id.flag,
+                              title: AppLanguage.id.label,
+                              subtitle: AppLanguage.id.subtitle,
+                              isSelected: currentLang == AppLanguage.id,
+                              onTap: () => languageController.setLanguage(AppLanguage.id),
+                            ),
+                            Divider(height: 1, color: colors.border, indent: 56),
+
+                            // 2. English
+                            _buildLanguageOption(
+                              context: context,
+                              flag: AppLanguage.en.flag,
+                              title: AppLanguage.en.label,
+                              subtitle: AppLanguage.en.subtitle,
+                              isSelected: currentLang == AppLanguage.en,
+                              onTap: () => languageController.setLanguage(AppLanguage.en),
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -261,11 +263,11 @@ class DisplaySettingsPage extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     final colors = context.tulapColors;
-    final cardBg = isDarkTheme ? const Color(0xFF0B1220) : const Color(0xFFF7F9FC);
-    final innerSurface = isDarkTheme ? const Color(0xFF111C2E) : const Color(0xFFFFFFFF);
-    final primaryAccent = isDarkTheme ? const Color(0xFF4DA3FF) : const Color(0xFF00529C);
-    final previewBorder = isDarkTheme ? const Color(0xFF27364B) : const Color(0xFFEAECF0);
-    final textHeader = isDarkTheme ? const Color(0xFFF8FAFC) : const Color(0xFF172033);
+    final cardBg = isDarkTheme ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final innerSurface = isDarkTheme ? const Color(0xFF1E293B) : const Color(0xFFFFFFFF);
+    final primaryAccent = isDarkTheme ? const Color(0xFF3B82F6) : const Color(0xFF0066FE);
+    final previewBorder = isDarkTheme ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textHeader = isDarkTheme ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
 
     return InkWell(
       onTap: onTap,
@@ -351,30 +353,68 @@ class DisplaySettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildColorSample(
-    BuildContext context,
-    String name,
-    Color bg,
-    Color text, {
-    bool hasBorder = false,
+  Widget _buildLanguageOption({
+    required BuildContext context,
+    required String flag,
+    required String title,
+    required String subtitle,
+    required bool isSelected,
+    required VoidCallback onTap,
   }) {
     final colors = context.tulapColors;
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(8),
-          border: hasBorder ? Border.all(color: colors.border) : null,
-        ),
-        child: Center(
-          child: Text(
-            name,
-            style: TextStyle(
-              color: text,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.cardLarge),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: isSelected ? colors.iconSoftBlue : colors.surfaceElevated,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    flag,
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTypography.body.copyWith(
+                        fontSize: 14,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: AppTypography.small.copyWith(
+                        fontSize: 11.5,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                Icon(Icons.check_circle_rounded, color: colors.primary, size: 22)
+              else
+                Icon(Icons.radio_button_unchecked, color: colors.textSecondary, size: 22),
+            ],
           ),
         ),
       ),

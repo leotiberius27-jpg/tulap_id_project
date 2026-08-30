@@ -1,10 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import PDFDocument = require('pdfkit');
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { S3StorageService } from '../../infrastructure/storage/s3-storage.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { GenerateLpjDto } from './dto/generate-lpj.dto';
+import { UploadReportDto } from './dto/upload-report.dto';
 
 const rupiahFormatter = new Intl.NumberFormat('id-ID', {
   style: 'currency',
@@ -18,25 +21,13 @@ const dateFormatter = new Intl.DateTimeFormat('id-ID', {
   year: 'numeric',
 });
 
-/// LpjService
-/// ----------------------------------------------------------------------
-/// Menyusun PDF LPJ (Laporan Pertanggungjawaban) sederhana dari data
-/// tugas yang SUDAH ada - checklist, bukti foto, dan nota (Bagian 24
-/// LPJ Flow: "Sistem Kumpulkan Data (foto, nota, checklist, verifikasi)
-/// -> Generate"). TIDAK menyimpan record LPJ baru ke database maupun
-/// mengunggah file ke S3 - ini murni generator laporan on-demand,
-/// selaras dengan skema Prisma saat ini yang belum punya model
-/// `LPJ`/`LPJTemplate` (disebut di Bagian 27 dokumen spesifikasi,
-/// namun belum diimplementasikan - di luar cakupan modul ini).
-/// Transisi status tugas ke COMPLETED tetap lewat endpoint terpisah
-/// `POST /tasks/:id/complete` yang sudah ada, BUKAN otomatis di sini.
-/// ----------------------------------------------------------------------
 @Injectable()
 export class LpjService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly s3Storage: S3StorageService,
   ) {}
 
   async generate(
@@ -208,4 +199,135 @@ export class LpjService {
   private _writeField(doc: PDFKit.PDFDocument, label: string, value: string): void {
     doc.text(`${label}: ${value}`);
   }
+
+  async uploadReport(
+    dto: UploadReportDto,
+    file: Express.Multer.File | undefined,
+    actor: AuthenticatedUser,
+  ) {
+    const task = await this.prisma.task_SPPD.findUnique({
+      where: { id: dto.taskId },
+      select: { id: true, taskCode: true, taskName: true, assigneeId: true, creatorId: true },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Tugas tidak ditemukan.');
+    }
+
+    const reportId = dto.id || randomUUID();
+    let pdfUrl = '';
+    let s3Key = '';
+
+    if (file && file.buffer) {
+      const uploadResult = await this.s3Storage.uploadFile({
+        buffer: file.buffer,
+        mimeType: file.mimetype || 'application/pdf',
+        category: 'report',
+        originalFilename: file.originalname || `${dto.reportCode}.pdf`,
+      });
+      pdfUrl = uploadResult.url;
+      s3Key = uploadResult.key;
+    }
+
+    const serverTimestamp = new Date().toISOString();
+
+    const reportPayload = {
+      id: reportId,
+      taskId: dto.taskId,
+      userId: actor.id,
+      reportCode: dto.reportCode,
+      title: dto.title,
+      reportType: dto.reportType || 'ACTIVITY_REPORT',
+      templateId: dto.templateId || 'default_activity',
+      templateVersion: dto.templateVersion || 1,
+      versionNumber: dto.versionNumber || 1,
+      reportSha256: dto.reportSha256,
+      summary: dto.summary || '',
+      narrative: dto.narrative || '',
+      contentSnapshotJson: dto.contentSnapshotJson,
+      totalExpense: dto.totalExpense || 0,
+      evidenceCount: dto.evidenceCount || 0,
+      receiptCount: dto.receiptCount || 0,
+      pdfRemoteUrl: pdfUrl,
+      s3Key,
+      serverTimestamp,
+    };
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'REPORT_GENERATED',
+      entity: 'Activity_Report',
+      entityId: reportId,
+      metadata: reportPayload,
+    });
+
+    return reportPayload;
+  }
+
+  async getTaskReports(taskId: string, actor: AuthenticatedUser) {
+    const logs = await this.prisma.audit_Log.findMany({
+      where: {
+        entity: 'Activity_Report',
+        action: 'REPORT_GENERATED',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const matchingReports = logs
+      .filter((log) => {
+        const meta = log.metadata as any;
+        return meta && meta.taskId === taskId;
+      })
+      .map((log) => log.metadata);
+
+    return matchingReports;
+  }
+
+  async getReportById(reportId: string, actor: AuthenticatedUser) {
+    const log = await this.prisma.audit_Log.findFirst({
+      where: {
+        entity: 'Activity_Report',
+        entityId: reportId,
+        action: 'REPORT_GENERATED',
+      },
+    });
+
+    if (!log) {
+      throw new NotFoundException('Laporan kegiatan tidak ditemukan.');
+    }
+
+    return log.metadata;
+  }
+
+  async deleteReport(reportId: string, actor: AuthenticatedUser) {
+    const log = await this.prisma.audit_Log.findFirst({
+      where: {
+        entity: 'Activity_Report',
+        entityId: reportId,
+        action: 'REPORT_GENERATED',
+      },
+    });
+
+    if (!log) {
+      throw new NotFoundException('Laporan kegiatan tidak ditemukan.');
+    }
+
+    const meta = log.metadata as any;
+    if (meta && meta.s3Key) {
+      try {
+        await this.s3Storage.deleteFile(meta.s3Key);
+      } catch (_) {}
+    }
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'REPORT_DELETED',
+      entity: 'Activity_Report',
+      entityId: reportId,
+      metadata: { deletedAt: new Date().toISOString(), reportCode: meta?.reportCode },
+    });
+
+    return { success: true, message: 'Laporan berhasil dihapus.' };
+  }
 }
+

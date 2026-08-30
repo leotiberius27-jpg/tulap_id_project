@@ -7,13 +7,13 @@ import 'package:tulap_mobile/core/error/failures.dart';
 import 'package:tulap_mobile/core/network/network_info.dart';
 import 'package:tulap_mobile/core/security/biometric_auth_service.dart';
 import 'package:tulap_mobile/core/security/oauth_sign_in_service.dart';
-import 'package:tulap_mobile/core/widgets/hero_video_scene.dart';
 import 'package:tulap_mobile/features/auth/domain/entities/auth_user_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/get_biometric_greeting_user.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/is_biometric_login_enabled.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login_with_apple.dart';
+import 'package:tulap_mobile/features/auth/domain/usecases/login_with_facebook.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login_with_google.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/restore_biometric_session.dart';
 import 'package:tulap_mobile/features/auth/presentation/pages/welcome_page.dart';
@@ -95,7 +95,7 @@ class _FakeAuthRepository implements AuthRepository {
     return const Right(
       AuthUserEntity(
         id: 'usr-google',
-        fullName: 'Google User',
+        fullName: 'Leonardo',
         email: 'google@tulap.id',
         role: 'PEGAWAI',
       ),
@@ -110,8 +110,24 @@ class _FakeAuthRepository implements AuthRepository {
     return const Right(
       AuthUserEntity(
         id: 'usr-apple',
-        fullName: 'Apple User',
+        fullName: 'Leonardo',
         email: 'apple@tulap.id',
+        role: 'PEGAWAI',
+      ),
+    );
+  }
+
+  @override
+  Future<Either<Failure, AuthUserEntity>> loginWithFacebook({
+    required String accessToken,
+    String? email,
+    String? fullName,
+  }) async {
+    return const Right(
+      AuthUserEntity(
+        id: 'usr-facebook',
+        fullName: 'Leonardo',
+        email: 'facebook@tulap.id',
         role: 'PEGAWAI',
       ),
     );
@@ -152,6 +168,7 @@ void main() {
     sl.registerLazySingleton<Login>(() => Login(fakeRepo));
     sl.registerLazySingleton<LoginWithGoogle>(() => LoginWithGoogle(fakeRepo));
     sl.registerLazySingleton<LoginWithApple>(() => LoginWithApple(fakeRepo));
+    sl.registerLazySingleton<LoginWithFacebook>(() => LoginWithFacebook(fakeRepo));
   });
 
   tearDown(() {
@@ -189,22 +206,19 @@ void main() {
 
           await pumpWelcome(tester);
 
-          // 1. Verifikasi Hero Video Scene Layer
-          expect(find.byType(HeroVideoScene), findsOneWidget);
-
-          // 2. Verifikasi Header
+          // 1. Verifikasi Header
           expect(find.text('Tulap.id'), findsOneWidget);
           expect(find.text('Tugas Lapangan dalam Kendali'), findsOneWidget);
           expect(find.text('Online'), findsOneWidget);
 
-          // 3. Verifikasi Quick Access Panel
+          // 2. Verifikasi Quick Access Panel
           expect(find.text('Akses Cepat'), findsOneWidget);
           expect(find.text('Tugas Saya'), findsOneWidget);
           expect(find.text('Kamera Lokasi'), findsOneWidget);
           expect(find.text('Scan Nota'), findsOneWidget);
           expect(find.text('Sinkronisasi'), findsOneWidget);
 
-          // 4. Verifikasi Action Buttons
+          // 3. Verifikasi Action Buttons
           expect(find.text('Masuk'), findsOneWidget);
           expect(find.byIcon(Icons.fingerprint_rounded), findsOneWidget);
 
@@ -215,9 +229,9 @@ void main() {
     }
   });
 
-  group('Hero Video Non-Interactivity & Foreground Tap Tests', () {
+  group('Clean Welcome Screen & Foreground Tap Tests', () {
     testWidgets(
-      'HeroVideoScene is wrapped with IgnorePointer and ExcludeSemantics',
+      'Renders clean background with header and quick access panel',
       (tester) async {
         tester.view.physicalSize = const Size(390, 844);
         tester.view.devicePixelRatio = 1.0;
@@ -225,20 +239,9 @@ void main() {
 
         await pumpWelcome(tester);
 
-        final videoFinder = find.byType(HeroVideoScene);
-        expect(videoFinder, findsOneWidget);
-
-        final ignorePointerFinder = find.descendant(
-          of: videoFinder,
-          matching: find.byType(IgnorePointer),
-        );
-        expect(ignorePointerFinder, findsWidgets);
-
-        final excludeSemanticsFinder = find.descendant(
-          of: videoFinder,
-          matching: find.byType(ExcludeSemantics),
-        );
-        expect(excludeSemanticsFinder, findsWidgets);
+        expect(find.text('Tulap.id'), findsOneWidget);
+        expect(find.text('Akses Cepat'), findsOneWidget);
+        expect(find.text('Masuk'), findsOneWidget);
       },
     );
 

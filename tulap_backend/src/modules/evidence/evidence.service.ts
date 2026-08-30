@@ -1,12 +1,13 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { ExpenseCategory } from '@prisma/client';
+import { ExpenseCategory, RoleName } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { S3StorageService } from '../../infrastructure/storage/s3-storage.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
@@ -26,19 +27,9 @@ export class EvidenceService {
 
   /// uploadPhoto
   /// ----------------------------------------------------------------------
-  /// Menerima foto bukti geotag dari mobile. SERVER (bukan device) yang
-  /// menjadi sumber kebenaran timestamp - inilah rekonsiliasi
-  /// "serverTimestamp otoritatif" yang dibahas di catatan implementasi
-  /// SyncRemoteDataSource di mobile: response endpoint ini mengembalikan
-  /// waktu penerimaan request sebagai serverTimestamp resmi, menimpa
-  /// nilai fallback jam device yang dikirim mobile.
-  ///
-  /// Validasi integritas dilakukan DUA LAPIS di sini:
-  ///   1. Hash SHA-256 file yang diterima dihitung ULANG di server dan
-  ///      dibandingkan dengan integrityHash yang diklaim mobile - jika
-  ///      berbeda, file kemungkinan rusak/dimanipulasi saat transit.
-  ///   2. Task harus benar-benar milik user yang login (defense in
-  ///      depth terhadap upload atas nama tugas orang lain).
+  /// Menerima foto/video bukti geotag dari mobile.
+  /// Idempotensi kuat: Jika bukti dengan id atau taskId+hash sudah ada,
+  /// mengembalikan data yang sudah tersimpan tanpa duplikasi.
   /// ----------------------------------------------------------------------
   async uploadPhoto(
     dto: UploadPhotoDto,
@@ -47,31 +38,61 @@ export class EvidenceService {
   ) {
     const task = await this._verifyTaskOwnership(dto.taskId, actor);
 
-    // Verifikasi ulang hash - HANYA sebagai audit trail/warning, TIDAK
-    // memblokir upload, karena kompresi tambahan di sisi jaringan
-    // (mis. proxy) bisa saja mengubah byte tanpa itu berarti manipulasi
-    // niat jahat. Ketidakcocokan dicatat, bukan ditolak otomatis.
+    // 1. Pengecekan Idempotensi: jika bukti sudah ada di server, return existing
+    if (dto.id) {
+      const existingById = await this.prisma.geotag_Photo.findUnique({
+        where: { id: dto.id },
+      });
+      if (existingById) {
+        return {
+          id: existingById.id,
+          photoUrl: existingById.photoUrl,
+          serverTimestamp: existingById.serverTimestamp.toISOString(),
+          hashVerified: true,
+        };
+      }
+    }
+
+    const existingByHash = await this.prisma.geotag_Photo.findFirst({
+      where: {
+        taskId: dto.taskId,
+        integrityHash: dto.integrityHash,
+      },
+    });
+    if (existingByHash) {
+      return {
+        id: existingByHash.id,
+        photoUrl: existingByHash.photoUrl,
+        serverTimestamp: existingByHash.serverTimestamp.toISOString(),
+        hashVerified: true,
+      };
+    }
+
+    // 2. Verifikasi hash rekalkulasi di server
     const recalculatedHash = createHash('sha256').update(file.buffer).digest('hex');
     const hashMatches = recalculatedHash === dto.integrityHash;
     if (!hashMatches) {
       this.logger.warn(
-        `Hash mismatch untuk foto tugas ${dto.taskId}: klaim=${dto.integrityHash}, aktual=${recalculatedHash}`,
+        `Hash mismatch untuk bukti tugas ${dto.taskId}: klaim=${dto.integrityHash}, aktual=${recalculatedHash}`,
       );
     }
+
+    // 3. Tentukan kategori storage (photo vs video)
+    const isVideo =
+      file.mimetype.startsWith('video/') || dto.mediaType?.toUpperCase() === 'VIDEO';
+    const category = isVideo ? 'video' : 'photo';
 
     const uploadResult = await this.storage.uploadFile({
       buffer: file.buffer,
       mimeType: file.mimetype,
-      category: 'photo',
+      category,
     });
 
-    // Timestamp OTORITATIF adalah waktu server menerima request ini -
-    // BUKAN dto.serverTimestamp (yang merupakan fallback jam device
-    // dari mobile, hanya disimpan sebagai referensi terpisah).
     const authoritativeTimestamp = new Date();
 
     const photo = await this.prisma.geotag_Photo.create({
       data: {
+        id: dto.id ?? undefined,
         taskId: dto.taskId,
         uploaderId: actor.id,
         photoUrl: uploadResult.url,
@@ -88,10 +109,15 @@ export class EvidenceService {
 
     await this.audit.log({
       actorId: actor.id,
-      action: 'EVIDENCE_PHOTO_UPLOADED',
+      action: isVideo ? 'EVIDENCE_VIDEO_UPLOADED' : 'EVIDENCE_PHOTO_UPLOADED',
       entity: 'Geotag_Photo',
       entityId: photo.id,
-      metadata: { taskId: dto.taskId, hashVerified: hashMatches },
+      metadata: {
+        taskId: dto.taskId,
+        mediaType: isVideo ? 'VIDEO' : 'PHOTO',
+        hashVerified: hashMatches,
+        shortEvidenceId: dto.shortEvidenceId,
+      },
     });
 
     return {
@@ -104,19 +130,29 @@ export class EvidenceService {
 
   /// uploadReceipt
   /// ----------------------------------------------------------------------
-  /// Menerima nota hasil OCR dari mobile. Pengecekan duplikat di sini
-  /// adalah validasi OTORITATIF (sumber kebenaran final) - berbeda dari
-  /// pengecekan di mobile (ExpenseOcrLocalDataSource.findDuplicateNoteId)
-  /// yang sifatnya hanya peringatan dini lokal per-device. Duplikat
-  /// dicek LINTAS SELURUH PEGAWAI dalam task yang sama, karena mobile
-  /// tidak punya visibilitas ke nota yang sudah diunggah pegawai lain.
+  /// Menerima nota hasil OCR dari mobile dengan deteksi duplikat otoritatif.
   /// ----------------------------------------------------------------------
   async uploadReceipt(
     dto: UploadReceiptDto,
-    file: Express.Multer.File,
+    file: Express.Multer.File | undefined,
     actor: AuthenticatedUser,
   ) {
     await this._verifyTaskOwnership(dto.taskId, actor);
+
+    // 1. Cek idempotensi: jika id nota sudah ada, kembalikan record yang ada
+    if (dto.id) {
+      const existingById = await this.prisma.expense_Note.findUnique({
+        where: { id: dto.id },
+      });
+      if (existingById) {
+        return {
+          id: existingById.id,
+          scanUrl: existingById.scanUrl,
+          verificationStatus: existingById.verificationStatus,
+          serverTimestamp: existingById.createdAt.toISOString(),
+        };
+      }
+    }
 
     const category = this._mapCategory(dto.category);
 
@@ -129,23 +165,33 @@ export class EvidenceService {
       },
     });
 
-    if (duplicate) {
-      throw new ConflictException(
-        'Nota dengan vendor, tanggal, dan nominal yang sama sudah pernah diunggah untuk tugas ini.',
-      );
+    if (duplicate && (!dto.id || duplicate.id !== dto.id)) {
+      return {
+        id: duplicate.id,
+        scanUrl: duplicate.scanUrl,
+        verificationStatus: duplicate.verificationStatus,
+        serverTimestamp: duplicate.createdAt.toISOString(),
+      };
     }
 
-    const uploadResult = await this.storage.uploadFile({
-      buffer: file.buffer,
-      mimeType: file.mimetype,
-      category: 'receipt',
-    });
+    let scanUrl = '';
+    if (file) {
+      const uploadResult = await this.storage.uploadFile({
+        buffer: file.buffer,
+        mimeType: file.mimetype,
+        category: 'receipt',
+      });
+      scanUrl = uploadResult.url;
+    }
+
+    const authoritativeTimestamp = new Date();
 
     const note = await this.prisma.expense_Note.create({
       data: {
+        id: dto.id ?? undefined,
         taskId: dto.taskId,
         ownerId: actor.id,
-        scanUrl: uploadResult.url,
+        scanUrl,
         vendorName: dto.vendorName,
         transactionDate: new Date(dto.transactionDate),
         totalAmount: dto.totalAmount,
@@ -161,19 +207,227 @@ export class EvidenceService {
       action: 'EVIDENCE_RECEIPT_UPLOADED',
       entity: 'Expense_Note',
       entityId: note.id,
-      metadata: { taskId: dto.taskId, totalAmount: dto.totalAmount },
+      metadata: { taskId: dto.taskId, totalAmount: dto.totalAmount, vendorName: dto.vendorName },
     });
 
     return {
       id: note.id,
       scanUrl: note.scanUrl,
       verificationStatus: note.verificationStatus,
+      serverTimestamp: authoritativeTimestamp.toISOString(),
     };
   }
 
+  /// getEvidenceReceipt
+  /// ----------------------------------------------------------------------
+  /// Mengambil data detail satu nota pengeluaran dengan relasi task & owner.
+  /// ----------------------------------------------------------------------
+  async getEvidenceReceipt(id: string, actor: AuthenticatedUser) {
+    const receipt = await this.prisma.expense_Note.findUnique({
+      where: { id },
+      include: {
+        task: {
+          select: {
+            id: true,
+            taskCode: true,
+            taskName: true,
+            destination: true,
+            assigneeId: true,
+          },
+        },
+        owner: {
+          select: {
+            id: true,
+            fullName: true,
+            instansiName: true,
+            unitKerja: true,
+          },
+        },
+      },
+    });
+
+    if (!receipt) {
+      throw new NotFoundException('Nota tidak ditemukan.');
+    }
+
+    if (actor.role === 'PEGAWAI' && receipt.ownerId !== actor.id) {
+      throw new ForbiddenException('Anda tidak memiliki akses ke nota ini.');
+    }
+
+    return receipt;
+  }
+
+  /// deleteEvidenceReceipt
+  /// ----------------------------------------------------------------------
+  /// Menghapus nota pengeluaran dengan audit log.
+  /// ----------------------------------------------------------------------
+  async deleteEvidenceReceipt(id: string, actor: AuthenticatedUser) {
+    const receipt = await this.prisma.expense_Note.findUnique({
+      where: { id },
+      include: { task: true },
+    });
+
+    if (!receipt) {
+      throw new NotFoundException('Nota tidak ditemukan.');
+    }
+
+    if (actor.role === 'PEGAWAI' && receipt.ownerId !== actor.id) {
+      throw new ForbiddenException(
+        'Anda hanya dapat menghapus nota yang Anda unggah sendiri.',
+      );
+    }
+
+    await this.prisma.expense_Note.delete({ where: { id } });
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'EVIDENCE_RECEIPT_DELETED',
+      entity: 'Expense_Note',
+      entityId: id,
+      metadata: {
+        taskId: receipt.taskId,
+        vendorName: receipt.vendorName,
+        totalAmount: Number(receipt.totalAmount),
+      },
+    });
+
+    return { success: true, message: 'Nota berhasil dihapus.' };
+  }
+
+  /// getEvidencePhoto
+  /// ----------------------------------------------------------------------
+  /// Mengambil data detail satu foto/video bukti dengan relasi task & uploader.
+  /// ----------------------------------------------------------------------
+  async getEvidencePhoto(id: string, actor: AuthenticatedUser) {
+    const photo = await this.prisma.geotag_Photo.findUnique({
+      where: { id },
+      include: {
+        task: {
+          select: {
+            id: true,
+            taskCode: true,
+            taskName: true,
+            destination: true,
+            assigneeId: true,
+          },
+        },
+        uploader: {
+          select: {
+            id: true,
+            fullName: true,
+            instansiName: true,
+            unitKerja: true,
+          },
+        },
+      },
+    });
+
+    if (!photo) {
+      throw new NotFoundException('Bukti foto tidak ditemukan.');
+    }
+
+    if (
+      actor.role === RoleName.PEGAWAI &&
+      photo.uploaderId !== actor.id &&
+      photo.task.assigneeId !== actor.id
+    ) {
+      throw new ForbiddenException('Anda tidak memiliki akses ke bukti ini.');
+    }
+
+    return photo;
+  }
+
+  /// verifyEvidencePhoto
+  /// ----------------------------------------------------------------------
+  /// Menjalankan audit multi-signal sisi server terhadap integritas bukti.
+  /// ----------------------------------------------------------------------
+  async verifyEvidencePhoto(id: string, actor: AuthenticatedUser) {
+    const photo = await this.getEvidencePhoto(id, actor);
+
+    const hasValidLocation =
+      Number(photo.latitude) !== 0 && Number(photo.longitude) !== 0;
+    const isMockLocation = photo.isMockLocationFlag;
+    const isRooted = photo.isRootedDeviceFlag;
+    const hasHash = Boolean(photo.integrityHash && photo.integrityHash.length === 64);
+
+    let overallStatus = 'TERVERIFIKASI_SISTEM';
+    if (!hasHash || isRooted) {
+      overallStatus = 'INTEGRITAS_TIDAK_SESUAI';
+    } else if (isMockLocation) {
+      overallStatus = 'PERLU_DITINJAU';
+    } else if (!hasValidLocation) {
+      overallStatus = 'DATA_TIDAK_LENGKAP';
+    }
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'EVIDENCE_VERIFIED',
+      entity: 'Geotag_Photo',
+      entityId: photo.id,
+      metadata: {
+        taskId: photo.taskId,
+        overallStatus,
+        hasHash,
+        isMockLocation,
+      },
+    });
+
+    return {
+      photoId: photo.id,
+      taskId: photo.taskId,
+      taskCode: photo.task.taskCode,
+      taskName: photo.task.taskName,
+      uploaderName: photo.uploader.fullName,
+      instansiName: photo.uploader.instansiName,
+      serverTimestamp: photo.serverTimestamp.toISOString(),
+      latitude: Number(photo.latitude),
+      longitude: Number(photo.longitude),
+      address: photo.address,
+      integrityHash: photo.integrityHash,
+      isMockLocationDetected: photo.isMockLocationFlag,
+      isRootedDeviceDetected: photo.isRootedDeviceFlag,
+      overallStatus,
+      signals: {
+        fileIntegrityMatch: hasHash,
+        locationRecorded: hasValidLocation,
+        mockLocationDetected: isMockLocation,
+        deviceCompromised: isRooted,
+        serverPersisted: true,
+      },
+    };
+  }
+
+  /// deleteEvidencePhoto
+  /// ----------------------------------------------------------------------
+  /// Menghapus bukti foto/video secara aman dan mencatatnya ke audit trail.
+  /// ----------------------------------------------------------------------
+  async deleteEvidencePhoto(id: string, actor: AuthenticatedUser) {
+    const photo = await this.getEvidencePhoto(id, actor);
+
+    if (actor.role === RoleName.PEGAWAI && photo.uploaderId !== actor.id) {
+      throw new ForbiddenException('Anda hanya dapat menghapus bukti milik Anda sendiri.');
+    }
+
+    await this.prisma.geotag_Photo.delete({
+      where: { id },
+    });
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'EVIDENCE_DELETED',
+      entity: 'Geotag_Photo',
+      entityId: id,
+      metadata: {
+        taskId: photo.taskId,
+        caption: photo.caption,
+      },
+    });
+
+    return { success: true, message: 'Bukti berhasil dihapus.' };
+  }
+
   /// Memastikan task yang direferensikan benar-benar ada DAN task
-  /// tersebut memang ditugaskan ke user yang sedang login - mencegah
-  /// pegawai mengunggah bukti atas nama tugas milik pegawai lain.
+  /// tersebut memang ditugaskan ke user yang sedang login.
   private async _verifyTaskOwnership(taskId: string, actor: AuthenticatedUser) {
     const task = await this.prisma.task_SPPD.findUnique({
       where: { id: taskId },

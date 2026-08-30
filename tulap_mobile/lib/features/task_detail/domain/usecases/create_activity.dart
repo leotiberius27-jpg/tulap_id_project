@@ -47,6 +47,7 @@ class CreateActivity {
     String? description,
     required List<String> checklistLabels,
     AuthUserEntity? currentUser,
+    String? travelId,
   }) async {
     final cleanName = taskName.trim();
     final cleanDest = destination.trim();
@@ -107,6 +108,7 @@ class CreateActivity {
         geotagPhotoCount: 0,
         expenseNoteCount: 0,
         isSelfCreated: true,
+        travelId: travelId,
         syncStatus: 'LOCAL_ONLY',
         syncVersion: 1,
         startedAt: now,

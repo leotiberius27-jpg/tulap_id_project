@@ -1,4 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Network & Internet for API communication & sync -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <!-- Camera & Microphone for Geotag Evidence, Video & Receipt Scanning -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
     <!-- Lokasi (foreground SAJA - Bagian 72 spesifikasi: "Tidak ada
          pelacakan berkelanjutan/background"). Dibutuhkan geolocator
          untuk watermark geotag & indikator GPS di kamera, dan untuk
