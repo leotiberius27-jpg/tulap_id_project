@@ -87,21 +87,29 @@ class MiniMapRenderer {
 
     canvas.clipRRect(rrect);
 
-    // 1. Background Peta Lapangan Gelap (Dark Slate Navy)
+    // 1. Background Peta Lapangan Gelap (Netral Charcoal - BUKAN Biru)
+    // Sebelumnya gradient ini biru-navy (0xFF0F172A -> 0xFF1E293B) DAN
+    // grid/radar/border di atasnya juga biru (0x38BDF8/0x006EE6),
+    // sehingga panel mini-map tampak sebagai kotak biru mencolok di
+    // pojok foto bukti - dilaporkan langsung oleh pengguna sebagai
+    // mengganggu setelah melihat hasil foto asli. Diganti netral abu-abu
+    // gelap agar menyatu dengan panel stamp lain (yang sudah hitam/navy
+    // gelap ~85% opacity), TANPA menghilangkan info peta (grid, radar,
+    // pin, koordinat) itu sendiri.
     final bgPaint = Paint()
       ..shader = ui.Gradient.linear(
         Offset.zero,
         Offset(size, size),
         [
-          const ui.Color(0xFF0F172A),
-          const ui.Color(0xFF1E293B),
+          const ui.Color(0xFF14171C),
+          const ui.Color(0xFF23262D),
         ],
       );
     canvas.drawRect(rect, bgPaint);
 
     // 2. Garis Grid Koordinat & Jalan Prosedural
     final gridPaint = Paint()
-      ..color = const ui.Color(0x2238BDF8)
+      ..color = const ui.Color(0x22FFFFFF)
       ..strokeWidth = (size * 0.015).clamp(1.0, 3.0);
 
     final step = size / 5;
@@ -122,12 +130,12 @@ class MiniMapRenderer {
     // 3. Radar Lingkaran Target Akurasi
     final center = Offset(size / 2, size / 2);
     final radarPaint = Paint()
-      ..color = const ui.Color(0x26006EE6)
+      ..color = const ui.Color(0x26FFFFFF)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, size * 0.32, radarPaint);
 
     final radarBorder = Paint()
-      ..color = const ui.Color(0x66006EE6)
+      ..color = const ui.Color(0x66FFFFFF)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawCircle(center, size * 0.32, radarBorder);
@@ -200,7 +208,7 @@ class MiniMapRenderer {
     canvas.drawRRect(
       rrect,
       Paint()
-        ..color = const ui.Color(0x4038BDF8)
+        ..color = const ui.Color(0x40FFFFFF)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5,
     );

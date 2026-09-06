@@ -35,7 +35,7 @@ class LocationIntegrityResult {
 /// ----------------------------------------------------------------------
 class MockLocationDetector {
   static const double _maxAcceptableAccuracyMeters = 50.0;
-  static const Duration _locationTimeout = Duration(seconds: 15);
+  static const Duration _locationTimeout = Duration(seconds: 4);
 
   /// Mengevaluasi objek [Position] yang sudah didapat secara instan
   /// tanpa memicu I/O GPS baru (dipakai untuk Fast Pipeline & atomic capture).
@@ -79,12 +79,12 @@ class MockLocationDetector {
       );
     }
 
-    // Coba last known position dahulu jika masih sangat baru (< 15 detik)
+    // Coba last known position dahulu secara instan (jika akurasi <= 50m)
     try {
       final lastKnown = await Geolocator.getLastKnownPosition();
       if (lastKnown != null &&
-          DateTime.now().difference(lastKnown.timestamp).inSeconds <= 15 &&
-          lastKnown.accuracy <= 15.0) {
+          DateTime.now().difference(lastKnown.timestamp).inMinutes <= 15 &&
+          lastKnown.accuracy <= _maxAcceptableAccuracyMeters) {
         return evaluatePosition(lastKnown);
       }
     } catch (_) {}

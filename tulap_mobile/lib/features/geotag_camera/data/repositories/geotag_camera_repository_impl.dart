@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:dartz/dartz.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/geo/fast_location_service.dart';
 import '../../../../core/geo/plus_code_generator.dart';
@@ -7,7 +9,9 @@ import '../../../../core/geo/reverse_geocoder.dart';
 import '../../../../core/geo/static_map_thumbnail.dart';
 import '../../../../core/imaging/watermark_compositor.dart';
 import '../../../../core/security/mock_location_detector.dart';
+import '../../../../core/security/report_security_event.dart';
 import '../../../../core/security/root_detector.dart';
+import '../../../../core/security/security_event_entity.dart';
 import '../../../auth/domain/usecases/get_current_session.dart';
 import '../../../sync_queue/domain/entities/sync_record_entity.dart';
 import '../../../sync_queue/domain/usecases/enqueue_sync_item.dart';
@@ -33,6 +37,7 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
   final ReverseGeocoder _reverseGeocoder;
   final StaticMapThumbnail _staticMapThumbnail;
   final TemplateRepository? _templateRepository;
+  final ReportSecurityEvent? _reportSecurityEvent;
 
   GeotagCameraRepositoryImpl({
     required GeotagCameraLocalDataSource localDataSource,
@@ -45,6 +50,7 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
     required ReverseGeocoder reverseGeocoder,
     required StaticMapThumbnail staticMapThumbnail,
     TemplateRepository? templateRepository,
+    ReportSecurityEvent? reportSecurityEvent,
   }) : _localDataSource = localDataSource,
        _mockLocationDetector = mockLocationDetector,
        _rootDetector = rootDetector,
@@ -54,7 +60,33 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
        _plusCodeGenerator = plusCodeGenerator,
        _reverseGeocoder = reverseGeocoder,
        _staticMapThumbnail = staticMapThumbnail,
-       _templateRepository = templateRepository;
+       _templateRepository = templateRepository,
+       _reportSecurityEvent = reportSecurityEvent;
+
+  /// Melaporkan percobaan capture yang baru saja diblokir - "secure error
+  /// callback so the app can notify the admin/database". Best-effort:
+  /// tidak pernah dibiarkan melempar exception yang bisa mengganggu
+  /// Left(...) yang sudah diputuskan pemanggil di atasnya.
+  Future<void> _notifySecurityViolation({
+    required String taskId,
+    required SecurityEventType eventType,
+    required Position? position,
+  }) async {
+    if (_reportSecurityEvent == null) return;
+    try {
+      await _reportSecurityEvent(
+        taskId: taskId,
+        eventType: eventType,
+        latitude: position?.latitude ?? 0.0,
+        longitude: position?.longitude ?? 0.0,
+        accuracyMeters: position?.accuracy ?? 0.0,
+        deviceInfo: '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+      );
+    } catch (_) {
+      // Kegagalan pelaporan sekunder TIDAK BOLEH menutupi hasil utama
+      // (capture sudah diblokir terlepas dari ini berhasil atau tidak).
+    }
+  }
 
   void attachCameraController(CameraController controller) {
     _cameraController = controller;
@@ -78,6 +110,11 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
       // 1. Validasi integritas perangkat & lokasi secara atomik (0ms GPS restart delay)
       final isCompromised = await _rootDetector.isDeviceCompromised();
       if (isCompromised) {
+        await _notifySecurityViolation(
+          taskId: taskId,
+          eventType: SecurityEventType.rootDeviceBlocked,
+          position: FastLocationService.instance.latestCandidatePosition,
+        );
         return const Left(DeviceIntegrityFailure());
       }
 
@@ -87,6 +124,15 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
           ? _mockLocationDetector.evaluatePosition(fastLoc.position!)
           : null;
       if (fastLoc.isMocked || (eval?.isMockLocationDetected == true)) {
+        // Item 2 (Anti-Fake GPS): blokir instan SUDAH terjadi di atas -
+        // baris di bawah ini adalah "secure error callback" yang
+        // melaporkan percobaan yang diblokir ke admin/database, tanpa
+        // menunda atau mengubah keputusan blokir yang sudah diambil.
+        await _notifySecurityViolation(
+          taskId: taskId,
+          eventType: SecurityEventType.mockLocationBlocked,
+          position: fastLoc.position,
+        );
         return const Left(
           LocationInvalidFailure('Mock Location / Fake GPS terdeteksi.'),
         );
@@ -186,12 +232,22 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
     try {
       final isCompromised = await _rootDetector.isDeviceCompromised();
       if (isCompromised) {
+        await _notifySecurityViolation(
+          taskId: taskId,
+          eventType: SecurityEventType.rootDeviceBlocked,
+          position: FastLocationService.instance.latestCandidatePosition,
+        );
         return const Left(DeviceIntegrityFailure());
       }
 
       final fastLoc = await FastLocationService.instance
           .getAtomicCaptureLocation();
       if (fastLoc.isMocked) {
+        await _notifySecurityViolation(
+          taskId: taskId,
+          eventType: SecurityEventType.mockLocationBlocked,
+          position: fastLoc.position,
+        );
         return const Left(
           LocationInvalidFailure('Mock Location / Fake GPS terdeteksi.'),
         );

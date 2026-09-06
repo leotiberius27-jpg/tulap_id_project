@@ -2,6 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
+import '../../../assistant/presentation/controllers/tula_visibility_controller.dart';
 import '../../domain/repositories/expense_ocr_repository.dart';
 import '../../domain/usecases/save_expense_note.dart';
 import '../../domain/usecases/scan_receipt.dart';
@@ -47,9 +48,15 @@ class _ReceiptScannerEntryPageState extends State<ReceiptScannerEntryPage> {
   ReceiptScannerController? _receiptController;
   String? _initError;
 
+  late final TulaVisibilityController _tula;
+
   @override
   void initState() {
     super.initState();
+    // OCR Camera = Tula tersembunyi total selama sesi kamera aktif
+    // (Bagian 6 spesifikasi redesign Tula - mencegah salah tap).
+    _tula = sl<TulaVisibilityController>();
+    _tula.suppress();
     _initializeCamera();
   }
 
@@ -104,6 +111,7 @@ class _ReceiptScannerEntryPageState extends State<ReceiptScannerEntryPage> {
 
   @override
   void dispose() {
+    _tula.unsuppress();
     _receiptController?.dispose();
     _cameraController?.dispose();
     unregisterCameraSession();

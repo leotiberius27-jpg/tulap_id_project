@@ -113,6 +113,8 @@ class SyncStatusRow extends StatelessWidget {
         return 'Dokumen Pendukung';
       case SyncEntityType.lpjPackage:
         return 'Paket LPJ';
+      case SyncEntityType.securityEvent:
+        return 'Laporan Keamanan';
     }
   }
 

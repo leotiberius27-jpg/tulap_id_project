@@ -74,8 +74,15 @@ class WatermarkCompositor {
         _miniMapRenderer = miniMapRenderer ?? MiniMapRenderer();
 
   // Palet Warna Resmi Tulap.id
-  static const _panelBgColor = ui.Color(0xD90A1120); // Deep Navy ~85% opacity
-  static const _topAccentColor = ui.Color(0xFF006EE6); // Tulap Primary Blue
+  // PENTING - kedua warna di bawah ini SEBELUMNYA biru ("Deep Navy" &
+  // "Tulap Primary Blue"), dilaporkan langsung oleh pengguna sebagai
+  // background yang mengganggu tepat di belakang teks judul panel (mis.
+  // "NAVIGASI LAPANGAN") pada hasil foto asli - berbeda dari panel
+  // mini-map (sudah diperbaiki sebelumnya di mini_map_renderer.dart).
+  // Diganti netral (charcoal gelap) & emas (selaras aksen judul yang
+  // sudah dipakai di tempat lain) - TIDAK ada lagi warna biru tersisa
+  // pada background panel stamp.
+  static const _panelBgColor = ui.Color(0xD9121214); // Charcoal netral ~85% opacity
   static const _cyanAccentColor = ui.Color(0xFF38BDF8); // Sky Blue highlight
   static const _textWhite = ui.Color(0xFFFFFFFF);
   static const _textLight = ui.Color(0xFFE2E8F0);
@@ -120,15 +127,13 @@ class WatermarkCompositor {
     );
     final panelTop = height - targetPanelHeight;
 
-    // 3. Render Background Panel (Deep Navy semi-transparan + Top Accent Line)
+    // 3. Render Background Panel (Charcoal semi-transparan)
+    // Garis aksen ("Top Brand Highlight Bar") yang sebelumnya ada di sini
+    // DIHAPUS SELURUHNYA atas permintaan langsung pengguna ("garis gold
+    // atau kuning... dihilangkan saja") - bukan direkolori lagi, tapi
+    // benar-benar ditiadakan.
     final panelRect = Rect.fromLTWH(0, panelTop, width, targetPanelHeight);
     canvas.drawRect(panelRect, Paint()..color = _panelBgColor);
-
-    // Top Brand Highlight Bar
-    canvas.drawRect(
-      Rect.fromLTWH(0, panelTop, width, 4.0 * scale),
-      Paint()..color = _topAccentColor,
-    );
 
     final panelPaddingH = 26.0 * scale;
     final panelPaddingV = 16.0 * scale;
@@ -509,50 +514,62 @@ class WatermarkCompositor {
     final qrBoxSize = (height * 0.9).clamp(110.0 * scale, 210.0 * scale);
     final textWidth = width - qrBoxSize - (16.0 * scale);
 
-    // Sisi Kanan: QR Google Maps
+    // Sisi Kanan: QR Google Maps (Sesuai Referensi Hasil Foto 01.jpeg)
     final mapsUrl = _qrGenerator.buildGoogleMapsUrl(
       latitude: data.latitude,
       longitude: data.longitude,
     );
     final qrImage = await _qrGenerator.generateQrImage(
       data: mapsUrl,
-      pixelSize: (qrBoxSize * 0.82).toInt(),
+      pixelSize: (qrBoxSize * 0.76).toInt(),
     );
 
     final qrLeft = left + width - qrBoxSize;
     final qrTop = top + (height - qrBoxSize) / 2;
 
+    // Card QR putih kontras tinggi dengan Header "Google Maps"
     final cardRect = Rect.fromLTWH(qrLeft, qrTop, qrBoxSize, qrBoxSize);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(cardRect, Radius.circular(12.0 * scale)),
-      Paint()..color = const ui.Color(0xFF0F172A),
+      RRect.fromRectAndRadius(cardRect, Radius.circular(10.0 * scale)),
+      Paint()..color = const ui.Color(0xFFFFFFFF),
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(cardRect, Radius.circular(12.0 * scale)),
+      RRect.fromRectAndRadius(cardRect, Radius.circular(10.0 * scale)),
       Paint()
-        ..color = const ui.Color(0x4038BDF8)
+        ..color = const ui.Color(0x33000000)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2 * scale,
+        ..strokeWidth = 1.0 * scale,
     );
 
-    final qrInnerLeft = qrLeft + (qrBoxSize - (qrBoxSize * 0.82)) / 2;
-    canvas.drawImage(qrImage, Offset(qrInnerLeft, qrTop + (4.0 * scale)), Paint());
+    // Header Gelap "Google Maps" di atas QR
+    final headerHeight = 18.0 * scale;
+    final headerRect = RRect.fromRectAndCorners(
+      Rect.fromLTWH(qrLeft, qrTop, qrBoxSize, headerHeight),
+      topLeft: Radius.circular(10.0 * scale),
+      topRight: Radius.circular(10.0 * scale),
+    );
+    canvas.drawRRect(headerRect, Paint()..color = const ui.Color(0xFF0F172A));
 
     final labelPainter = TextPainter(
       text: TextSpan(
-        text: 'Buka Lokasi',
+        text: 'Google Maps',
         style: TextStyle(
-          color: _cyanAccentColor,
-          fontSize: (9.5 * scale).clamp(7.5, 14.0),
-          fontWeight: FontWeight.bold,
+          color: _textWhite,
+          fontSize: (8.5 * scale).clamp(6.5, 12.0),
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.2 * scale,
         ),
       ),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: qrBoxSize);
     labelPainter.paint(
       canvas,
-      Offset(qrLeft + (qrBoxSize - labelPainter.width) / 2, qrTop + qrBoxSize - (16.0 * scale)),
+      Offset(qrLeft + (qrBoxSize - labelPainter.width) / 2, qrTop + (headerHeight - labelPainter.height) / 2),
     );
+
+    // QR Image
+    final qrInnerLeft = qrLeft + (qrBoxSize - (qrBoxSize * 0.76)) / 2;
+    canvas.drawImage(qrImage, Offset(qrInnerLeft, qrTop + headerHeight + (2.0 * scale)), Paint());
 
     // Sisi Kiri: Navigasi Lapangan
     double currentY = top;
@@ -564,7 +581,7 @@ class WatermarkCompositor {
 
     if (config.showCoordinates) {
       final coordStr =
-          '${data.latitude.toStringAsFixed(6)}, ${data.longitude.toStringAsFixed(6)}';
+          '${data.latitude.toStringAsFixed(6)},  ${data.longitude.toStringAsFixed(6)}';
       currentY = _drawSingleLineText(
         canvas,
         left,
@@ -572,7 +589,7 @@ class WatermarkCompositor {
         textWidth,
         scale,
         '🌐 $coordStr',
-        _textWhite,
+        const ui.Color(0xFFFFC700),
       );
     }
 
@@ -728,6 +745,9 @@ class WatermarkCompositor {
     double scale,
     String tagText,
   ) {
+    final isGoldTag = tagText == 'NAVIGASI LAPANGAN';
+    final tagColor = isGoldTag ? const ui.Color(0xFFFFC700) : _cyanAccentColor;
+
     final painter = TextPainter(
       text: TextSpan(
         children: [
@@ -743,7 +763,7 @@ class WatermarkCompositor {
           TextSpan(
             text: '•  $tagText',
             style: TextStyle(
-              color: _cyanAccentColor,
+              color: tagColor,
               fontSize: (11.5 * scale).clamp(8.5, 17.0),
               fontWeight: FontWeight.w700,
               letterSpacing: 0.6 * scale,

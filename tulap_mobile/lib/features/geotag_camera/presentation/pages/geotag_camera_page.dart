@@ -1,12 +1,16 @@
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../evidence_gallery/presentation/pages/evidence_viewer_page.dart';
+import '../../../evidence_gallery/presentation/widgets/geotag_photo_location_card.dart';
 import '../../domain/entities/camera_preferences_entity.dart';
 import '../../domain/entities/watermark_template_entity.dart';
 import '../../domain/usecases/validate_location_integrity.dart';
 import '../controllers/geotag_camera_controller.dart';
+import '../widgets/camera_add_text_sheet.dart';
 import '../widgets/camera_bottom_bar.dart';
 import '../widgets/camera_control_panel.dart';
 import '../widgets/camera_focus_indicator.dart';
@@ -149,10 +153,16 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
               ),
             ),
 
-            // Layer 2: Area Sentuh Tap-to-Focus, Pinch-to-Zoom, & Tutup Panel
+            // Layer 2: Area Sentuh Tap-to-Focus, Pinch-to-Zoom, Double-tap Switch Camera, & Tutup Panel
             Positioned.fill(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
+                onDoubleTap: () {
+                  if (!state.isRecordingVideo && !state.isSwitchingCamera) {
+                    HapticFeedback.lightImpact();
+                    widget.onFlipCamera();
+                  }
+                },
                 onScaleStart: (_) {
                   if (state.isControlPanelOpen) controller.closeControlPanel();
                   _baseZoomScale = state.zoomLevel;
@@ -233,7 +243,7 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
               bottom: 0,
               left: 0,
               right: 0,
-              height: 320,
+              height: 340,
               child: IgnorePointer(
                 child: Container(
                   decoration: const BoxDecoration(
@@ -247,7 +257,7 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
               ),
             ),
 
-            // Layer 8: Top Control Bar
+            // Layer 8: Top Control Bar (6 Ikon Referensi 01.jpeg)
             Positioned(
               top: 0,
               left: 0,
@@ -261,10 +271,16 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                 locationStatus: state.locationStatus,
                 locationTier: state.locationTier,
                 accuracyMeters: state.accuracyMeters,
+                timerSeconds: state.cameraPreferences.timerSeconds,
                 onToggleControlPanel: controller.toggleControlPanel,
                 onCycleFlash: () => controller.cycleFlashMode(
                   widget.cameraController,
                   widget.currentLensDirection,
+                ),
+                onAddText: () => CameraAddTextSheet.show(
+                  context,
+                  currentCaption: state.caption,
+                  onSave: controller.setCustomCaption,
                 ),
                 onRename: () => CameraRenameSheet.show(
                   context,
@@ -275,6 +291,9 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                   onSave: (mode, prefix) =>
                       controller.setFileNaming(mode, prefix),
                 ),
+                onLocationTap: () =>
+                    _showLocationDetailsModal(context, controller, state),
+                onCycleTimer: controller.cycleTimer,
                 onSwitchCamera: widget.onFlipCamera,
                 onOpenSettings: () {
                   controller.closeControlPanel();
@@ -286,10 +305,6 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                     ),
                   );
                 },
-                onLocationTap: () => TemplateSelectorSheet.show(
-                  context,
-                  controller: controller,
-                ),
               ),
             ),
 
@@ -340,7 +355,7 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                 ),
               ),
 
-            // Layer 10: Quick Zoom Controls & Template Pill & Live Stamp Preview & Mode Selector & Shutter
+            // Layer 10: Quick Zoom Controls & Live Stamp Preview & Mode Selector & Bottom Controls (01.jpeg)
             Positioned(
               left: 0,
               right: 0,
@@ -348,73 +363,21 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Row: Floating Quick Zoom Buttons & Template Selector Pill
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Quick Zoom (0.5x, 1x, 2x, 5x)
-                        CameraZoomControls(
-                          currentZoom: state.zoomLevel,
-                          minZoom: state.minZoomLevel,
-                          maxZoom: state.maxZoomLevel,
-                          onZoomChanged: (zoom) => controller.setZoomLevel(
-                            zoom,
-                            widget.cameraController,
-                          ),
-                        ),
-
-                        // Active Template Pill Button
-                        GestureDetector(
-                          onTap: () {
-                            TemplateSelectorSheet.show(
-                              context,
-                              controller: controller,
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.55),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: const Color(0xFF006EE6),
-                                width: 1.2,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.auto_awesome_motion_outlined,
-                                  color: Color(0xFF38BDF8),
-                                  size: 13,
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  TemplateCatalog.getById(
-                                    state.stampConfig.templateId,
-                                  ).name,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                  // Center Floating Quick Zoom Controls (1x, 2x pill with yellow active bubble from 01.jpeg)
+                  Center(
+                    child: CameraZoomControls(
+                      currentZoom: state.zoomLevel,
+                      minZoom: state.minZoomLevel,
+                      maxZoom: state.maxZoomLevel,
+                      onZoomChanged: (zoom) => controller.setZoomLevel(
+                        zoom,
+                        widget.cameraController,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
 
-                  // Floating Live Stamp Card
+                  // Floating Live Stamp Card (Google Mini Map + Address + Coordinates + Time + QR)
                   CameraStampPreview(
                     taskName: widget.taskName ?? 'Monitoring Lapangan Tulap.id',
                     officerName: widget.officerName,
@@ -426,17 +389,17 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                     currentTime: state.currentTime,
                     stampConfig: state.stampConfig,
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
 
-                  // Mode Selector: FOTO vs VIDEO
+                  // Mode Selector: BAGIKAN FOTO, FOTO, VIDEO, LAPORAN (Pill Kuning 01.jpeg)
                   CameraModeSelector(
                     selectedMode: state.cameraMode,
                     isRecording: state.isRecordingVideo,
                     onModeChanged: controller.setCameraMode,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 4),
 
-                  // Bottom Bar: Galeri, Shutter, Flip
+                  // Bottom Action Bar: Pratinjau, Lokasi, Shutter, Default, Template
                   CameraBottomBar(
                     state: state,
                     onCapture: controller.onCaptureButtonPressed,
@@ -448,6 +411,21 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                     onLowAccuracyTap: () =>
                         _showLowAccuracyDialog(context, controller, state),
                     taskPhotos: state.taskPhotos,
+                    onLocationTap: () =>
+                        _showLocationDetailsModal(context, controller, state),
+                    onPresetTap: () => CameraRenameSheet.show(
+                      context,
+                      currentMode: state.cameraPreferences.fileNamingMode,
+                      currentPrefix: state.cameraPreferences.customFilePrefix,
+                      taskName: widget.taskName ?? widget.taskId,
+                      isVideo: state.cameraMode == CameraCaptureMode.video,
+                      onSave: (mode, prefix) =>
+                          controller.setFileNaming(mode, prefix),
+                    ),
+                    onTemplateTap: () => TemplateSelectorSheet.show(
+                      context,
+                      controller: controller,
+                    ),
                     onOpenGallery: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -517,8 +495,22 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
       fit: StackFit.expand,
       children: [
         // 1. Gambar Hasil Foto Fullscreen
+        // PENTING - sengaja pakai `originalFilePath` (foto mentah SEBELUM
+        // watermark dibakar permanen ke dalamnya oleh WatermarkCompositor),
+        // BUKAN `localFilePath` (versi ber-watermark yang jadi bukti final
+        // tersimpan/tersinkron). Sebelumnya layar ini memakai
+        // `localFilePath`, yang berarti panel navigasi hasil bake sudah
+        // ikut tampil di foto latar - lalu GeotagPhotoLocationCard di
+        // bawah dirender LAGI di atasnya sebagai overlay terpisah,
+        // menghasilkan dua panel navigasi bertumpuk yang tidak sinkron
+        // posisi/ukurannya (BoxFit.contain vs Positioned relatif layar) -
+        // dilaporkan pengguna sebagai "navigasi lama menumpuk di balik
+        // navigasi baru". Foto mentah tidak punya panel apa pun, jadi
+        // hanya SATU panel (GeotagPhotoLocationCard) yang tampak di layar
+        // ini. File ber-watermark (`localFilePath`) TETAP menjadi bukti
+        // resmi yang disimpan/disinkronkan - tidak berubah sama sekali.
         Image.file(
-          File(photo.localFilePath),
+          File(photo.originalFilePath ?? photo.localFilePath),
           fit: BoxFit.contain,
           width: double.infinity,
           height: double.infinity,
@@ -532,21 +524,32 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xD90F172A),
+                // Soft Success Green - sebelumnya aksen biru muda
+                // (0xFF38BDF8) yang salah kaprah menyiratkan status
+                // "informasi", padahal ini status SUKSES. Memakai token
+                // AppColors.success yang sudah ada di design system
+                // (bukan hex baru yang di-hardcode terpisah), diberi
+                // opacity agar tetap legible di atas foto apa pun.
+                color: AppColors.success.withValues(alpha: 0.94),
                 borderRadius: BorderRadius.circular(99),
-                border: Border.all(color: const Color(0xFF38BDF8), width: 1),
+                border: Border.all(
+                  color: AppColors.success.withValues(alpha: 0.6),
+                  width: 1,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const Icon(
                     Icons.check_circle_rounded,
-                    color: Color(0xFF38BDF8),
+                    color: Colors.white,
                     size: 16,
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    '✓ Bukti berhasil direkam • GPS ±${photo.gpsAccuracyMeters.round()} m',
+                    'Bukti berhasil direkam • GPS ±${photo.gpsAccuracyMeters.round()} m',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -559,13 +562,13 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
           ),
         ),
 
-        // 3. Bottom Action Buttons (Ambil Ulang & Gunakan Foto)
+        // 3. Floating Geotag Location Info Card (Sesuai Referensi 01.jpeg) + Action Buttons
         Positioned(
           left: 0,
           right: 0,
           bottom: 0,
           child: Container(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.bottomCenter,
@@ -575,42 +578,58 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
             ),
             child: SafeArea(
               top: false,
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: const Text('Ambil Ulang'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(
-                          color: Colors.white54,
-                          width: 1.5,
-                        ),
-                        minimumSize: const Size.fromHeight(52),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      onPressed: controller.retakePhoto,
-                    ),
+                  // Kartu Lokasi Geotag Navigasi Lapangan (01.jpeg)
+                  GeotagPhotoLocationCard(
+                    latitude: photo.latitude,
+                    longitude: photo.longitude,
+                    accuracyMeters: photo.gpsAccuracyMeters,
+                    address: photo.address,
+                    timestamp: photo.serverTimestamp,
+                    tag: 'NAVIGASI LAPANGAN',
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.check_rounded, size: 20),
-                      label: const Text('Gunakan Foto'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF006EE6),
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(52),
-                        elevation: 4,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                  const SizedBox(height: 10),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text('Ambil Ulang'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(
+                              color: Colors.white54,
+                              width: 1.5,
+                            ),
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          onPressed: controller.retakePhoto,
                         ),
                       ),
-                      onPressed: () => Navigator.of(context).pop(photo),
-                    ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.check_rounded, size: 20),
+                          label: const Text('Gunakan Foto'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF006EE6),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(48),
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          onPressed: () => Navigator.of(context).pop(photo),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -636,12 +655,12 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
       backgroundColor: const Color(0xFF0B1220),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: const Color(0x33006EE6),
                   shape: BoxShape.circle,
@@ -650,10 +669,10 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                 child: const Icon(
                   Icons.videocam_rounded,
                   color: Color(0xFF38BDF8),
-                  size: 48,
+                  size: 42,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               const Text(
                 'Video Dokumentasi Tersimpan',
                 style: TextStyle(
@@ -662,17 +681,30 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 'Durasi: $durationStr\nLokasi file: ${videoPath?.split(Platform.pathSeparator).last ?? ""}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white70,
-                  fontSize: 13,
+                  fontSize: 12.5,
                   height: 1.4,
                 ),
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 20),
+
+              // Kartu Lokasi Geotag Navigasi Lapangan (01.jpeg)
+              if (state.latitude != null && state.longitude != null)
+                GeotagPhotoLocationCard(
+                  latitude: state.latitude!,
+                  longitude: state.longitude!,
+                  accuracyMeters: state.accuracyMeters ?? 15.0,
+                  address: state.address,
+                  timestamp: state.currentTime,
+                  tag: 'NAVIGASI LAPANGAN',
+                ),
+
+              const SizedBox(height: 24),
               Row(
                 children: [
                   Expanded(
@@ -682,7 +714,7 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white,
                         side: const BorderSide(color: Colors.white38),
-                        minimumSize: const Size.fromHeight(50),
+                        minimumSize: const Size.fromHeight(48),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -698,7 +730,7 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF006EE6),
                         foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(50),
+                        minimumSize: const Size.fromHeight(48),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -871,4 +903,212 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
       ),
     );
   }
+
+  void _showLocationDetailsModal(
+    BuildContext context,
+    GeotagCameraController controller,
+    GeotagCameraViewState state,
+  ) {
+    final lat = state.latitude != null ? state.latitude!.toStringAsFixed(6) : '--';
+    final lng = state.longitude != null ? state.longitude!.toStringAsFixed(6) : '--';
+    final acc = state.accuracyMeters != null ? '±${state.accuracyMeters!.round()} m' : 'Mencari sinyal...';
+    final isGpsValid = state.locationStatus == LocationIntegrityStatus.valid;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F172A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border(
+            top: BorderSide(color: Color(0x33006EE6), width: 1.5),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isGpsValid
+                        ? const Color(0x3322C55E)
+                        : const Color(0x33EF4444),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.location_on_rounded,
+                    color: isGpsValid
+                        ? const Color(0xFF22C55E)
+                        : const Color(0xFFEF4444),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Informasi Lokasi & Satelit GPS',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isGpsValid ? 'GPS Terkunci • Akurasi $acc' : 'Menunggu Sinyal GPS',
+                        style: TextStyle(
+                          color: isGpsValid ? const Color(0xFF38BDF8) : const Color(0xFFEF4444),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(color: Colors.white12, height: 1),
+            const SizedBox(height: 14),
+
+            // Koordinat
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'LATITUDE',
+                          style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          lat,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'LONGITUDE',
+                          style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          lng,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Alamat Lengkap
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'ALAMAT TERDETEKSI',
+                    style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    state.address ?? 'Memuat alamat geocoding...',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Tombol Tutup
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF006EE6),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+

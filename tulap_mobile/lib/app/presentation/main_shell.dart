@@ -5,6 +5,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/session/auth_session_manager.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/account/presentation/pages/account_page.dart';
+import '../../features/assistant/presentation/controllers/tula_visibility_controller.dart';
 import '../../features/auth/domain/entities/auth_user_entity.dart';
 import '../../features/auth/domain/usecases/get_current_session.dart';
 import '../../features/geotag_camera/presentation/pages/geotag_camera_entry_page.dart';
@@ -89,6 +90,24 @@ class _MainShellState extends State<MainShell> {
     _user = _authSessionManager.currentUser;
     _authSessionManager.addListener(_onUserSessionChanged);
     _loadUser();
+    _syncTulaBaseContext(_index);
+  }
+
+  /// Tab utama MainShell hidup selamanya di dalam `IndexedStack` (initState
+  /// masing-masing tab hanya jalan sekali), jadi konteks Tula untuk
+  /// Beranda/Tugas/Riwayat/Akun TIDAK bisa memakai push/pop seperti
+  /// halaman fullscreen lain - cukup set ulang "base context" tiap kali
+  /// tab berpindah.
+  void _syncTulaBaseContext(int i) {
+    final screen = switch (i) {
+      0 => TulaScreenContext.home,
+      1 => TulaScreenContext.taskList,
+      2 => TulaScreenContext.history,
+      _ => TulaScreenContext.general,
+    };
+    sl<TulaVisibilityController>().setBaseContext(
+      TulaContextData(screen, hasBottomNav: true),
+    );
   }
 
   void _onTabSelected(int i) {
@@ -96,6 +115,7 @@ class _MainShellState extends State<MainShell> {
     final isSwitchingTab = i != _index;
     setState(() => _index = i);
     if (!isSwitchingTab) return;
+    _syncTulaBaseContext(i);
     if (i == 0 || i == 3) _loadUser();
     if (i == 1) _taskListController.load();
     if (i == 2) _historyController.load();

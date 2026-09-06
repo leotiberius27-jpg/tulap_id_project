@@ -59,6 +59,9 @@ class SyncRemoteDataSource {
       case SyncEntityType.lpjPackage:
         await _uploadLpjPackage(record);
         break;
+      case SyncEntityType.securityEvent:
+        await _uploadSecurityEvent(record);
+        break;
     }
   }
 
@@ -341,6 +344,46 @@ class SyncRemoteDataSource {
       },
       where: 'id = ?',
       whereArgs: [pkg.id],
+    );
+  }
+
+  /// Melaporkan satu percobaan capture yang diblokir (mock location /
+  /// root device) ke `POST /audit-logs/security-event` - lihat
+  /// ReportSecurityEvent (core/security). Tidak ada file yang menyertai
+  /// request ini, murni JSON.
+  Future<void> _uploadSecurityEvent(SyncRecordEntity record) async {
+    final rows = await _database.query(
+      'security_events',
+      where: 'id = ?',
+      whereArgs: [record.entityLocalId],
+    );
+    if (rows.isEmpty) return;
+
+    final row = rows.first;
+    const eventTypeApiValues = {
+      'mockLocationBlocked': 'MOCK_LOCATION_BLOCKED',
+      'rootDeviceBlocked': 'ROOT_DEVICE_BLOCKED',
+    };
+
+    await _dioClient.dio.post(
+      '/audit-logs/security-event',
+      data: {
+        'eventType': eventTypeApiValues[row['eventType']] ??
+            'MOCK_LOCATION_BLOCKED',
+        'taskId': row['taskId'],
+        'latitude': row['latitude'],
+        'longitude': row['longitude'],
+        'accuracyMeters': row['accuracyMeters'],
+        'deviceInfo': row['deviceInfo'],
+      },
+      options: Options(headers: {'X-Idempotency-Key': record.id}),
+    );
+
+    await _database.update(
+      'security_events',
+      {'syncStatus': 'SYNCED'},
+      where: 'id = ?',
+      whereArgs: [row['id']],
     );
   }
 }

@@ -5,20 +5,19 @@ import '../../../evidence_gallery/presentation/pages/evidence_viewer_page.dart';
 import '../../domain/entities/geotag_photo_entity.dart';
 import '../controllers/geotag_camera_controller.dart';
 import 'camera_mode_selector.dart';
-import 'task_photo_gallery_sheet.dart';
 
 /// CameraBottomBar
 /// ----------------------------------------------------------------------
-/// Baris kontrol kamera profesional di bagian bawah layar:
-///   [Gallery Preview]      [Shutter / Record]      [Flip Camera]
+/// Baris kontrol kamera bawah profesional Tulap.id (Sesuai Referensi 01.jpeg):
+///   [Pratinjau]   [Lokasi]   (( Shutter ))   [Default]   [Template]
 ///
 /// Fitur:
-/// - Shutter button responsif dengan animasi sentuh (Haptic + Scale)
-/// - Mode Foto: Shutter putih bersih dengan aksen Tulap.id Blue (#006EE6)
-/// - Mode Video: Shutter merah lingkaran (mulai) & kotak merah (berhenti)
-/// - Menampilkan preview thumbnail foto tugas terakhir & jumlah foto
-/// - Tombol switch/flip kamera depan & belakang
-/// - Validasi shutter dengan fallback modal jika GPS belum terkunci
+/// - 5 tombol kontrol bawah presisi dengan ikon dan label teks di bawahnya
+/// - Pratinjau: Thumbnail lingkaran foto terakhir dengan badge counter
+/// - Lokasi: Ikon pin peta untuk membuka modal informasi koordinat
+/// - Shutter: Tombol bulat putih solid dengan ring luar elegan
+/// - Default: Ikon folder/preset untuk manajemen pola berkas dan teks
+/// - Template: Ikon grid 4-kotak untuk membuka selector watermark
 /// ----------------------------------------------------------------------
 class CameraBottomBar extends StatelessWidget {
   final GeotagCameraViewState state;
@@ -29,6 +28,9 @@ class CameraBottomBar extends StatelessWidget {
   final VoidCallback onLowAccuracyTap;
   final List<GeotagPhotoEntity> taskPhotos;
   final VoidCallback? onOpenGallery;
+  final VoidCallback? onLocationTap;
+  final VoidCallback? onPresetTap;
+  final VoidCallback? onTemplateTap;
   final String? taskId;
   final String? taskName;
 
@@ -42,6 +44,9 @@ class CameraBottomBar extends StatelessWidget {
     required this.onLowAccuracyTap,
     required this.taskPhotos,
     this.onOpenGallery,
+    this.onLocationTap,
+    this.onPresetTap,
+    this.onTemplateTap,
     this.taskId,
     this.taskName,
   });
@@ -49,40 +54,19 @@ class CameraBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 20),
       child: SafeArea(
         top: false,
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 1. Tombol Galeri / Preview Foto Tugas
-            _buildGalleryButton(context),
-
-            // 2. Tombol Shutter Utama (Foto / Video)
-            _buildShutterButton(),
-
-            // 3. Tombol Flip Kamera (Depan / Belakang)
-            _buildFlipButton(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGalleryButton(BuildContext context) {
-    final latestPhoto = taskPhotos.isNotEmpty ? taskPhotos.first : null;
-    final isRecording = state.isRecordingVideo;
-
-    return Semantics(
-      button: true,
-      label: 'Galeri foto tugas',
-      enabled: !isRecording,
-      child: GestureDetector(
-        onTap: isRecording
-            ? null
-            : () {
-                HapticFeedback.lightImpact();
+            // 1. Pratinjau (Gallery Preview)
+            _buildBottomLabeledButton(
+              label: 'Pratinjau',
+              semanticLabel: 'Buka galeri pratinjau foto',
+              iconWidget: _buildGalleryThumbnail(context),
+              onTap: () {
                 if (onOpenGallery != null) {
                   onOpenGallery!();
                 } else {
@@ -98,76 +82,173 @@ class CameraBottomBar extends StatelessWidget {
                   );
                 }
               },
+            ),
+
+            // 2. Lokasi (Map Pin)
+            _buildBottomLabeledButton(
+              label: 'Lokasi',
+              semanticLabel: 'Buka detail lokasi GPS',
+              iconWidget: const Icon(
+                Icons.location_on_outlined,
+                color: Colors.white,
+                size: 26,
+              ),
+              onTap: onLocationTap ?? onLowAccuracyTap,
+            ),
+
+            // 3. Tombol Shutter Utama (Center Large Capture Button)
+            _buildShutterButton(),
+
+            // 4. Default (Preset / Pola Berkas)
+            _buildBottomLabeledButton(
+              label: 'Default',
+              semanticLabel: 'Pengaturan preset atau pola berkas',
+              iconWidget: const Icon(
+                Icons.folder_open_outlined,
+                color: Colors.white,
+                size: 26,
+              ),
+              onTap: onPresetTap ?? onFlipCamera,
+            ),
+
+            // 5. Template (Grid 4 Kotak Watermark Selector)
+            _buildBottomLabeledButton(
+              label: 'Template',
+              semanticLabel: 'Pilih template watermark',
+              iconWidget: const Icon(
+                Icons.grid_view_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+              onTap: onTemplateTap,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomLabeledButton({
+    required String label,
+    required String semanticLabel,
+    required Widget iconWidget,
+    required VoidCallback? onTap,
+  }) {
+    final isRecording = state.isRecordingVideo;
+
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      enabled: !isRecording && onTap != null,
+      child: GestureDetector(
+        onTap: isRecording
+            ? null
+            : () {
+                HapticFeedback.lightImpact();
+                onTap?.call();
+              },
         child: AnimatedOpacity(
           duration: const Duration(milliseconds: 180),
-          opacity: isRecording ? 0.3 : 1.0,
-          child: Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.black.withValues(alpha: 0.45),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.35),
-                width: 2,
-              ),
-            ),
-            child: Stack(
-              clipBehavior: Clip.none,
+          opacity: isRecording ? 0.35 : 1.0,
+          child: SizedBox(
+            width: 60,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                if (latestPhoto != null)
-                  ClipOval(
-                    child: Image.file(
-                      File(latestPhoto.localFilePath),
-                      width: 52,
-                      height: 52,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const Center(
-                        child: Icon(
-                          Icons.photo_library_outlined,
-                          color: Colors.white,
-                          size: 24,
-                        ),
+                SizedBox(
+                  height: 38,
+                  child: Center(child: iconWidget),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black87,
+                        offset: Offset(0, 1),
+                        blurRadius: 3,
                       ),
-                    ),
-                  )
-                else
-                  const Center(
-                    child: Icon(
-                      Icons.photo_library_outlined,
-                      color: Colors.white,
-                      size: 24,
-                    ),
+                    ],
                   ),
-
-                if (taskPhotos.isNotEmpty)
-                  Positioned(
-                    top: -3,
-                    right: -3,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF006EE6),
-                        borderRadius: BorderRadius.circular(99),
-                        border: Border.all(color: Colors.white, width: 1.5),
-                      ),
-                      child: Text(
-                        '${taskPhotos.length}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
+                ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGalleryThumbnail(BuildContext context) {
+    final latestPhoto = taskPhotos.isNotEmpty ? taskPhotos.first : null;
+
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.black.withValues(alpha: 0.45),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.75),
+          width: 1.8,
+        ),
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          if (latestPhoto != null)
+            ClipOval(
+              child: Image.file(
+                File(latestPhoto.localFilePath),
+                width: 36,
+                height: 36,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.photo_library_outlined,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+            )
+          else
+            const Icon(
+              Icons.photo_library_outlined,
+              color: Colors.white,
+              size: 18,
+            ),
+
+          if (taskPhotos.isNotEmpty)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 1,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFC700),
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(color: Colors.black, width: 1),
+                ),
+                child: Text(
+                  '${taskPhotos.length}',
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -179,9 +260,7 @@ class CameraBottomBar extends StatelessWidget {
     final canCapture = state.isCaptureEnabled;
 
     if (isVideoMode) {
-      // ----------------------------------------------------------------
-      // VIDEO SHUTTER CONTROL (Start / Stop Recording)
-      // ----------------------------------------------------------------
+      // VIDEO SHUTTER CONTROL
       return Semantics(
         button: true,
         label: isRecording ? 'Hentikan rekaman video' : 'Mulai rekam video',
@@ -196,14 +275,14 @@ class CameraBottomBar extends StatelessWidget {
             }
           },
           child: Container(
-            width: 82,
-            height: 82,
+            width: 78,
+            height: 78,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
                 color: Colors.white,
-                width: 4.5,
+                width: 3.5,
               ),
               boxShadow: isRecording
                   ? const [
@@ -218,10 +297,10 @@ class CameraBottomBar extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeInOut,
-              width: isRecording ? 34 : 64,
-              height: isRecording ? 34 : 64,
+              width: isRecording ? 30 : 60,
+              height: isRecording ? 30 : 60,
               decoration: BoxDecoration(
-                color: const Color(0xFFEF4444), // Red recording
+                color: const Color(0xFFEF4444),
                 borderRadius: BorderRadius.circular(isRecording ? 8 : 99),
               ),
             ),
@@ -230,9 +309,7 @@ class CameraBottomBar extends StatelessWidget {
       );
     }
 
-    // ------------------------------------------------------------------
-    // PHOTO SHUTTER CONTROL (Atomic Photo Capture)
-    // ------------------------------------------------------------------
+    // PHOTO SHUTTER CONTROL (01.jpeg: Solid white button with outer white ring)
     return Semantics(
       button: true,
       label: 'Ambil foto bukti',
@@ -250,8 +327,8 @@ class CameraBottomBar extends StatelessWidget {
                       onLowAccuracyTap();
                     }),
         child: Container(
-          width: 82,
-          height: 82,
+          width: 78,
+          height: 78,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
@@ -259,42 +336,40 @@ class CameraBottomBar extends StatelessWidget {
               color: canCapture
                   ? Colors.white
                   : Colors.white.withValues(alpha: 0.4),
-              width: 4.5,
+              width: 3.5,
             ),
-            boxShadow: canCapture
-                ? const [
-                    BoxShadow(
-                      color: Color(0x66006EE6),
-                      blurRadius: 18,
-                      spreadRadius: 2,
-                    ),
-                  ]
-                : null,
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x4D000000),
+                blurRadius: 12,
+                spreadRadius: 1,
+              ),
+            ],
           ),
           child: Container(
-            width: 66,
-            height: 66,
+            width: 62,
+            height: 62,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isCapturing
                   ? Colors.white24
                   : (canCapture
                         ? Colors.white
-                        : Colors.white.withValues(alpha: 0.25)),
+                        : Colors.white.withValues(alpha: 0.35)),
             ),
             child: isCapturing
                 ? const Padding(
-                    padding: EdgeInsets.all(18),
+                    padding: EdgeInsets.all(16),
                     child: CircularProgressIndicator(
-                      color: Color(0xFF006EE6),
+                      color: Color(0xFF0F172A),
                       strokeWidth: 3.5,
                     ),
                   )
                 : (!canCapture
                       ? const Icon(
                           Icons.gps_fixed_rounded,
-                          color: Colors.white70,
-                          size: 26,
+                          color: Colors.black54,
+                          size: 24,
                         )
                       : null),
           ),
@@ -302,45 +377,5 @@ class CameraBottomBar extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildFlipButton() {
-    final isRecording = state.isRecordingVideo;
-
-    return Semantics(
-      button: true,
-      label: 'Putar kamera',
-      enabled: !isRecording && !state.isSwitchingCamera,
-      child: GestureDetector(
-        onTap: (isRecording || state.isSwitchingCamera)
-            ? null
-            : () {
-                HapticFeedback.lightImpact();
-                onFlipCamera();
-              },
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 180),
-          opacity: isRecording ? 0.3 : 1.0,
-          child: Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.black.withValues(alpha: 0.45),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.35),
-                width: 1.5,
-              ),
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.flip_camera_ios_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
+

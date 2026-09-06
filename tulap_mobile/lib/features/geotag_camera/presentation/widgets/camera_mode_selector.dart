@@ -3,21 +3,29 @@ import 'package:flutter/services.dart';
 
 /// CameraCaptureMode
 /// ----------------------------------------------------------------------
-/// Mode perekaman kamera Tulap.id:
-/// - photo: Pengambilan foto tunggal dengan metadata geotag & watermark
-/// - video: Perekaman video dokumentasi dinas dengan audio & live timer
+/// Mode perekaman kamera Tulap.id (sesuai referensi UI 01.jpeg):
+/// - bagikanFoto: Mode ambil foto langsung siap bagikan
+/// - photo: Mode FOTO standar geotag & watermark
+/// - video: Mode perekaman VIDEO dokumentasi
+/// - laporan: Mode LAPORAN formal institusi
 /// ----------------------------------------------------------------------
-enum CameraCaptureMode { photo, video }
+enum CameraCaptureMode {
+  bagikanFoto,
+  photo,
+  video,
+  laporan,
+}
 
 /// CameraModeSelector
 /// ----------------------------------------------------------------------
-/// Bilah pemilih mode kamera di atas kontrol shutter:
-///   [ FOTO ]      [ VIDEO ]
+/// Bilah pemilih mode kamera horizontal di atas kontrol shutter (Referensi 01.jpeg):
+///   BAGIKAN FOTO   [ FOTO ]   VIDEO   LAPORAN
 ///
 /// Fitur:
-/// - Mode aktif ditandai dengan teks Tulap.id Blue (#006EE6) & titik indikator
-/// - Transisi animasi halus saat perpindahan mode
-/// - Non-aktif otomatis saat video sedang direkam (anti-race-condition)
+/// - Mode aktif berlatar pill kuning keemasan (#FFC700) dengan teks tebal hitam
+/// - Mode non-aktif berteks putih tebal dengan drop shadow kontras tinggi
+/// - Haptic tactile feedback saat berganti mode
+/// - Transisi halus dan responsif
 /// ----------------------------------------------------------------------
 class CameraModeSelector extends StatelessWidget {
   final CameraCaptureMode selectedMode;
@@ -35,19 +43,35 @@ class CameraModeSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildModeItem(
-            mode: CameraCaptureMode.photo,
-            label: 'FOTO',
-          ),
-          const SizedBox(width: 24),
-          _buildModeItem(
-            mode: CameraCaptureMode.video,
-            label: 'VIDEO',
-          ),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildModeItem(
+              mode: CameraCaptureMode.bagikanFoto,
+              label: 'BAGIKAN FOTO',
+            ),
+            const SizedBox(width: 14),
+            _buildModeItem(
+              mode: CameraCaptureMode.photo,
+              label: 'FOTO',
+            ),
+            const SizedBox(width: 14),
+            _buildModeItem(
+              mode: CameraCaptureMode.video,
+              label: 'VIDEO',
+            ),
+            const SizedBox(width: 14),
+            _buildModeItem(
+              mode: CameraCaptureMode.laporan,
+              label: 'LAPORAN',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -72,48 +96,38 @@ class CameraModeSelector extends StatelessWidget {
                   onModeChanged(mode);
                 }
               },
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 180),
-          opacity: isRecording ? 0.35 : (isSelected ? 1.0 : 0.65),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected
-                      ? const Color(0xFF006EE6) // Tulap.id Blue
-                      : Colors.white,
-                  fontSize: 13.5,
-                  fontWeight:
-                      isSelected ? FontWeight.bold : FontWeight.w600,
-                  letterSpacing: 0.8,
-                  shadows: const [
-                    Shadow(
-                      color: Colors.black54,
-                      offset: Offset(0, 1),
-                      blurRadius: 3,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 4),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-                width: isSelected ? 16 : 0,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? const Color(0xFF006EE6)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ],
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          padding: EdgeInsets.symmetric(
+            horizontal: isSelected ? 16 : 8,
+            vertical: isSelected ? 5 : 5,
+          ),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFFFC700) : Colors.transparent,
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.black : Colors.white,
+              fontSize: 13.0,
+              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+              letterSpacing: 0.6,
+              shadows: isSelected
+                  ? null
+                  : const [
+                      Shadow(
+                        color: Colors.black87,
+                        offset: Offset(0, 1),
+                        blurRadius: 3,
+                      ),
+                    ],
+            ),
           ),
         ),
       ),
     );
   }
 }
+

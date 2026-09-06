@@ -10,6 +10,7 @@ import '../../../task_detail/domain/entities/task_entity.dart';
 import '../../domain/usecases/delete_evidence.dart';
 import '../widgets/evidence_photo_viewer_widget.dart';
 import '../widgets/evidence_video_player_widget.dart';
+import '../widgets/geotag_photo_location_card.dart';
 
 /// EvidenceViewerPage
 /// ----------------------------------------------------------------------
@@ -372,51 +373,67 @@ class _EvidenceViewerPageState extends State<EvidenceViewerPage> {
             ),
           ),
 
-          // 3. Bottom Action Bar Overlay
+          // 3. Floating Location Card & Bottom Action Bar Overlay (01.jpeg)
           AnimatedPositioned(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
-            bottom: _areControlsVisible ? 0 : -120,
+            bottom: _areControlsVisible ? 0 : -220,
             left: 0,
             right: 0,
-            child: Container(
-              padding: EdgeInsets.only(
-                top: 16,
-                bottom: MediaQuery.of(context).padding.bottom + 12,
-                left: 20,
-                right: 20,
-              ),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.88),
-                    Colors.black.withValues(alpha: 0.45),
-                    Colors.transparent,
-                  ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Kartu Informasi Titik Lokasi Geotag (Sesuai Referensi 01.jpeg)
+                GeotagPhotoLocationCard(
+                  latitude: currentEvidence.latitude,
+                  longitude: currentEvidence.longitude,
+                  accuracyMeters: currentEvidence.gpsAccuracyMeters,
+                  address: currentEvidence.address,
+                  timestamp: currentEvidence.serverTimestamp,
+                  tag: 'NAVIGASI LAPANGAN',
+                  onQrTap: () => _openGoogleMaps(currentEvidence),
                 ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildBottomActionButton(
-                    icon: Icons.info_outline_rounded,
-                    label: 'Detail',
-                    onTap: () => _navigateToDetail(currentEvidence),
+
+                Container(
+                  padding: EdgeInsets.only(
+                    top: 6,
+                    bottom: MediaQuery.of(context).padding.bottom + 10,
+                    left: 20,
+                    right: 20,
                   ),
-                  _buildBottomActionButton(
-                    icon: Icons.map_outlined,
-                    label: 'Lokasi',
-                    onTap: () => _openGoogleMaps(currentEvidence),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.95),
+                        Colors.black.withValues(alpha: 0.6),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
-                  _buildBottomActionButton(
-                    icon: Icons.share_rounded,
-                    label: 'Bagikan',
-                    onTap: () => _shareEvidence(currentEvidence),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildBottomActionButton(
+                        icon: Icons.info_outline_rounded,
+                        label: 'Detail',
+                        onTap: () => _navigateToDetail(currentEvidence),
+                      ),
+                      _buildBottomActionButton(
+                        icon: Icons.map_outlined,
+                        label: 'Lokasi',
+                        onTap: () => _openGoogleMaps(currentEvidence),
+                      ),
+                      _buildBottomActionButton(
+                        icon: Icons.share_rounded,
+                        label: 'Bagikan',
+                        onTap: () => _shareEvidence(currentEvidence),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],

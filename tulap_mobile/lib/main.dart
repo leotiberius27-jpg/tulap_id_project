@@ -5,12 +5,14 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'app/di/injection_container.dart';
 import 'app/presentation/main_shell.dart';
+import 'core/geo/fast_location_service.dart';
 import 'core/localization/app_localizations.dart';
 import 'core/localization/language_controller.dart';
 import 'core/session/auth_session_manager.dart';
 import 'core/sync/background_sync_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
+import 'features/assistant/presentation/widgets/tula_overlay.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 
 /// main.dart
@@ -20,7 +22,7 @@ import 'features/auth/presentation/pages/login_page.dart';
 ///      geolocator) siap dipanggil sebelum widget tree dibangun.
 ///   2. initDependencies() - merangkai seluruh service locator.
 ///   3. Preload theme mode & language dari local secure storage (mencegah flash).
-///   4. Mulai BackgroundSyncService.
+///   4. Mulai BackgroundSyncService & FastLocationService warm-up.
 ///   5. runApp()
 /// ----------------------------------------------------------------------
 Future<void> main() async {
@@ -43,6 +45,7 @@ Future<void> main() async {
       await sl<LanguageController>().loadLanguage();
 
       sl<BackgroundSyncService>().start();
+      FastLocationService.instance.startWarmUp();
 
       runApp(const TulapApp());
     },
@@ -82,6 +85,7 @@ class TulapApp extends StatelessWidget {
       listenable: Listenable.merge([themeController, languageController]),
       builder: (context, _) {
         return MaterialApp(
+          navigatorKey: TulaOverlay.navigatorKey,
           title: 'Tulap.id',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,
@@ -98,6 +102,12 @@ class TulapApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
+          // TulaOverlay dipasang SEKALI di sini agar floating assistant
+          // Tula berlaku untuk seluruh Navigator (MainShell & semua
+          // halaman fullscreen yang di-push di atasnya) tanpa duplikasi
+          // floating button di nested navigator manapun.
+          builder: (context, child) =>
+              TulaOverlay(child: child ?? const SizedBox.shrink()),
           home: const AuthGate(),
         );
       },

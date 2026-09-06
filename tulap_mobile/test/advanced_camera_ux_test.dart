@@ -484,8 +484,9 @@ void main() {
     testWidgets('CameraTopControlBar renders 6 professional icons and handles interactions', (tester) async {
       bool controlPanelToggled = false;
       bool flashCycled = false;
-      bool renameOpened = false;
-      bool switchCameraCalled = false;
+      bool addTextCalled = false;
+      bool locationCalled = false;
+      bool timerCalled = false;
       bool settingsOpened = false;
 
       await tester.pumpWidget(
@@ -499,29 +500,34 @@ void main() {
               locationStatus: LocationIntegrityStatus.valid,
               locationTier: LocationTier.verified,
               accuracyMeters: 4.2,
+              timerSeconds: 0,
               onToggleControlPanel: () => controlPanelToggled = true,
               onCycleFlash: () => flashCycled = true,
-              onRename: () => renameOpened = true,
-              onSwitchCamera: () => switchCameraCalled = true,
+              onAddText: () => addTextCalled = true,
+              onLocationTap: () => locationCalled = true,
+              onCycleTimer: () => timerCalled = true,
               onOpenSettings: () => settingsOpened = true,
             ),
           ),
         ),
       );
 
-      await tester.tap(find.byIcon(Icons.tune_rounded));
+      await tester.tap(find.byIcon(Icons.motion_photos_on_outlined));
       expect(controlPanelToggled, true);
 
       await tester.tap(find.byIcon(Icons.flash_off_rounded));
       expect(flashCycled, true);
 
-      await tester.tap(find.byIcon(Icons.edit_note_rounded));
-      expect(renameOpened, true);
+      await tester.tap(find.byIcon(Icons.note_add_outlined));
+      expect(addTextCalled, true);
 
-      await tester.tap(find.byIcon(Icons.flip_camera_ios_rounded));
-      expect(switchCameraCalled, true);
+      await tester.tap(find.byIcon(Icons.location_on_outlined));
+      expect(locationCalled, true);
 
-      await tester.tap(find.byIcon(Icons.settings_rounded));
+      await tester.tap(find.byIcon(Icons.timer_outlined));
+      expect(timerCalled, true);
+
+      await tester.tap(find.byIcon(Icons.settings_outlined));
       expect(settingsOpened, true);
     });
 

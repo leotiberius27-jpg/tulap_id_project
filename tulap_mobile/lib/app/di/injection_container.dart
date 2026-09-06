@@ -23,7 +23,9 @@ import '../../core/ocr/receipt_parser.dart';
 import '../../core/qr/qr_location_generator.dart';
 import '../../core/security/hash_generator.dart';
 import '../../core/security/mock_location_detector.dart';
+import '../../core/security/report_security_event.dart';
 import '../../core/security/root_detector.dart';
+import '../../core/security/security_event_local_datasource.dart';
 import '../../core/security/biometric_auth_service.dart';
 import '../../core/security/oauth_sign_in_service.dart';
 import '../../core/session/auth_session_manager.dart';
@@ -178,6 +180,16 @@ import '../../features/dashboard/data/repositories/dashboard_repository_impl.dar
 import '../../features/dashboard/data/services/dashboard_insight_engine.dart';
 import '../../features/dashboard/domain/repositories/dashboard_repository.dart';
 import '../../features/dashboard/domain/usecases/get_dashboard_analytics.dart';
+
+import '../../features/assistant/data/datasources/assistant_local_datasource.dart';
+import '../../features/assistant/data/datasources/assistant_remote_datasource.dart';
+import '../../features/assistant/data/repositories/assistant_repository_impl.dart';
+import '../../features/assistant/domain/repositories/assistant_repository.dart';
+import '../../features/assistant/domain/usecases/ask_assistant.dart';
+import '../../features/assistant/domain/usecases/get_assistant_suggestions.dart';
+import '../../features/assistant/presentation/controllers/assistant_controller.dart';
+import '../../features/assistant/presentation/controllers/tula_position_store.dart';
+import '../../features/assistant/presentation/controllers/tula_visibility_controller.dart';
 
 /// Service locator global - dipanggil sebagai `sl<TipeClass>()` dari
 /// mana pun di aplikasi setelah `initDependencies()` dijalankan.
@@ -336,6 +348,12 @@ Future<void> initDependencies({Database? database}) async {
     ),
   );
   sl.registerLazySingleton<EnqueueSyncItem>(() => EnqueueSyncItem(sl()));
+  sl.registerLazySingleton<SecurityEventLocalDataSource>(
+    () => SecurityEventLocalDataSource(sl()),
+  );
+  sl.registerLazySingleton<ReportSecurityEvent>(
+    () => ReportSecurityEvent(localDataSource: sl(), enqueueSyncItem: sl()),
+  );
   sl.registerLazySingleton<ProcessSyncQueue>(
     () => ProcessSyncQueue(repository: sl(), networkInfo: sl()),
   );
@@ -392,6 +410,7 @@ Future<void> initDependencies({Database? database}) async {
       reverseGeocoder: sl(),
       staticMapThumbnail: sl(),
       templateRepository: sl(),
+      reportSecurityEvent: sl(),
     ),
   );
   sl.registerLazySingleton<CaptureGeotaggedPhoto>(
@@ -743,6 +762,55 @@ Future<void> initDependencies({Database? database}) async {
 
   sl.registerLazySingleton<GetDashboardAnalytics>(
     () => GetDashboardAnalytics(sl()),
+  );
+
+  // ============================================================
+  // PHASE 12: SMART ASSISTANT & OPERATIONAL COPILOT ("TANYA TULAP")
+  // ============================================================
+  sl.registerLazySingleton<AssistantRemoteDataSource>(
+    () => AssistantRemoteDataSourceImpl(
+      dioClient: sl(),
+    ),
+  );
+
+  sl.registerLazySingleton<AssistantLocalDataSource>(
+    () => AssistantLocalDataSourceImpl(
+      searchArchiveRepository: sl(),
+    ),
+  );
+
+  sl.registerLazySingleton<AssistantRepository>(
+    () => AssistantRepositoryImpl(
+      remoteDataSource: sl(),
+      localDataSource: sl(),
+      networkInfo: sl(),
+    ),
+  );
+
+  sl.registerLazySingleton<AskAssistant>(
+    () => AskAssistant(sl()),
+  );
+
+  sl.registerLazySingleton<GetAssistantSuggestions>(
+    () => GetAssistantSuggestions(sl()),
+  );
+
+  sl.registerFactory<AssistantController>(
+    () => AssistantController(
+      askAssistant: sl(),
+      getAssistantSuggestions: sl(),
+    ),
+  );
+
+  // Tula: floating contextual assistant (redesign header AI -> global
+  // overlay). Singleton karena dipasang sekali di root MaterialApp lewat
+  // TulaOverlay dan status visibilitasnya (konteks layar, offline,
+  // insight) harus konsisten di seluruh aplikasi.
+  sl.registerLazySingleton<TulaPositionStore>(
+    () => const TulaPositionStore(),
+  );
+  sl.registerLazySingleton<TulaVisibilityController>(
+    () => TulaVisibilityController(sl(), sl()),
   );
 }
 

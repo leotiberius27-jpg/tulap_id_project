@@ -13,6 +13,7 @@ enum SyncEntityType {
   travelMission,
   supportingDocument,
   lpjPackage,
+  securityEvent,
 }
 
 /// SyncStatus

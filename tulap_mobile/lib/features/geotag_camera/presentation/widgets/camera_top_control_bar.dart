@@ -3,19 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/geo/fast_location_service.dart';
 import '../../domain/usecases/validate_location_integrity.dart';
-import 'gps_status_indicator.dart';
 
 /// CameraTopControlBar
 /// ----------------------------------------------------------------------
-/// Baris perkakas kamera atas profesional Tulap.id (Phase 4):
-/// [ ◉ Control Panel ]  [ ⚡ Flash ]  [ ✎ Rename ]  [ 📍 GPS Badge ]  [ 🔄 Switch ]  [ ⚙ Settings ]
+/// Baris perkakas kamera atas profesional Tulap.id (Referensi 01.jpeg):
+/// [ ⚙️/Ratio ]  [ ⚡ Flash ]  [ 📝+ Catatan ]  [ 📍 Lokasi ]  [ ⏱️ Timer ]  [ ⚙️ Settings ]
 ///
 /// Fitur:
-/// - Ukuran target sentuh mematuhi standar aksesibilitas (>= 44x44dp)
-/// - Indikator flash dinamis (Off, Auto, On, Torch)
-/// - Tombol switch camera dengan animasi rotasi 200ms
-/// - Tombol rename & kontrol panel terintegrasi
-/// - Badge GPS live dengan status akurasi numerik
+/// - 6 ikon perkakas atas presisi sesuai gambar referensi 01.jpeg
+/// - Ikon putih outline elegan dengan kontras tinggi di atas gradient
+/// - Indikator flash dinamis (Mati, Otomatis, Nyala, Senter)
+/// - Indikator timer aktif dengan badge detik (3s, 5s, 10s)
+/// - Indikator lokasi interaktif dengan status GPS real-time
 /// ----------------------------------------------------------------------
 class CameraTopControlBar extends StatelessWidget {
   final bool isControlPanelOpen;
@@ -26,14 +25,17 @@ class CameraTopControlBar extends StatelessWidget {
   final LocationIntegrityStatus locationStatus;
   final LocationTier locationTier;
   final double? accuracyMeters;
+  final int timerSeconds;
   final VoidCallback? onToggleControlPanel;
   final VoidCallback onCycleFlash;
   final VoidCallback? onRename;
-  final VoidCallback onSwitchCamera;
+  final VoidCallback? onAddText;
+  final VoidCallback? onSwitchCamera;
   final VoidCallback? onOpenSettings;
+  final VoidCallback? onCycleTimer;
+  final VoidCallback? onLocationTap;
   final bool? isGridEnabled;
   final VoidCallback? onToggleGrid;
-  final VoidCallback? onLocationTap;
   final VoidCallback? onBack;
 
   const CameraTopControlBar({
@@ -46,14 +48,17 @@ class CameraTopControlBar extends StatelessWidget {
     required this.locationStatus,
     required this.locationTier,
     required this.accuracyMeters,
+    this.timerSeconds = 0,
     this.onToggleControlPanel,
     required this.onCycleFlash,
     this.onRename,
-    required this.onSwitchCamera,
+    this.onAddText,
+    this.onSwitchCamera,
     this.onOpenSettings,
+    this.onCycleTimer,
+    this.onLocationTap,
     this.isGridEnabled,
     this.onToggleGrid,
-    this.onLocationTap,
     this.onBack,
   });
 
@@ -61,7 +66,7 @@ class CameraTopControlBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -73,16 +78,16 @@ class CameraTopControlBar extends StatelessWidget {
                 onTap: onBack,
               )
             else
-              // 1. Tombol Camera Control Panel (Lensa / Pengaturan Cepat)
+              // 1. Ikon 1: Aperture / Rasio / Quick Panel (Lingkaran Bersegmen dari 01.jpeg)
               _buildIconButton(
-                icon: Icons.tune_rounded,
-                semanticLabel: 'Buka atau tutup panel kontrol kamera',
+                icon: Icons.motion_photos_on_outlined,
+                semanticLabel: 'Panel Kontrol & Rasio Kamera',
                 isActive: isControlPanelOpen,
                 isDisabled: isRecording,
                 onTap: onToggleControlPanel,
               ),
 
-            // 2. Tombol Flash Mode
+            // 2. Ikon 2: Flash Mode (Lightning bolt with slash / auto / on)
             _buildFlashButton(context),
 
             if (onToggleGrid != null)
@@ -93,30 +98,23 @@ class CameraTopControlBar extends StatelessWidget {
                 onTap: onToggleGrid,
               )
             else
-              // 3. Tombol Rename Pola Berkas (Pencil)
+              // 3. Ikon 3: Note / Keterangan Teks / Stamp Data (Page with +)
               _buildIconButton(
-                icon: Icons.edit_note_rounded,
-                semanticLabel: 'Atur pola nama berkas',
+                icon: Icons.note_add_outlined,
+                semanticLabel: 'Tambah Keterangan atau Pola Nama',
                 isDisabled: isRecording,
-                onTap: onRename,
+                onTap: onAddText ?? onRename,
               ),
 
-            // 4. Badge Status GPS Real-time & Akurasi (Interactive Tap)
-            GestureDetector(
-              onTap: onLocationTap,
-              child: GpsStatusIndicator(
-                status: locationStatus,
-                tier: locationTier,
-                accuracyMeters: accuracyMeters,
-              ),
-            ),
+            // 4. Ikon 4: Lokasi / Map Pin (Square with pin dari 01.jpeg)
+            _buildLocationButton(),
 
-            // 5. Tombol Switch / Putar Kamera (Depan / Belakang)
-            _buildSwitchCameraButton(),
+            // 5. Ikon 5: Timer Shutter Speed (Circle with clock/dial dari 01.jpeg)
+            _buildTimerButton(),
 
-            // 6. Tombol Pengaturan Kamera Penuh (Gear)
+            // 6. Ikon 6: Settings Gear (Pengaturan Lengkap)
             _buildIconButton(
-              icon: Icons.settings_rounded,
+              icon: Icons.settings_outlined,
               semanticLabel: 'Buka pengaturan kamera lengkap',
               isDisabled: isRecording,
               onTap: onOpenSettings,
@@ -146,19 +144,19 @@ class CameraTopControlBar extends StatelessWidget {
           break;
         case FlashMode.auto:
           iconData = Icons.flash_auto_rounded;
-          iconColor = const Color(0xFF38BDF8); // Sky Blue
+          iconColor = const Color(0xFFFFC700); // Yellow highlight
           label = 'Flash Otomatis';
           isActive = true;
           break;
         case FlashMode.always:
           iconData = Icons.flash_on_rounded;
-          iconColor = const Color(0xFF006EE6); // Tulap Blue
+          iconColor = const Color(0xFFFFC700); // Yellow highlight
           label = 'Flash Selalu Aktif';
           isActive = true;
           break;
         case FlashMode.torch:
           iconData = Icons.highlight_rounded;
-          iconColor = const Color(0xFF006EE6); // Tulap Blue
+          iconColor = const Color(0xFFFFC700);
           label = 'Lampu Senter Aktif';
           isActive = true;
           break;
@@ -183,42 +181,108 @@ class CameraTopControlBar extends StatelessWidget {
     );
   }
 
-  Widget _buildSwitchCameraButton() {
+  Widget _buildLocationButton() {
+    final isGpsValid = locationStatus == LocationIntegrityStatus.valid;
+    final gpsColor = isGpsValid
+        ? (accuracyMeters != null && accuracyMeters! <= 15.0
+            ? const Color(0xFF22C55E)
+            : const Color(0xFFFFC700))
+        : const Color(0xFFEF4444);
+
     return Semantics(
       button: true,
-      label: 'Ganti kamera depan atau belakang',
-      enabled: !isSwitchingCamera && !isRecording,
+      label: 'Status Lokasi GPS',
       child: GestureDetector(
-        onTap: (isSwitchingCamera || isRecording)
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onLocationTap?.call();
+        },
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.black.withValues(alpha: 0.35),
+            border: Border.all(
+              color: isGpsValid
+                  ? Colors.white.withValues(alpha: 0.2)
+                  : const Color(0x66EF4444),
+              width: 1,
+            ),
+          ),
+          child: Center(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                const Icon(
+                  Icons.location_on_outlined,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                Positioned(
+                  top: 8,
+                  right: 9,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: gpsColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.black, width: 1),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimerButton() {
+    final isTimerActive = timerSeconds > 0;
+
+    return Semantics(
+      button: true,
+      label: isTimerActive ? 'Timer $timerSeconds detik' : 'Timer Mati',
+      child: GestureDetector(
+        onTap: isRecording
             ? null
             : () {
-                HapticFeedback.lightImpact();
-                onSwitchCamera();
+                HapticFeedback.selectionClick();
+                onCycleTimer?.call();
               },
         child: Container(
           width: 44,
           height: 44,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isRecording
-                ? Colors.white.withValues(alpha: 0.05)
-                : Colors.black.withValues(alpha: 0.45),
+            color: isTimerActive
+                ? const Color(0x33FFC700)
+                : Colors.black.withValues(alpha: 0.35),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.15),
-              width: 1,
+              color: isTimerActive
+                  ? const Color(0xFFFFC700)
+                  : Colors.white.withValues(alpha: 0.2),
+              width: isTimerActive ? 1.5 : 1,
             ),
           ),
           child: Center(
-            child: AnimatedRotation(
-              turns: isSwitchingCamera ? 0.5 : 0.0,
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeInOut,
-              child: Icon(
-                Icons.flip_camera_ios_rounded,
-                color: isRecording ? Colors.white24 : Colors.white,
-                size: 20,
-              ),
-            ),
+            child: isTimerActive
+                ? Text(
+                    '${timerSeconds}s',
+                    style: const TextStyle(
+                      color: Color(0xFFFFC700),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  )
+                : const Icon(
+                    Icons.timer_outlined,
+                    color: Colors.white,
+                    size: 22,
+                  ),
           ),
         ),
       ),
@@ -252,14 +316,14 @@ class CameraTopControlBar extends StatelessWidget {
             color: isDisabled
                 ? Colors.white.withValues(alpha: 0.04)
                 : (isActive
-                    ? const Color(0x33006EE6)
-                    : Colors.black.withValues(alpha: 0.45)),
+                    ? const Color(0x33FFC700)
+                    : Colors.black.withValues(alpha: 0.35)),
             border: Border.all(
               color: isDisabled
                   ? Colors.white10
                   : (isActive
-                      ? const Color(0xFF006EE6)
-                      : Colors.white.withValues(alpha: 0.15)),
+                      ? const Color(0xFFFFC700)
+                      : Colors.white.withValues(alpha: 0.2)),
               width: isActive ? 1.5 : 1,
             ),
           ),
@@ -268,8 +332,8 @@ class CameraTopControlBar extends StatelessWidget {
               icon,
               color: isDisabled
                   ? Colors.white24
-                  : (isActive ? const Color(0xFF38BDF8) : color),
-              size: 20,
+                  : (isActive ? const Color(0xFFFFC700) : color),
+              size: 22,
             ),
           ),
         ),
@@ -277,3 +341,4 @@ class CameraTopControlBar extends StatelessWidget {
     );
   }
 }
+

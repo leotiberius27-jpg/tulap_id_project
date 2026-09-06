@@ -5,6 +5,7 @@ import '../../../../core/camera/camera_capability_service.dart';
 import '../../../../core/camera/camera_level_sensor_service.dart';
 import '../../../../core/camera/file_naming_service.dart';
 import '../../../../core/geo/reverse_geocoder.dart';
+import '../../../assistant/presentation/controllers/tula_visibility_controller.dart';
 import '../../domain/repositories/camera_preferences_repository.dart';
 import '../../domain/repositories/template_repository.dart';
 import '../../domain/usecases/capture_geotagged_photo.dart';
@@ -50,11 +51,17 @@ class _GeotagCameraEntryPageState extends State<GeotagCameraEntryPage>
   String? _initError;
   bool _isSwitchingCamera = false;
   bool _isInitializing = false;
+  late final TulaVisibilityController _tula;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // Camera fullscreen = Tula tersembunyi total selama sesi kamera aktif
+    // (Bagian 6 spesifikasi redesign Tula - mencegah salah tap).
+    _tula = sl<TulaVisibilityController>();
+    _tula.suppress();
 
     _geotagController = GeotagCameraController(
       validateLocationIntegrity: sl<ValidateLocationIntegrity>(),
@@ -96,8 +103,26 @@ class _GeotagCameraEntryPageState extends State<GeotagCameraEntryPage>
         _geotagController?.stopVideoRecording(camera);
       }
       _cameraController?.dispose();
-      _cameraController = null;
       unregisterCameraSession();
+
+      // PENTING: setState WAJIB dipanggil di sini, bukan hanya
+      // menugaskan _cameraController = null secara diam-diam. Tanpa ini,
+      // widget tree yang sudah ter-mount (GeotagCameraPage) tetap
+      // memegang referensi controller yang baru saja di-dispose - lalu
+      // rebuild APAPUN yang terjadi sebelum _initializeCamera() selesai
+      // (mis. tick FastLocationService yang memanggil notifyListeners()
+      // sangat sering saat GPS warm-up) memicu CameraPreview memanggil
+      // buildPreview() pada controller yang sudah disposed, melempar
+      // "CameraException(Disposed CameraController, ...)" berulang kali.
+      // Dikonfirmasi nyata lewat live-test di perangkat fisik: Android
+      // sering mengirim satu blip inactive->resumed persis sesaat
+      // setelah cold-launch, memicu race ini walau user tidak pernah
+      // benar-benar membuka aplikasi lain.
+      if (mounted) {
+        setState(() => _cameraController = null);
+      } else {
+        _cameraController = null;
+      }
     }
     // Aplikasi kembali ke foreground (resumed)
     else if (state == AppLifecycleState.resumed) {
@@ -211,6 +236,7 @@ class _GeotagCameraEntryPageState extends State<GeotagCameraEntryPage>
 
   @override
   void dispose() {
+    _tula.unsuppress();
     WidgetsBinding.instance.removeObserver(this);
     _geotagController?.dispose();
     _cameraController?.dispose();

@@ -186,10 +186,12 @@ void main() {
 
   group('Phase 1: Camera Core UI Widget Tests', () {
     testWidgets('CameraTopControlBar: Renders all controls and responds to taps', (tester) async {
-      bool backTapped = false;
+      bool controlPanelToggled = false;
       bool flashTapped = false;
-      bool gridTapped = false;
-      bool switchTapped = false;
+      bool noteTapped = false;
+      bool locationTapped = false;
+      bool timerTapped = false;
+      bool settingsTapped = false;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -197,36 +199,45 @@ void main() {
             body: CameraTopControlBar(
               flashMode: FlashMode.auto,
               isFlashSupported: true,
-              isGridEnabled: true,
               isSwitchingCamera: false,
               locationStatus: LocationIntegrityStatus.valid,
               locationTier: LocationTier.verified,
               accuracyMeters: 8.5,
-              onBack: () => backTapped = true,
+              onToggleControlPanel: () => controlPanelToggled = true,
               onCycleFlash: () => flashTapped = true,
-              onToggleGrid: () => gridTapped = true,
-              onSwitchCamera: () => switchTapped = true,
+              onAddText: () => noteTapped = true,
+              onLocationTap: () => locationTapped = true,
+              onCycleTimer: () => timerTapped = true,
+              onOpenSettings: () => settingsTapped = true,
             ),
           ),
         ),
       );
 
-      expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.motion_photos_on_outlined), findsOneWidget);
       expect(find.byIcon(Icons.flash_auto_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.grid_on_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.flip_camera_ios_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.note_add_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.location_on_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.timer_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.arrow_back_rounded));
-      expect(backTapped, isTrue);
+      await tester.tap(find.byIcon(Icons.motion_photos_on_outlined));
+      expect(controlPanelToggled, isTrue);
 
       await tester.tap(find.byIcon(Icons.flash_auto_rounded));
       expect(flashTapped, isTrue);
 
-      await tester.tap(find.byIcon(Icons.grid_on_rounded));
-      expect(gridTapped, isTrue);
+      await tester.tap(find.byIcon(Icons.note_add_outlined));
+      expect(noteTapped, isTrue);
 
-      await tester.tap(find.byIcon(Icons.flip_camera_ios_rounded));
-      expect(switchTapped, isTrue);
+      await tester.tap(find.byIcon(Icons.location_on_outlined));
+      expect(locationTapped, isTrue);
+
+      await tester.tap(find.byIcon(Icons.timer_outlined));
+      expect(timerTapped, isTrue);
+
+      await tester.tap(find.byIcon(Icons.settings_outlined));
+      expect(settingsTapped, isTrue);
     });
 
     testWidgets('CameraZoomControls: Renders 1x and 2x bubbles and switches zoom', (tester) async {

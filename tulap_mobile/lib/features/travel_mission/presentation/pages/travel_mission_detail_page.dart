@@ -19,6 +19,7 @@ import '../../../task_detail/presentation/pages/task_detail_page.dart';
 import '../../domain/entities/lpj_package_entity.dart';
 import '../../domain/entities/supporting_document_entity.dart';
 import '../../domain/entities/travel_mission_entity.dart';
+import '../../../assistant/presentation/pages/tanya_tulap_page.dart';
 import '../controllers/travel_mission_detail_controller.dart';
 import 'lpj_package_preview_page.dart';
 import 'lpj_review_and_generate_page.dart';
@@ -569,8 +570,24 @@ class _TravelMissionDetailPageContentState extends State<_TravelMissionDetailPag
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.auto_awesome_rounded, color: AppColors.primary),
+            tooltip: 'Tanya Tulap (Kopilot Perjalanan)',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TanyaTulapPage(
+                    contextEntityType: 'TRAVEL',
+                    contextEntityId: travel.id,
+                    contextTitle: travel.title,
+                  ),
+                ),
+              );
+            },
+          ),
           _buildStatusBadge(travel.status),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: AppColors.textPrimary),
             onSelected: (val) {

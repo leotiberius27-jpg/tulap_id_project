@@ -21,11 +21,19 @@ class ReverseGeocoder {
   double? _cachedLat;
   double? _cachedLng;
 
-  /// Mengembalikan alamat lengkap terformat, atau `null` jika geocoder
-  /// tidak menemukan hasil apa pun untuk koordinat ini (mis. lokasi
-  /// terpencil tanpa data peta) - caller tetap menyimpan lat/long
-  /// mentah sebagai fallback, address murni pelengkap.
-  Future<String?> reverseGeocode({
+  /// Mengembalikan alamat lengkap terformat - TIDAK PERNAH `null` atau
+  /// string kosong, dan TIDAK PERNAH melempar exception ke pemanggil
+  /// (memenuhi kebutuhan "fetchReadableAddress" yang tangguh di area
+  /// lapangan bersinyal lemah/nihil). Rantai fallback saat geocoding
+  /// gagal (timeout 5 detik / tidak ada koneksi / SocketException):
+  ///   Step A - pakai cache memori koordinat terdekat (< 50 meter) jika
+  ///            ada, dari percobaan sukses sebelumnya di sesi yang sama.
+  ///   Step B - jika tidak ada cache sama sekali, kembalikan string
+  ///            jujur "[OFFLINE AREA] Koordinat: Lat: {lat}, Lon: {lng}"
+  ///            - BUKAN alamat rekaan. Menampilkan alamat palsu pada
+  ///            bukti resmi lebih berbahaya daripada menampilkan
+  ///            koordinat mentah apa adanya.
+  Future<String> reverseGeocode({
     required double latitude,
     required double longitude,
   }) async {
@@ -34,16 +42,18 @@ class ReverseGeocoder {
       final dLat = (latitude - _cachedLat!).abs();
       final dLng = (longitude - _cachedLng!).abs();
       if (dLat < 0.00045 && dLng < 0.00045) {
-        return _cachedAddress;
+        return _cachedAddress!;
       }
     }
 
     try {
       final placemarks = await _geo
           .placemarkFromCoordinates(latitude, longitude)
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 5));
 
-      if (placemarks.isEmpty) return _cachedAddress;
+      if (placemarks.isEmpty) {
+        return _cachedAddress ?? _offlineFallback(latitude, longitude);
+      }
 
       final p = placemarks.first;
       final parts = <String>[
@@ -57,7 +67,9 @@ class ReverseGeocoder {
         if ((p.postalCode ?? '').isNotEmpty) p.postalCode!,
       ];
 
-      if (parts.isEmpty) return _cachedAddress;
+      if (parts.isEmpty) {
+        return _cachedAddress ?? _offlineFallback(latitude, longitude);
+      }
 
       final formatted = parts.join(', ');
       _cachedAddress = formatted;
@@ -65,8 +77,19 @@ class ReverseGeocoder {
       _cachedLng = longitude;
       return formatted;
     } catch (_) {
-      // Offline / Timeout: kembalikan cache jika ada, atau null
-      return _cachedAddress;
+      // Offline / Timeout / SocketException apa pun: Step A lalu Step B.
+      // Sengaja menangkap `Object` secara umum (bukan hanya
+      // SocketException/TimeoutException) - kegagalan reverse geocoding
+      // TIDAK BOLEH pernah menjatuhkan alur capture bukti di lapangan.
+      return _cachedAddress ?? _offlineFallback(latitude, longitude);
     }
+  }
+
+  /// Step B dari rantai fallback - format jujur saat tidak ada koneksi
+  /// DAN tidak ada cache sama sekali untuk dipakai.
+  String _offlineFallback(double latitude, double longitude) {
+    return '[OFFLINE AREA] Koordinat: '
+        'Lat: ${latitude.toStringAsFixed(6)}, '
+        'Lon: ${longitude.toStringAsFixed(6)}';
   }
 }

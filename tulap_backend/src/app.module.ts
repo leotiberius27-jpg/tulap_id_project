@@ -15,6 +15,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { TravelModule } from './modules/travel/travel.module';
 import { SearchModule } from './modules/search/search.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { AssistantModule } from './modules/assistant/assistant.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -40,6 +41,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     TravelModule,
     SearchModule,
     DashboardModule,
+    AssistantModule,
   ],
   providers: [
     // Urutan guard PENTING: JwtAuthGuard (autentikasi) dijalankan

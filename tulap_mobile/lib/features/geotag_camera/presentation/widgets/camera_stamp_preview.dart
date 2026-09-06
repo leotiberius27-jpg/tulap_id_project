@@ -5,11 +5,12 @@ import '../../domain/entities/watermark_template_entity.dart';
 
 /// CameraStampPreview
 /// ----------------------------------------------------------------------
-/// Widget live preview stamp/watermark yang melayang di atas feed kamera:
-/// - Mengikuti secara presisi konfigurasi template aktif [StampConfiguration]
-/// - Menampilkan Mini Map kontekstual & QR Google Maps on-device
-/// - Responsif terhadap orientasi & ukuran layar tanpa menutupi tombol shutter
-/// - Memberikan kepastian visual (Live Preview vs Final Render konsisten)
+/// Widget live preview stamp/watermark yang melayang di atas feed kamera
+/// Sesuai referensi visual 01.jpeg:
+/// - Mini Map Google di sisi kiri dengan pin merah dan logo Google
+/// - Teks alamat lengkap, Plus Code, koordinat presisi, dan waktu dengan nama hari
+/// - QR Code Google Maps di sisi kanan dengan badge header "GPS Map Camera"
+/// - Latar semi-transparan gelap yang menyatu elegan dengan viewfinder
 /// ----------------------------------------------------------------------
 class CameraStampPreview extends StatelessWidget {
   final String taskName;
@@ -46,47 +47,26 @@ class CameraStampPreview extends StatelessWidget {
     final template = TemplateCatalog.getById(stampConfig.templateId);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14),
+      margin: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: const Color(0xD90A1120), // Deep Navy ~85% opacity
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xD9000000), // Rich black, 85% opacity
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0x33006EE6), // Tulap Blue border
-          width: 1.2,
+          color: Colors.white.withValues(alpha: 0.12),
+          width: 0.8,
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x59000000),
-            blurRadius: 16,
-            offset: Offset(0, 4),
+            color: Color(0x66000000),
+            blurRadius: 12,
+            offset: Offset(0, 3),
           ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // Top Accent Line
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            child: Container(color: const Color(0xFF006EE6)),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildTemplateBody(context, template),
-                const SizedBox(height: 5),
-                _buildBottomTrustBar(),
-              ],
-            ),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        child: _buildTemplateBody(context, template),
       ),
     );
   }
@@ -112,28 +92,37 @@ class CameraStampPreview extends StatelessWidget {
     }
   }
 
-  // 1. KLASIK: Geotag Seimbang dengan Mini Map
+  // 1. KLASIK: Layout Penuh Presisi Sesuai Referensi 01.jpeg
+  // [Mini Map] [Judul Wilayah, Alamat/PlusCode, Koordinat, Hari/Tanggal/GMT] [QR GPS Camera]
   Widget _buildKlasikLayout() {
     final shouldShowMap = stampConfig.showMiniMap;
+    final shouldShowQr = stampConfig.showQrMaps;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Sisi Kiri: Metadata
+        // Sisi Kiri: Mini Map Preview dengan Pin Merah & Logo Google (01.jpeg)
+        if (shouldShowMap) ...[
+          _buildMiniMapPreviewWidget(size: 68),
+          const SizedBox(width: 8),
+        ],
+
+        // Sisi Tengah: Teks Wilayah, Alamat, Koordinat, Waktu
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildBrandBadge('STANDAR GEOTAG'),
-              if (stampConfig.showTaskName) ...[
-                const SizedBox(height: 3),
+              if (stampConfig.showTaskName && taskName.isNotEmpty) ...[
+                const SizedBox(height: 1),
                 Text(
                   taskName,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 13.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w800,
+                    height: 1.15,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -142,25 +131,26 @@ class CameraStampPreview extends StatelessWidget {
               if (stampConfig.showLocation) ...[
                 const SizedBox(height: 2),
                 Text(
-                  '📍 ${_getCleanAddress()}',
+                  _getDetailedAddressLine(),
                   style: const TextStyle(
-                    color: Color(0xFFE2E8F0),
-                    fontSize: 11.5,
+                    color: Color(0xFFCBD5E1),
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w500,
+                    height: 1.15,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
-              const SizedBox(height: 3),
+              const SizedBox(height: 2),
               _buildGpsAndDateRow(),
               if (stampConfig.showCoordinates && latitude != null && longitude != null) ...[
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Text(
-                  '${latitude!.toStringAsFixed(4)}, ${longitude!.toStringAsFixed(4)} • $officerName',
+                  'Lat ${latitude!.toStringAsFixed(5)}°   Long ${longitude!.toStringAsFixed(5)}°',
                   style: const TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 10.5,
+                    color: Color(0xFFE2E8F0),
+                    fontSize: 9.0,
                     fontFamily: 'monospace',
                     fontWeight: FontWeight.w600,
                   ),
@@ -172,10 +162,10 @@ class CameraStampPreview extends StatelessWidget {
           ),
         ),
 
-        // Sisi Kanan: Mini Map Preview
-        if (shouldShowMap) ...[
-          const SizedBox(width: 10),
-          _buildMiniMapPreviewWidget(size: 68),
+        // Sisi Kanan: QR Code dengan Badge "Google Maps" (01.jpeg)
+        if (shouldShowQr) ...[
+          const SizedBox(width: 8),
+          _buildQrPreviewWidget(size: 68),
         ],
       ],
     );
@@ -195,12 +185,12 @@ class CameraStampPreview extends StatelessWidget {
             children: [
               _buildBrandBadge('DOKUMENTASI RESMI'),
               if (stampConfig.showTaskName) ...[
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   taskName,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 13.5,
+                    fontSize: 12.0,
                     fontWeight: FontWeight.w800,
                   ),
                   maxLines: 1,
@@ -210,13 +200,13 @@ class CameraStampPreview extends StatelessWidget {
               if (stampConfig.showLocation) ...[
                 const SizedBox(height: 2),
                 Text(
-                  '📍 ${_getCleanAddress()}',
+                  _getDetailedAddressLine(),
                   style: const TextStyle(
-                    color: Color(0xFFE2E8F0),
-                    fontSize: 11.5,
+                    color: Color(0xFFCBD5E1),
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w500,
                   ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -228,7 +218,7 @@ class CameraStampPreview extends StatelessWidget {
                   'Petugas: $officerName • $agencyName',
                   style: const TextStyle(
                     color: Color(0xFF94A3B8),
-                    fontSize: 10.5,
+                    fontSize: 9.0,
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: 1,
@@ -240,7 +230,7 @@ class CameraStampPreview extends StatelessWidget {
         ),
 
         if (shouldShowQr) ...[
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           _buildQrPreviewWidget(size: 68),
         ],
       ],
@@ -263,7 +253,7 @@ class CameraStampPreview extends StatelessWidget {
               '$hh:$mm',
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 22,
+                fontSize: 20,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 0.5,
               ),
@@ -272,8 +262,8 @@ class CameraStampPreview extends StatelessWidget {
             Text(
               dateStr,
               style: const TextStyle(
-                color: Color(0xFF38BDF8),
-                fontSize: 13,
+                color: Color(0xFFFFC700),
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -282,10 +272,10 @@ class CameraStampPreview extends StatelessWidget {
         if (stampConfig.showLocation) ...[
           const SizedBox(height: 2),
           Text(
-            '📍 ${_getCleanAddress()}',
+            _getCleanAddress(),
             style: const TextStyle(
-              color: Color(0xFFE2E8F0),
-              fontSize: 11.5,
+              color: Color(0xFFCBD5E1),
+              fontSize: 10,
               fontWeight: FontWeight.w500,
             ),
             maxLines: 1,
@@ -310,12 +300,12 @@ class CameraStampPreview extends StatelessWidget {
             children: [
               _buildBrandBadge('NAVIGASI LAPANGAN'),
               if (stampConfig.showLocation) ...[
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
-                  '📍 ${_getCleanAddress()}',
+                  _getDetailedAddressLine(),
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 12.0,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: 2,
@@ -327,8 +317,8 @@ class CameraStampPreview extends StatelessWidget {
                 Text(
                   '🌐 ${latitude!.toStringAsFixed(6)}, ${longitude!.toStringAsFixed(6)}',
                   style: const TextStyle(
-                    color: Color(0xFF38BDF8),
-                    fontSize: 11.0,
+                    color: Colors.white, // Koordinat: crisp white
+                    fontSize: 10.0,
                     fontWeight: FontWeight.w700,
                     fontFamily: 'monospace',
                   ),
@@ -339,8 +329,8 @@ class CameraStampPreview extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 10),
-        _buildQrPreviewWidget(size: 72),
+        const SizedBox(width: 8),
+        _buildQrPreviewWidget(size: 68),
       ],
     );
   }
@@ -356,8 +346,8 @@ class CameraStampPreview extends StatelessWidget {
             const Text(
               'TULAP.ID • ',
               style: TextStyle(
-                color: Color(0xFF38BDF8),
-                fontSize: 12.5,
+                color: Color(0xFFFFC700),
+                fontSize: 11.5,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -366,7 +356,7 @@ class CameraStampPreview extends StatelessWidget {
                 taskName,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 12.5,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                 ),
                 maxLines: 1,
@@ -378,10 +368,10 @@ class CameraStampPreview extends StatelessWidget {
         if (stampConfig.showLocation) ...[
           const SizedBox(height: 2),
           Text(
-            '📍 ${_getCleanAddress()}',
+            _getCleanAddress(),
             style: const TextStyle(
-              color: Color(0xFFE2E8F0),
-              fontSize: 11,
+              color: Color(0xFFCBD5E1),
+              fontSize: 10,
               fontWeight: FontWeight.w500,
             ),
             maxLines: 1,
@@ -404,14 +394,14 @@ class CameraStampPreview extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildBrandBadge('INSPEKSI TEKNIS'),
-        const SizedBox(height: 3),
+        const SizedBox(height: 2),
         Row(
           children: [
             Text(
               '🧭 $headingDeg  ',
               style: const TextStyle(
-                color: Color(0xFF38BDF8),
-                fontSize: 12,
+                color: Color(0xFFFFC700),
+                fontSize: 11,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -419,7 +409,7 @@ class CameraStampPreview extends StatelessWidget {
               '•  ⛰ Elevasi: $altStr  ',
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 11.5,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -432,7 +422,7 @@ class CameraStampPreview extends StatelessWidget {
             '🌐 ${latitude!.toStringAsFixed(6)}, ${longitude!.toStringAsFixed(6)}',
             style: const TextStyle(
               color: Color(0xFFE2E8F0),
-              fontSize: 10.5,
+              fontSize: 9.5,
               fontFamily: 'monospace',
               fontWeight: FontWeight.w600,
             ),
@@ -441,10 +431,10 @@ class CameraStampPreview extends StatelessWidget {
         if (stampConfig.showLocation) ...[
           const SizedBox(height: 2),
           Text(
-            '📍 ${_getCleanAddress()}',
+            _getDetailedAddressLine(),
             style: const TextStyle(
               color: Color(0xFF94A3B8),
-              fontSize: 11,
+              fontSize: 9.5,
               fontWeight: FontWeight.w500,
             ),
             maxLines: 1,
@@ -465,19 +455,19 @@ class CameraStampPreview extends StatelessWidget {
         const Text(
           'TULAP.ID  ',
           style: TextStyle(
-            color: Colors.white,
-            fontSize: 12.5,
+            color: Color(0xFFFFC700), // Golden Yellow - judul kartu
+            fontSize: 11.5,
             fontWeight: FontWeight.w900,
-            letterSpacing: 0.6,
+            letterSpacing: 0.5,
           ),
         ),
         Text(
           '•  $subtitle',
           style: const TextStyle(
-            color: Color(0xFF38BDF8),
-            fontSize: 10,
+            color: Color(0xFFFFC700),
+            fontSize: 9.5,
             fontWeight: FontWeight.bold,
-            letterSpacing: 0.4,
+            letterSpacing: 0.3,
           ),
         ),
       ],
@@ -497,19 +487,33 @@ class CameraStampPreview extends StatelessWidget {
             'GPS $acc',
             style: TextStyle(
               color: gpsColor,
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(width: 6),
         ],
+        // Flexible + ellipsis: baris ini dirender di dalam kontainer
+        // stamp preview berlebar tetap (mis. ~162px) - dikonfirmasi
+        // nyata lewat live-test di perangkat fisik: teks "GPS ±Xm • Tgl
+        // HH:mm:ss" bisa melebihi lebar itu hanya oleh SEPERSEKIAN
+        // pixel (0.237px), memicu RenderFlex overflow yang tampil
+        // sebagai garis kuning-hitam mencolok tepat di tengah stamp
+        // bukti resmi. Text polos tidak pernah menyusut sendiri di
+        // dalam Row - harus dibungkus Flexible agar bisa mengalah
+        // (ellipsis) alih-alih overflow.
         if (stampConfig.showDate || stampConfig.showTime)
-          Text(
-            '•  $timeStr',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              '•  $timeStr',
+              style: const TextStyle(
+                color: Colors.white70, // Timestamp: subtext abu-abu muda
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
             ),
           ),
       ],
@@ -523,58 +527,71 @@ class CameraStampPreview extends StatelessWidget {
       '•  GPS $acc',
       style: TextStyle(
         color: gpsColor,
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: FontWeight.bold,
       ),
     );
   }
 
+  // Mini Map Google Style dengan Pin Merah & Watermark Google (01.jpeg)
   Widget _buildMiniMapPreviewWidget({required double size}) {
-    final latLngStr = latitude != null && longitude != null
-        ? '${latitude!.toStringAsFixed(2)}, ${longitude!.toStringAsFixed(2)}'
-        : 'Peta Lapangan';
-
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: const Color(0xFF0F172A),
-        border: Border.all(color: const Color(0x4038BDF8), width: 1),
+        borderRadius: BorderRadius.circular(6),
+        color: const Color(0xFF1E293B),
+        border: Border.all(color: Colors.white24, width: 0.8),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF2A3B4C),
+            Color(0xFF1B2631),
+          ],
+        ),
       ),
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Radar circles
-          Container(
-            width: size * 0.7,
-            height: size * 0.7,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0x33006EE6), width: 1),
+          // Map texture roads / grid lines
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _MiniMapTexturePainter(),
             ),
           ),
-          // Location pin
+
+          // Red Google Location Pin in center
           const Icon(
-            Icons.location_on_rounded,
-            color: Color(0xFFEF4444),
-            size: 24,
-          ),
-          Positioned(
-            bottom: 3,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              decoration: BoxDecoration(
-                color: const Color(0xCC0B1220),
-                borderRadius: BorderRadius.circular(4),
+            Icons.location_on,
+            color: Color(0xFFEA4335), // Google Red
+            size: 22,
+            shadows: [
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 4,
+                offset: Offset(0, 1),
               ),
-              child: Text(
-                latLngStr,
-                style: const TextStyle(
-                  color: Color(0xFFE2E8F0),
-                  fontSize: 7.5,
-                  fontWeight: FontWeight.bold,
-                ),
+            ],
+          ),
+
+          // Google logo in bottom left
+          Positioned(
+            left: 4,
+            bottom: 3,
+            child: Text(
+              'Google',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 7.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+                shadows: const [
+                  Shadow(
+                    color: Colors.black,
+                    blurRadius: 2,
+                  ),
+                ],
               ),
             ),
           ),
@@ -583,8 +600,9 @@ class CameraStampPreview extends StatelessWidget {
     );
   }
 
+  // QR Code dengan Header Badge "GPS Map Camera" (01.jpeg)
   Widget _buildQrPreviewWidget({required double size}) {
-    final lat = latitude ?? -4.5468;
+    final lat = latitude ?? -4.5572;
     final lng = longitude ?? 136.8837;
     final url =
         'https://www.google.com/maps/search/?api=1&query=${lat.toStringAsFixed(6)},${lng.toStringAsFixed(6)}';
@@ -592,30 +610,43 @@ class CameraStampPreview extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         color: Colors.white,
-        border: Border.all(color: const Color(0xFF006EE6), width: 1.2),
+        border: Border.all(color: Colors.white54, width: 0.8),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Expanded(
-            child: QrImageView(
-              data: url,
-              version: QrVersions.auto,
-              backgroundColor: Colors.white,
-              padding: EdgeInsets.zero,
+          // Top Mini Badge "Google Maps"
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+            color: const Color(0xFF0F172A),
+            child: const Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  'Google Maps',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 7.0,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
             ),
           ),
-          const Text(
-            'Google Maps',
-            style: TextStyle(
-              color: Color(0xFF0F172A),
-              fontSize: 7.5,
-              fontWeight: FontWeight.w900,
+          // QR Code Pattern
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(2),
+              child: QrImageView(
+                data: url,
+                version: QrVersions.auto,
+                backgroundColor: Colors.white,
+                padding: EdgeInsets.zero,
+              ),
             ),
           ),
         ],
@@ -623,33 +654,56 @@ class CameraStampPreview extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomTrustBar() {
-    return Container(
-      padding: const EdgeInsets.only(top: 3),
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: Color(0x26FFFFFF), width: 0.8),
-        ),
-      ),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '🛡 Bukti Digital Tulap.id • SHA-256 Integritas Terjamin',
-            style: TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 9.5,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
+  // PENTING - jangan pernah kembalikan nama wilayah/alamat REKAAN di
+  // ketiga method di bawah. Ditemukan & diperbaiki: sebelumnya ketiganya
+  // mengembalikan string tetap yang dibuat-buat ("Kecamatan Mimika
+  // Baru...", "Cvvw+35p, Kota Mimika...", dsb) setiap kali `address`
+  // null (mis. reverse geocoding gagal/timeout di lokasi sinyal lemah) -
+  // dikonfirmasi NYATA lewat live-test fisik: fallback "Cvvw+35p, Kota
+  // Mimika, Papua Tengah 99971, Indonesia" benar-benar tampil di layar
+  // saat geocoding gagal indoor, tidak dibedakan sama sekali dari alamat
+  // asli. Sejak ReverseGeocoder.reverseGeocode() diperbaiki untuk TIDAK
+  // PERNAH lagi mengembalikan null (selalu alamat asli/cache/format
+  // "[OFFLINE AREA]" yang jujur), cabang null di sini seharusnya tidak
+  // lagi tercapai untuk capture baru - dipertahankan hanya sebagai
+  // fallback jujur berbasis koordinat asli widget ini sendiri, bukan
+  // nama tempat yang dikarang.
+  String get _offlineCoordinateLabel {
+    if (latitude == null || longitude == null) {
+      return '[OFFLINE AREA] Menunggu koordinat GPS...';
+    }
+    return '[OFFLINE AREA] Lat: ${latitude!.toStringAsFixed(6)}, '
+        'Lon: ${longitude!.toStringAsFixed(6)}';
+  }
+
+  String _resolveRegionTitle() {
+    if (address != null && address!.trim().isNotEmpty) {
+      final parts = address!
+          .split(',')
+          .map((p) => p.trim())
+          .where((p) => p.isNotEmpty)
+          .toList();
+      if (parts.isNotEmpty) {
+        // Gabungkan 2-3 elemen wilayah pertama
+        if (parts.length >= 3) {
+          return '${parts[0]}, ${parts[1]}, ${parts.last}';
+        }
+        return parts.join(', ');
+      }
+    }
+    return _offlineCoordinateLabel;
+  }
+
+  String _getDetailedAddressLine() {
+    if (address == null || address!.trim().isEmpty) {
+      return _offlineCoordinateLabel;
+    }
+    return address!;
   }
 
   String _getCleanAddress() {
     if (address == null || address!.trim().isEmpty) {
-      return 'Lokasi Lapangan Terverifikasi GPS';
+      return _offlineCoordinateLabel;
     }
     final parts = address!
         .split(',')
@@ -662,9 +716,28 @@ class CameraStampPreview extends StatelessWidget {
 
   Color _getGpsStatusColor(double accuracy) {
     if (accuracy <= 10.0) return const Color(0xFF22C55E);
-    if (accuracy <= 25.0) return const Color(0xFF38BDF8);
+    if (accuracy <= 25.0) return const Color(0xFFFFC700);
     if (accuracy <= 50.0) return const Color(0xFFF59E0B);
     return const Color(0xFFEF4444);
+  }
+
+  String _formatIndonesianFullDateTimeWithDay(DateTime dt) {
+    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+    final dayName = days[dt.weekday - 1];
+    final dd = dt.day.toString().padLeft(2, '0');
+    final mm = dt.month.toString().padLeft(2, '0');
+    final yyyy = dt.year.toString();
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+    final ss = dt.second.toString().padLeft(2, '0');
+
+    final offset = dt.timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    final offsetHours = offset.inHours.abs().toString().padLeft(2, '0');
+    final offsetMins = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+    final gmtStr = 'GMT$sign$offsetHours:$offsetMins';
+
+    return '$dayName, $dd/$mm/$yyyy $hh:$min:$ss $gmtStr';
   }
 
   String _formatIndonesianDateTime(DateTime dt) {
@@ -693,3 +766,30 @@ class CameraStampPreview extends StatelessWidget {
     return '${d.day} $monthName ${d.year}';
   }
 }
+
+/// Painter sederhana untuk memberikan tekstur jalan & grid pada Mini Map
+class _MiniMapTexturePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final roadPaint = Paint()
+      ..color = const Color(0x33FFFFFF)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    final waterPaint = Paint()
+      ..color = const Color(0x2238BDF8)
+      ..style = PaintingStyle.fill;
+
+    // Water area
+    canvas.drawRect(Rect.fromLTWH(0, size.height * 0.7, size.width * 0.4, size.height * 0.3), waterPaint);
+
+    // Diagonal and cross roads
+    canvas.drawLine(Offset(0, size.height * 0.3), Offset(size.width, size.height * 0.5), roadPaint);
+    canvas.drawLine(Offset(size.width * 0.4, 0), Offset(size.width * 0.6, size.height), roadPaint);
+    canvas.drawLine(Offset(0, size.height * 0.7), Offset(size.width, size.height * 0.75), roadPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+

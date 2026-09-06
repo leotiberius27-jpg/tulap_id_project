@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../../core/geo/fast_location_service.dart';
 import '../../../auth/domain/entities/auth_user_entity.dart';
 import '../../../auth/domain/usecases/get_current_session.dart';
 import '../../../task_detail/domain/entities/task_entity.dart';
@@ -116,6 +117,12 @@ class TaskListController extends ChangeNotifier {
   }
 
   Future<void> load() async {
+    // GPS warm-up dipicu SAAT tab Tugas dibuka, agar akurasi lokasi
+    // sudah "panas" sebelum user membuka kamera geotag dari salah satu
+    // tugas di daftar ini - mirroring HomeController.loadHome(). Aman
+    // dipanggil berkali-kali: startWarmUp() no-op jika sudah berjalan.
+    FastLocationService.instance.startWarmUp();
+
     _update(_state.copyWith(status: TaskListStatus.loading));
 
     final user = await _getCurrentSession();

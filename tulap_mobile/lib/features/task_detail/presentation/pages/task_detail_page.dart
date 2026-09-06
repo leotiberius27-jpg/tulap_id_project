@@ -19,6 +19,8 @@ import '../../../location/presentation/pages/location_page.dart';
 import '../../domain/entities/activity_note_entity.dart';
 import '../../../activity_report/presentation/pages/report_draft_review_page.dart';
 import '../../../activity_report/presentation/pages/task_reports_list_page.dart';
+import '../../../assistant/presentation/pages/tanya_tulap_page.dart';
+import '../../../assistant/presentation/widgets/tula_task_context_binder.dart';
 import '../../domain/entities/task_entity.dart';
 import '../controllers/task_detail_controller.dart';
 import '../widgets/activity_timeline_card.dart';
@@ -59,7 +61,8 @@ class TaskDetailPage extends StatelessWidget {
       decimalDigits: 0,
     );
 
-    return Scaffold(
+    return TulaTaskContextBinder(
+      child: Scaffold(
       backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true,
       body: Consumer<TaskDetailController>(
@@ -200,6 +203,7 @@ class TaskDetailPage extends StatelessWidget {
             ),
           );
         },
+      ),
       ),
     );
   }
@@ -573,6 +577,66 @@ class TaskDetailPage extends StatelessWidget {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        InkWell(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => TanyaTulapPage(
+                contextEntityType: 'ACTIVITY',
+                contextEntityId: task.id,
+                contextTitle: task.taskName,
+              ),
+            ),
+          ),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tanya Tulap tentang Kegiatan Ini',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      Text(
+                        'Ringkas data, cek kelengkapan, atau cari nota kegiatan',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 12,
+                  color: AppColors.primary,
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );

@@ -23,6 +23,10 @@ import 'package:tulap_mobile/features/account/domain/usecases/get_storage_breakd
 import 'package:tulap_mobile/features/account/domain/usecases/save_camera_settings.dart';
 import 'package:tulap_mobile/features/account/domain/usecases/save_notification_settings.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/update_user_profile.dart';
+import 'package:tulap_mobile/features/assistant/domain/repositories/assistant_repository.dart';
+import 'package:tulap_mobile/features/assistant/domain/usecases/ask_assistant.dart';
+import 'package:tulap_mobile/features/assistant/domain/usecases/get_assistant_suggestions.dart';
+import 'package:tulap_mobile/features/assistant/presentation/controllers/assistant_controller.dart';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:tulap_mobile/core/network/network_info.dart';
@@ -182,6 +186,17 @@ void main() {
         expect(() => sl<ClearAppCache>(), returnsNormally);
         expect(() => sl<UpdateUserProfile>(), returnsNormally);
         expect(() => sl<AuthSessionManager>(), returnsNormally);
+
+        // Assistant DI assertions
+        expect(sl.isRegistered<AssistantRepository>(), isTrue);
+        expect(sl.isRegistered<AskAssistant>(), isTrue);
+        expect(sl.isRegistered<GetAssistantSuggestions>(), isTrue);
+        expect(sl.isRegistered<AssistantController>(), isTrue);
+
+        expect(() => sl<AssistantRepository>(), returnsNormally);
+        expect(() => sl<AskAssistant>(), returnsNormally);
+        expect(() => sl<GetAssistantSuggestions>(), returnsNormally);
+        expect(() => sl<AssistantController>(), returnsNormally);
       },
     );
 

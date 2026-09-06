@@ -6,6 +6,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_state_views.dart';
+import '../../../assistant/presentation/controllers/tula_visibility_controller.dart';
 import '../../../expense_ocr/data/datasources/expense_ocr_local_datasource.dart';
 import '../../../expense_ocr/domain/entities/expense_note_entity.dart';
 import '../../../geotag_camera/data/datasources/geotag_camera_local_datasource.dart';
@@ -35,10 +36,20 @@ class _LpjSummaryPageState extends State<LpjSummaryPage> {
   List<GeotagPhotoEntity> _photos = [];
   String? _errorMessage;
 
+  late final TulaVisibilityController _tula;
+
   @override
   void initState() {
     super.initState();
+    _tula = sl<TulaVisibilityController>();
+    _tula.pushContext(const TulaContextData(TulaScreenContext.lpj));
     _loadLpjData();
+  }
+
+  @override
+  void dispose() {
+    _tula.popContext();
+    super.dispose();
   }
 
   Future<void> _loadLpjData() async {
@@ -73,6 +84,15 @@ class _LpjSummaryPageState extends State<LpjSummaryPage> {
         _photos = photos;
         _isLoading = false;
       });
+
+      if (_tula.current.screen == TulaScreenContext.lpj) {
+        final isReady = expenses.isNotEmpty && photos.isNotEmpty;
+        _tula.setInsight(
+          has: isReady,
+          severity: isReady ? TulaInsightSeverity.info : null,
+          message: isReady ? 'LPJ siap ditinjau' : null,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
+import '../../../../core/geo/fast_location_service.dart';
 import '../../../../core/geo/reverse_geocoder.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/app_date_formatter.dart';
@@ -168,11 +169,12 @@ class _CreateActivityPageState extends State<CreateActivityPage> {
         }
       }
 
-      position = await Geolocator.getLastKnownPosition();
+      position = FastLocationService.instance.latestCandidatePosition ??
+          await Geolocator.getLastKnownPosition();
       position ??= await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 8),
+          timeLimit: Duration(seconds: 3),
         ),
       );
 

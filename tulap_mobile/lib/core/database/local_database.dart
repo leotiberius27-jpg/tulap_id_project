@@ -15,7 +15,7 @@ import 'package:sqflite/sqflite.dart';
 /// ----------------------------------------------------------------------
 class LocalDatabase {
   static const String _dbName = 'tulap_local.db';
-  static const int _dbVersion = 12;
+  static const int _dbVersion = 13;
 
   static Database? _database;
 
@@ -406,6 +406,29 @@ class LocalDatabase {
       )
     ''');
     await db.execute('CREATE INDEX idx_recent_searches_time ON recent_searches(searchedAt DESC)');
+
+    // --- Tabel security_events (Anti-Fake-GPS & Root Detection - Bagian 21/30/31) ---
+    // Jejak lokal setiap percobaan capture yang DIBLOKIR karena mock
+    // location / root device terdeteksi (bukan evidence yang berhasil
+    // diambil - tidak ada file media terkait). Mengikuti pola outbox yang
+    // sama seperti geotag_photos: disimpan lokal dulu, lalu didaftarkan
+    // ke sync_queue agar tetap terkirim ke server saat offline.
+    await db.execute('''
+      CREATE TABLE security_events (
+        id TEXT PRIMARY KEY,
+        taskId TEXT NOT NULL,
+        eventType TEXT NOT NULL,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL,
+        accuracyMeters REAL NOT NULL,
+        deviceInfo TEXT,
+        detectedAt TEXT NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'LOCAL_ONLY'
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX idx_security_events_taskId ON security_events(taskId)',
+    );
   }
 
   /// Migrasi non-destruktif antar versi database
@@ -808,6 +831,27 @@ class LocalDatabase {
         await db.execute('CREATE INDEX IF NOT EXISTS idx_recent_searches_time ON recent_searches(searchedAt DESC)');
       } catch (_) {}
     }
+
+    if (oldVersion < 13) {
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS security_events (
+            id TEXT PRIMARY KEY,
+            taskId TEXT NOT NULL,
+            eventType TEXT NOT NULL,
+            latitude REAL NOT NULL,
+            longitude REAL NOT NULL,
+            accuracyMeters REAL NOT NULL,
+            deviceInfo TEXT,
+            detectedAt TEXT NOT NULL,
+            syncStatus TEXT NOT NULL DEFAULT 'LOCAL_ONLY'
+          )
+        ''');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_security_events_taskId ON security_events(taskId)',
+        );
+      } catch (_) {}
+    }
   }
 
   /// Dipakai HANYA untuk testing/debugging
@@ -830,6 +874,9 @@ class LocalDatabase {
     try {
       await db.delete('search_index');
       await db.delete('recent_searches');
+    } catch (_) {}
+    try {
+      await db.delete('security_events');
     } catch (_) {}
   }
 }

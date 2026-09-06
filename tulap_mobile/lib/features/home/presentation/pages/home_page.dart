@@ -36,6 +36,7 @@ import '../../../task_detail/domain/usecases/toggle_checklist_item.dart';
 import '../../../task_detail/presentation/controllers/task_detail_controller.dart';
 import '../../../task_detail/presentation/pages/create_activity_page.dart';
 import '../../../task_detail/presentation/pages/task_detail_page.dart';
+import '../../../assistant/presentation/controllers/tula_visibility_controller.dart';
 import '../../../task_list/presentation/controllers/task_list_controller.dart';
 import '../../../task_list/presentation/pages/task_list_page.dart';
 import '../../../travel_mission/presentation/pages/travel_mission_list_page.dart';
@@ -141,6 +142,34 @@ class _HomeView extends StatelessWidget {
                 : null;
             final summary = state.dashboardSummary;
 
+            // Tula: tandai ada insight yang perlu perhatian user (tugas
+            // mendesak, item aksi tertunda, atau bukti belum tersinkron)
+            // tanpa membangun ulang pipeline data - cukup baca state yang
+            // sudah dimuat HomeController.
+            final String? tulaInsightMessage = urgentCount > 0
+                ? (activeTask != null
+                    ? '$urgentCount checklist belum selesai'
+                    : '$urgentCount tugas perlu perhatian')
+                : state.pendingSyncCount > 0
+                    ? '${state.pendingSyncCount} data menunggu internet'
+                    : (summary?.actionRequired.isNotEmpty ?? false)
+                        ? '${summary!.actionRequired.length} hal perlu ditinjau'
+                        : null;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              final tula = sl<TulaVisibilityController>();
+              // Beranda tetap "mounted" selamanya di dalam IndexedStack
+              // MainShell - jangan timpa insight/badge milik layar lain
+              // yang sedang benar-benar di atas (mis. Detail Tugas, LPJ).
+              if (tula.current.screen != TulaScreenContext.home) return;
+              tula.setInsight(
+                has: tulaInsightMessage != null,
+                severity: tulaInsightMessage != null
+                    ? TulaInsightSeverity.warning
+                    : null,
+                message: tulaInsightMessage,
+              );
+            });
+
             return RefreshIndicator(
               onRefresh: controller.loadHome,
               child: ListView(
@@ -188,7 +217,7 @@ class _HomeView extends StatelessWidget {
 
                   // 2. ALERT PERHATIAN TUGAS
                   if (urgentCount > 0) ...[
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.xs),
                     TaskAlertBar(
                       urgentCount: urgentCount,
                       onTap: () => _openTaskList(context),
@@ -196,7 +225,7 @@ class _HomeView extends StatelessWidget {
                   ],
 
                   // 3. TUGAS UTAMA / AKTIF
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.md),
                   if (activeTask != null)
                     PrimaryTaskCard(
                       task: activeTask,

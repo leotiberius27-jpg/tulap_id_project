@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/geo/fast_location_service.dart';
 import '../../../../core/security/mock_location_detector.dart';
 import '../../../../core/security/root_detector.dart';
 
@@ -57,7 +58,10 @@ class ValidateLocationIntegrity {
       if (position != null) {
         locationResult = _mockLocationDetector.evaluatePosition(position);
       } else {
-        locationResult = await _mockLocationDetector.getValidatedPosition();
+        final warmPos = FastLocationService.instance.latestCandidatePosition;
+        locationResult = await _mockLocationDetector.getValidatedPosition(
+          fallbackPosition: warmPos,
+        );
       }
 
       final isFullyValid = locationResult.isValid && !isDeviceCompromised;

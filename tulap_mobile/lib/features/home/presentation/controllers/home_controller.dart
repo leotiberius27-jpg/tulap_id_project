@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../../../../core/geo/fast_location_service.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/session/auth_session_manager.dart';
 import '../../../../core/sync/background_sync_service.dart';
@@ -287,6 +288,7 @@ class HomeController extends ChangeNotifier {
   Future<void> load() => loadHome();
 
   Future<void> loadHome() async {
+    FastLocationService.instance.startWarmUp();
     _update(_state.copyWith(status: HomeStatus.loading));
 
     final user = _authSessionManager?.currentUser ?? await _getCurrentSession();

@@ -119,7 +119,7 @@ class GeotagCameraViewState {
 
   bool get isCaptureEnabled =>
       locationStatus == LocationIntegrityStatus.valid &&
-      (isGpsLocked || isGpsOverrideAllowed) &&
+      (isGpsLocked || isAcceptable || isGpsOverrideAllowed) &&
       captureStatus != CaptureViewStatus.capturing &&
       !isSwitchingCamera &&
       !isCountdownActive;
@@ -642,11 +642,16 @@ class GeotagCameraController extends ChangeNotifier {
         FastLocationData(
           tier: warmCandidate.accuracy <= 15.0 && !warmCandidate.isMocked
               ? LocationTier.verified
-              : LocationTier.fastInitial,
+              : (warmCandidate.accuracy <= 30.0
+                  ? LocationTier.freshRefining
+                  : LocationTier.fastInitial),
           position: warmCandidate,
           latitude: warmCandidate.latitude,
           longitude: warmCandidate.longitude,
           accuracy: warmCandidate.accuracy,
+          altitude: warmCandidate.altitude,
+          heading: warmCandidate.heading,
+          address: _state.address,
           timestamp: warmCandidate.timestamp,
           isMocked: warmCandidate.isMocked,
         ),
@@ -665,7 +670,8 @@ class GeotagCameraController extends ChangeNotifier {
   }
 
   Future<void> _checkLocationOnce() async {
-    final result = await validateLocationIntegrity();
+    final warmPos = FastLocationService.instance.latestCandidatePosition;
+    final result = await validateLocationIntegrity(position: warmPos);
     if (_isDisposed) return;
     result.fold(
       (failure) => _updateState(
