@@ -29,6 +29,26 @@ class AuthUserModel extends AuthUserEntity {
     );
   }
 
+  /// Parsing dari response `PATCH/POST/DELETE /users/me*` backend
+  /// (UsersService._safeUserSelect()) - berbeda dari `fromLoginJson()`:
+  /// `role` di sini objek `{ id, name }`, bukan string langsung.
+  factory AuthUserModel.fromUserJson(Map<String, dynamic> json) {
+    final roleField = json['role'];
+    final roleName = roleField is Map
+        ? roleField['name'] as String
+        : roleField as String;
+    return AuthUserModel(
+      id: json['id'] as String,
+      fullName: json['fullName'] as String,
+      email: json['email'] as String,
+      role: roleName,
+      instansiName: json['instansiName'] as String?,
+      nip: json['nip'] as String?,
+      phoneNumber: json['phoneNumber'] as String?,
+      photoUrl: json['photoUrl'] as String?,
+    );
+  }
+
   @override
   AuthUserModel copyWith({
     String? id,

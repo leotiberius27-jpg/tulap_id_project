@@ -391,6 +391,13 @@ class AuthRepositoryImpl implements AuthRepository {
     return savedDemo;
   }
 
+  /// Memperbarui profil DI BACKEND (bukan hanya lokal) - PATCH /users/me
+  /// untuk data teks, lalu POST/DELETE /users/me/photo untuk foto jika
+  /// berubah, baru menyimpan hasil AKHIR dari server ke sesi lokal.
+  /// SENGAJA tidak punya fallback "tetap sukses secara lokal" saat
+  /// network gagal - foto/data yang "kelihatan tersimpan" padahal tidak
+  /// pernah sampai ke server adalah persis bug yang membuat foto profil
+  /// hilang lagi setelah reinstall/login di perangkat lain.
   @override
   Future<Either<Failure, AuthUserEntity>> updateProfile({
     required String fullName,
@@ -401,24 +408,47 @@ class AuthRepositoryImpl implements AuthRepository {
   }) async {
     try {
       final currentUser = await _localDataSource.getStoredUser();
-      final updatedUser = AuthUserModel(
-        id: currentUser?.id ?? 'usr_local_01',
-        fullName: fullName.trim(),
-        email: currentUser?.email ?? 'pengguna@tulap.id',
-        role: currentUser?.role ?? 'PEGAWAI',
-        instansiName: instansiName?.trim().isNotEmpty == true
-            ? instansiName!.trim()
-            : (currentUser?.instansiName ?? 'BPKAD Kabupaten Mimika'),
-        nip: nip?.trim().isNotEmpty == true ? nip!.trim() : currentUser?.nip,
-        phoneNumber: phoneNumber?.trim().isNotEmpty == true
-            ? phoneNumber!.trim()
-            : currentUser?.phoneNumber,
-        photoUrl: photoUrl,
-        authProvider: currentUser?.authProvider,
+      final trimmedPhoto = photoUrl?.trim();
+      final isRemoteUrl = trimmedPhoto != null &&
+          (trimmedPhoto.startsWith('http://') || trimmedPhoto.startsWith('https://'));
+
+      AuthUserModel latest = AuthUserModel.fromUserJson(
+        await _remoteDataSource.updateProfile(
+          fullName: fullName.trim(),
+          phoneNumber: phoneNumber?.trim(),
+          instansiName: instansiName?.trim(),
+          nip: nip?.trim(),
+        ),
       );
 
-      await _localDataSource.updateUserProfile(updatedUser);
-      return Right(updatedUser);
+      if (trimmedPhoto != null && trimmedPhoto.isNotEmpty && !isRemoteUrl) {
+        // Foto baru dipilih dari kamera/galeri (path lokal) - unggah ke S3.
+        // Respons ini sudah mencerminkan field teks yang baru saja
+        // di-PATCH di atas (SELECT ulang dari DB yang sama), jadi tidak
+        // perlu digabung manual dengan `latest`.
+        latest = AuthUserModel.fromUserJson(
+          await _remoteDataSource.uploadProfilePhoto(trimmedPhoto),
+        );
+      } else if ((trimmedPhoto == null || trimmedPhoto.isEmpty) &&
+          currentUser?.photoUrl != null &&
+          currentUser!.photoUrl!.isNotEmpty) {
+        // Foto sebelumnya ada, sekarang null - user menghapus foto profil.
+        latest = AuthUserModel.fromUserJson(
+          await _remoteDataSource.deleteProfilePhoto(),
+        );
+      }
+
+      await _localDataSource.updateUserProfile(latest);
+      return Right(latest);
+    } on DioException catch (e) {
+      if (e.response != null &&
+          e.response?.data is Map &&
+          e.response?.data['message'] is String) {
+        return Left(ServerFailure(e.response?.data['message'] as String));
+      }
+      return const Left(
+        ServerFailure('Tidak dapat terhubung ke server. Periksa koneksi internet Anda.'),
+      );
     } catch (e) {
       return Left(LocalStorageFailure('Gagal memperbarui profil: ${e.toString()}'));
     }

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import '../../../../core/network/dio_client.dart';
 
 /// AuthRemoteDataSource
@@ -95,6 +96,47 @@ class AuthRemoteDataSource {
         if (fullName != null && fullName.isNotEmpty) 'fullName': fullName,
       },
     );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// PATCH /users/me - update profil DIRI SENDIRI (nama, telepon,
+  /// instansi, NIP). Tidak termasuk foto - lihat `uploadProfilePhoto()`.
+  Future<Map<String, dynamic>> updateProfile({
+    required String fullName,
+    String? phoneNumber,
+    String? instansiName,
+    String? nip,
+  }) async {
+    final response = await _dioClient.dio.patch(
+      '/users/me',
+      data: {
+        'fullName': fullName,
+        if (phoneNumber != null) 'phoneNumber': phoneNumber,
+        if (instansiName != null) 'instansiName': instansiName,
+        if (nip != null) 'nip': nip,
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// POST /users/me/photo - unggah foto profil dari file lokal (hasil
+  /// kamera/galeri) ke S3, mengembalikan user dengan `photoUrl` https
+  /// permanen (bukan path lokal device).
+  Future<Map<String, dynamic>> uploadProfilePhoto(String localFilePath) async {
+    final fileName = localFilePath.split(RegExp(r'[\\/]')).last;
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(localFilePath, filename: fileName),
+    });
+    final response = await _dioClient.dio.post(
+      '/users/me/photo',
+      data: formData,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// DELETE /users/me/photo - hapus foto profil sendiri.
+  Future<Map<String, dynamic>> deleteProfilePhoto() async {
+    final response = await _dioClient.dio.delete('/users/me/photo');
     return response.data as Map<String, dynamic>;
   }
 }

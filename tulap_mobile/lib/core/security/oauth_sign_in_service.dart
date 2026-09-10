@@ -51,37 +51,34 @@ class OAuthSignInService {
     );
   }
 
-  /// Mengembalikan informasi akun Google hasil autentikasi (idToken, email, displayName)
+  /// Mengembalikan informasi akun Google hasil autentikasi (idToken, email, displayName).
+  /// Mencoba `signInSilently()` dulu - jika perangkat ini sudah pernah
+  /// memberi izin ke Tulap.id untuk SATU akun Google tertentu (mis. bekas
+  /// login sebelumnya), langsung masuk tanpa dialog pemilihan akun sama
+  /// sekali. Dialog "Choose an account" (menampilkan SEMUA akun Google di
+  /// perangkat) hanya muncul saat belum ada izin tersimpan itu - baik
+  /// karena ini percobaan pertama, maupun setelah `signOutGoogle()`.
+  /// Mengembalikan `null` jika user membatalkan dialog pemilihan akun -
+  /// itu bukan kegagalan. Error lain (mis. Google Play Services / SHA-1
+  /// belum terdaftar) dilempar apa adanya, TIDAK boleh dipalsukan jadi
+  /// sukses - pemanggil (LoginController) yang menampilkan pesan error.
   Future<({String idToken, String? email, String? displayName})?>
   signInWithGoogle() async {
+    GoogleSignInAccount? account;
     try {
-      final account = await _google.signIn();
-      if (account != null) {
-        String? token;
-        try {
-          final auth = await account.authentication;
-          token = auth.idToken;
-        } catch (_) {}
-        return (
-          idToken: token ?? 'google-token-${account.id}',
-          email: account.email,
-          displayName: account.displayName,
-        );
-      }
-      // Jika dialog ditutup, tetap berikan sesi login Google terverifikasi
-      return (
-        idToken: 'google-token-direct',
-        email: 'petugas.lapangan@gmail.com',
-        displayName: 'Leonardo',
-      );
+      account = await _google.signInSilently();
     } catch (_) {
-      // Jika Google Play Services / SHA-1 belum terdaftar di Google Cloud Console
-      return (
-        idToken: 'google-token-direct',
-        email: 'petugas.lapangan@gmail.com',
-        displayName: 'Leonardo',
-      );
+      account = null;
     }
+    account ??= await _google.signIn();
+    if (account == null) return null; // Dialog dibatalkan user
+
+    final auth = await account.authentication;
+    final token = auth.idToken;
+    if (token == null) {
+      throw Exception('Google tidak mengembalikan idToken.');
+    }
+    return (idToken: token, email: account.email, displayName: account.displayName);
   }
 
   /// Mengembalikan (identityToken, fullName) dari Sign In with Apple
@@ -123,23 +120,20 @@ class OAuthSignInService {
     );
   }
 
-  /// Mengembalikan (accessToken, email, displayName) dari Facebook Login
+  /// Mengembalikan (accessToken, email, displayName) dari Facebook Login.
+  /// Facebook Login SDK (flutter_facebook_auth) BELUM dipasang - butuh
+  /// App ID/Client Token asli dari Facebook Developer Console milik
+  /// instansi (developers.facebook.com) plus setup native Android
+  /// (meta-data di AndroidManifest.xml) sebelum bisa dipanggil sungguhan.
+  /// Sebelumnya method ini SELALU mengembalikan identitas palsu yang
+  /// di-hardcode ("petugas.lapangan@facebook.com") tanpa memanggil SDK
+  /// apa pun - itu bug keamanan (siapapun bisa "login" tanpa akun
+  /// Facebook asli). Sekarang gagal jujur dulu, sama seperti pola Apple.
   Future<({String accessToken, String? email, String? displayName})?>
   signInWithFacebook() async {
-    try {
-      // Inisialisasi token Facebook terverifikasi
-      return (
-        accessToken: 'fb-token-direct',
-        email: 'petugas.lapangan@facebook.com',
-        displayName: 'Leonardo',
-      );
-    } catch (_) {
-      return (
-        accessToken: 'fb-token-direct',
-        email: 'petugas.lapangan@facebook.com',
-        displayName: 'Leonardo',
-      );
-    }
+    throw OAuthNotConfiguredException(
+      'Masuk dengan Facebook belum dikonfigurasi. Hubungi Admin.',
+    );
   }
 
   Future<void> signOutGoogle() async {

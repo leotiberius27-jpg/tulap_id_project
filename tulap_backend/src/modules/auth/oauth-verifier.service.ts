@@ -146,39 +146,43 @@ export class OAuthVerifierService {
 
   async verifyFacebookAccessToken(
     accessToken: string,
-    fullNameFromClient?: string,
-    emailFromClient?: string,
   ): Promise<VerifiedOAuthProfile> {
     const appId = this.config.get<string>('FACEBOOK_APP_ID');
-    if (!appId || accessToken.startsWith('fb-') || accessToken.startsWith('mock-')) {
-      const email = emailFromClient || 'petugas.lapangan@facebook.com';
-      const name = fullNameFromClient || 'Leonardo';
+    const isDev = this.config.get<string>('NODE_ENV') === 'development';
+
+    if (appId) {
+      try {
+        const res = await fetch(
+          `https://graph.facebook.com/me?fields=id,name,email&access_token=${encodeURIComponent(accessToken)}`,
+        );
+        const data = await res.json();
+        if (data.id) {
+          return {
+            providerId: data.id,
+            email: data.email ?? '',
+            fullName: data.name ?? '',
+          };
+        }
+      } catch (error) {
+        if (!isDev) {
+          throw new UnauthorizedException(
+            'Token Facebook tidak valid atau telah kedaluwarsa.',
+          );
+        }
+      }
+    }
+
+    // Dukungan mode development / local testing (sama seperti Google)
+    if (isDev) {
       return {
-        providerId: `facebook-${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
-        email: email,
-        fullName: name,
+        providerId: 'facebook-dev-user-01',
+        email: 'budi.santoso.facebook@tulap.id',
+        fullName: 'Budi Santoso',
       };
     }
 
-    try {
-      const res = await fetch(
-        `https://graph.facebook.com/me?fields=id,name,email&access_token=${accessToken}`,
-      );
-      const data = await res.json();
-      if (!data.id) {
-        throw new Error('Token Facebook tidak valid');
-      }
-      return {
-        providerId: data.id,
-        email: data.email || emailFromClient || '',
-        fullName: data.name || fullNameFromClient || '',
-      };
-    } catch (_) {
-      return {
-        providerId: `facebook-${(emailFromClient || 'user').replace(/[^a-zA-Z0-9]/g, '_')}`,
-        email: emailFromClient || 'petugas.lapangan@facebook.com',
-        fullName: fullNameFromClient || 'Leonardo',
-      };
-    }
+    throw new UnauthorizedException(
+      'Masuk dengan Facebook belum dikonfigurasi di server. Hubungi Admin.',
+    );
   }
 }

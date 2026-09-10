@@ -129,6 +129,25 @@ import '../../features/task_detail/domain/usecases/start_task.dart';
 import '../../features/task_detail/domain/usecases/submit_task_for_verification.dart';
 import '../../features/task_detail/domain/usecases/toggle_checklist_item.dart';
 
+import '../../features/subscription/data/datasources/payments_remote_datasource.dart';
+import '../../features/subscription/data/datasources/subscription_local_datasource.dart';
+import '../../features/subscription/data/datasources/subscription_remote_datasource.dart';
+import '../../features/subscription/data/repositories/payment_repository_impl.dart';
+import '../../features/subscription/data/repositories/plan_repository_impl.dart';
+import '../../features/subscription/data/repositories/subscription_repository_impl.dart';
+import '../../features/subscription/domain/repositories/payment_repository.dart';
+import '../../features/subscription/domain/repositories/plan_repository.dart';
+import '../../features/subscription/domain/repositories/subscription_repository.dart';
+import '../../features/subscription/domain/usecases/check_activity_quota.dart';
+import '../../features/subscription/domain/usecases/check_payment_status.dart';
+import '../../features/subscription/domain/usecases/create_checkout.dart';
+import '../../features/subscription/domain/usecases/get_current_subscription.dart';
+import '../../features/subscription/domain/usecases/get_payment_detail.dart';
+import '../../features/subscription/domain/usecases/get_payment_history.dart';
+import '../../features/subscription/domain/usecases/get_plans.dart';
+import '../../features/subscription/domain/usecases/get_subscription_usage.dart';
+import '../../features/subscription/domain/usecases/select_plan.dart';
+
 import '../../features/activity_report/data/datasources/activity_report_local_datasource.dart';
 import '../../features/activity_report/data/datasources/activity_report_remote_datasource.dart';
 import '../../features/activity_report/data/repositories/activity_report_repository_impl.dart';
@@ -258,14 +277,9 @@ Future<void> initDependencies({Database? database}) async {
   sl.registerLazySingleton<QrLocationGenerator>(() => QrLocationGenerator());
   sl.registerLazySingleton<MiniMapRenderer>(() => MiniMapRenderer());
   sl.registerLazySingleton<WatermarkCompositor>(
-    () => WatermarkCompositor(
-      qrGenerator: sl(),
-      miniMapRenderer: sl(),
-    ),
+    () => WatermarkCompositor(qrGenerator: sl(), miniMapRenderer: sl()),
   );
-  sl.registerLazySingleton<TemplateRepository>(
-    () => TemplateRepositoryImpl(),
-  );
+  sl.registerLazySingleton<TemplateRepository>(() => TemplateRepositoryImpl());
   sl.registerLazySingleton<CameraPreferencesRepository>(
     () => CameraPreferencesRepositoryImpl(),
   );
@@ -275,9 +289,7 @@ Future<void> initDependencies({Database? database}) async {
   sl.registerLazySingleton<CameraLevelSensorService>(
     () => CameraLevelSensorService(),
   );
-  sl.registerLazySingleton<FileNamingService>(
-    () => FileNamingService(),
-  );
+  sl.registerLazySingleton<FileNamingService>(() => FileNamingService());
   sl.registerLazySingleton<MediaShareService>(() => MediaShareService());
   sl.registerLazySingleton<MapLauncherService>(() => MapLauncherService());
   sl.registerLazySingleton<MediaThumbnailService>(
@@ -310,7 +322,9 @@ Future<void> initDependencies({Database? database}) async {
   sl.registerLazySingleton<ResetPassword>(() => ResetPassword(sl()));
   sl.registerLazySingleton<LoginWithGoogle>(() => LoginWithGoogle(sl(), sl()));
   sl.registerLazySingleton<LoginWithApple>(() => LoginWithApple(sl(), sl()));
-  sl.registerLazySingleton<LoginWithFacebook>(() => LoginWithFacebook(sl(), sl()));
+  sl.registerLazySingleton<LoginWithFacebook>(
+    () => LoginWithFacebook(sl(), sl()),
+  );
   sl.registerLazySingleton<IsBiometricLoginEnabled>(
     () => IsBiometricLoginEnabled(sl()),
   );
@@ -326,7 +340,9 @@ Future<void> initDependencies({Database? database}) async {
   sl.registerLazySingleton<RestoreBiometricSession>(
     () => RestoreBiometricSession(sl(), sl()),
   );
-  sl.registerLazySingleton<UpdateUserProfile>(() => UpdateUserProfile(sl(), sl()));
+  sl.registerLazySingleton<UpdateUserProfile>(
+    () => UpdateUserProfile(sl(), sl()),
+  );
   sl.registerLazySingleton<BiometricAuthService>(() => BiometricAuthService());
   sl.registerLazySingleton<OAuthSignInService>(() => OAuthSignInService());
 
@@ -416,30 +432,21 @@ Future<void> initDependencies({Database? database}) async {
   sl.registerLazySingleton<CaptureGeotaggedPhoto>(
     () => CaptureGeotaggedPhoto(sl()),
   );
-  sl.registerLazySingleton<CreateEvidence>(
-    () => CreateEvidence(sl()),
-  );
+  sl.registerLazySingleton<CreateEvidence>(() => CreateEvidence(sl()));
   sl.registerLazySingleton<GetTaskPhotoPreviews>(
     () => GetTaskPhotoPreviews(sl()),
   );
   sl.registerLazySingleton<VerifyEvidenceIntegrity>(
-    () => VerifyEvidenceIntegrity(
-      hashGenerator: sl(),
-      database: sl(),
-    ),
+    () => VerifyEvidenceIntegrity(hashGenerator: sl(), database: sl()),
   );
   sl.registerLazySingleton<GetActivityEvidence>(
     () => GetActivityEvidence(sl(), remoteDataSource: sl()),
   );
   sl.registerLazySingleton<DeleteEvidence>(
-    () => DeleteEvidence(
-      cameraLocalDataSource: sl(),
-      syncLocalDataSource: sl(),
-    ),
+    () =>
+        DeleteEvidence(cameraLocalDataSource: sl(), syncLocalDataSource: sl()),
   );
-  sl.registerLazySingleton<ShareEvidence>(
-    () => ShareEvidence(sl()),
-  );
+  sl.registerLazySingleton<ShareEvidence>(() => ShareEvidence(sl()));
 
   // ============================================================
   // TASK DETAIL - tidak bergantung pada CameraController, jadi
@@ -503,9 +510,7 @@ Future<void> initDependencies({Database? database}) async {
   sl.registerLazySingleton<AddActivityNote>(() => AddActivityNote(sl()));
 
   // --- TASK EXPENSES (Nota & Pengeluaran) ---
-  sl.registerLazySingleton<GetTaskExpenses>(
-    () => GetTaskExpenses(sl(), sl()),
-  );
+  sl.registerLazySingleton<GetTaskExpenses>(() => GetTaskExpenses(sl(), sl()));
 
   // ============================================================
   // NOTIFICATIONS (Offline-First Notification Center)
@@ -615,13 +620,19 @@ Future<void> initDependencies({Database? database}) async {
     ),
   );
 
-  sl.registerLazySingleton<AssembleReportDraft>(() => AssembleReportDraft(sl()));
-  sl.registerLazySingleton<ValidateReportDraft>(() => ValidateReportDraft(sl()));
+  sl.registerLazySingleton<AssembleReportDraft>(
+    () => AssembleReportDraft(sl()),
+  );
+  sl.registerLazySingleton<ValidateReportDraft>(
+    () => ValidateReportDraft(sl()),
+  );
   sl.registerLazySingleton<GenerateActivityReportPdf>(
     () => GenerateActivityReportPdf(sl()),
   );
   sl.registerLazySingleton<GetTaskReports>(() => GetTaskReports(sl()));
-  sl.registerLazySingleton<DeleteActivityReport>(() => DeleteActivityReport(sl()));
+  sl.registerLazySingleton<DeleteActivityReport>(
+    () => DeleteActivityReport(sl()),
+  );
   sl.registerLazySingleton<VerifyReportSha256>(() => VerifyReportSha256(sl()));
 
   // =====================================================================
@@ -657,18 +668,14 @@ Future<void> initDependencies({Database? database}) async {
   sl.registerLazySingleton<CreateTravelMission>(
     () => CreateTravelMission(sl()),
   );
-  sl.registerLazySingleton<GetTravelMissions>(
-    () => GetTravelMissions(sl()),
-  );
+  sl.registerLazySingleton<GetTravelMissions>(() => GetTravelMissions(sl()));
   sl.registerLazySingleton<GetTravelMissionDetail>(
     () => GetTravelMissionDetail(sl()),
   );
   sl.registerLazySingleton<AddSupportingDocument>(
     () => AddSupportingDocument(sl()),
   );
-  sl.registerLazySingleton<GenerateLpjPackage>(
-    () => GenerateLpjPackage(sl()),
-  );
+  sl.registerLazySingleton<GenerateLpjPackage>(() => GenerateLpjPackage(sl()));
 
   sl.registerFactory<TravelMissionListController>(
     () => TravelMissionListController(getTravelMissions: sl()),
@@ -691,15 +698,9 @@ Future<void> initDependencies({Database? database}) async {
   sl.registerLazySingleton<SearchRemoteDatasource>(
     () => SearchRemoteDatasourceImpl(client: sl()),
   );
-  sl.registerLazySingleton<SearchQueryParser>(
-    () => SearchQueryParser(),
-  );
-  sl.registerLazySingleton<SearchResultMerger>(
-    () => SearchResultMerger(),
-  );
-  sl.registerLazySingleton<SearchIndexService>(
-    () => SearchIndexService(),
-  );
+  sl.registerLazySingleton<SearchQueryParser>(() => SearchQueryParser());
+  sl.registerLazySingleton<SearchResultMerger>(() => SearchResultMerger());
+  sl.registerLazySingleton<SearchIndexService>(() => SearchIndexService());
   sl.registerLazySingleton<SemanticSearchService>(
     () => SemanticSearchFoundationImpl(),
   );
@@ -718,7 +719,9 @@ Future<void> initDependencies({Database? database}) async {
   sl.registerLazySingleton<UnifiedSearch>(() => UnifiedSearch(sl()));
   sl.registerLazySingleton<GetRecentSearches>(() => GetRecentSearches(sl()));
   sl.registerLazySingleton<SaveRecentSearch>(() => SaveRecentSearch(sl()));
-  sl.registerLazySingleton<ClearRecentSearches>(() => ClearRecentSearches(sl()));
+  sl.registerLazySingleton<ClearRecentSearches>(
+    () => ClearRecentSearches(sl()),
+  );
   sl.registerLazySingleton<RebuildSearchIndex>(() => RebuildSearchIndex(sl()));
   sl.registerLazySingleton<GetAvailableYears>(() => GetAvailableYears(sl()));
 
@@ -741,15 +744,11 @@ Future<void> initDependencies({Database? database}) async {
   );
 
   sl.registerLazySingleton<DashboardLocalDataSource>(
-    () => DashboardLocalDataSourceImpl(
-      insightEngine: sl(),
-    ),
+    () => DashboardLocalDataSourceImpl(insightEngine: sl()),
   );
 
   sl.registerLazySingleton<DashboardRemoteDataSource>(
-    () => DashboardRemoteDataSourceImpl(
-      client: sl(),
-    ),
+    () => DashboardRemoteDataSourceImpl(client: sl()),
   );
 
   sl.registerLazySingleton<DashboardRepository>(
@@ -768,15 +767,11 @@ Future<void> initDependencies({Database? database}) async {
   // PHASE 12: SMART ASSISTANT & OPERATIONAL COPILOT ("TANYA TULAP")
   // ============================================================
   sl.registerLazySingleton<AssistantRemoteDataSource>(
-    () => AssistantRemoteDataSourceImpl(
-      dioClient: sl(),
-    ),
+    () => AssistantRemoteDataSourceImpl(dioClient: sl()),
   );
 
   sl.registerLazySingleton<AssistantLocalDataSource>(
-    () => AssistantLocalDataSourceImpl(
-      searchArchiveRepository: sl(),
-    ),
+    () => AssistantLocalDataSourceImpl(searchArchiveRepository: sl()),
   );
 
   sl.registerLazySingleton<AssistantRepository>(
@@ -787,31 +782,72 @@ Future<void> initDependencies({Database? database}) async {
     ),
   );
 
-  sl.registerLazySingleton<AskAssistant>(
-    () => AskAssistant(sl()),
-  );
+  sl.registerLazySingleton<AskAssistant>(() => AskAssistant(sl()));
 
   sl.registerLazySingleton<GetAssistantSuggestions>(
     () => GetAssistantSuggestions(sl()),
   );
 
   sl.registerFactory<AssistantController>(
-    () => AssistantController(
-      askAssistant: sl(),
-      getAssistantSuggestions: sl(),
-    ),
+    () =>
+        AssistantController(askAssistant: sl(), getAssistantSuggestions: sl()),
   );
 
   // Tula: floating contextual assistant (redesign header AI -> global
   // overlay). Singleton karena dipasang sekali di root MaterialApp lewat
   // TulaOverlay dan status visibilitasnya (konteks layar, offline,
   // insight) harus konsisten di seluruh aplikasi.
-  sl.registerLazySingleton<TulaPositionStore>(
-    () => const TulaPositionStore(),
-  );
+  sl.registerLazySingleton<TulaPositionStore>(() => const TulaPositionStore());
   sl.registerLazySingleton<TulaVisibilityController>(
     () => TulaVisibilityController(sl(), sl()),
   );
+
+  // ============================================================
+  // SUBSCRIPTION - Halaman Paket Tulap (folder carousel). Sumber
+  // kebenaran harga/benefit ada di PlanConfig; kuota kegiatan dihitung
+  // sungguhan dari TaskRepository, bukan nilai rekaan.
+  // ============================================================
+  sl.registerLazySingleton<PlanRepository>(() => PlanRepositoryImpl());
+  sl.registerLazySingleton<SubscriptionLocalDataSource>(
+    () => SubscriptionLocalDataSource(),
+  );
+  sl.registerLazySingleton<SubscriptionRemoteDataSource>(
+    () => SubscriptionRemoteDataSource(sl()),
+  );
+  sl.registerLazySingleton<SubscriptionRepository>(
+    () => SubscriptionRepositoryImpl(
+      remoteDataSource: sl(),
+      localDataSource: sl(),
+      taskRepository: sl(),
+      authSessionManager: sl(),
+    ),
+  );
+  sl.registerLazySingleton<GetPlans>(() => GetPlans(sl()));
+  sl.registerLazySingleton<GetCurrentSubscription>(
+    () => GetCurrentSubscription(sl()),
+  );
+  sl.registerLazySingleton<GetSubscriptionUsage>(
+    () => GetSubscriptionUsage(sl()),
+  );
+  sl.registerLazySingleton<SelectPlan>(() => SelectPlan(sl()));
+  sl.registerLazySingleton<CheckActivityQuota>(() => CheckActivityQuota(sl()));
+
+  // ============================================================
+  // PEMBAYARAN (QRIS/VA) - lihat CheckoutController &
+  // PaymentStatusController untuk orkestrasi UI. PaymentRepository
+  // TIDAK punya local datasource/cache SENGAJA (Bagian 17 & 29 instruksi
+  // payment - status pembayaran selalu dari backend).
+  // ============================================================
+  sl.registerLazySingleton<PaymentsRemoteDataSource>(
+    () => PaymentsRemoteDataSource(sl()),
+  );
+  sl.registerLazySingleton<PaymentRepository>(
+    () => PaymentRepositoryImpl(remoteDataSource: sl()),
+  );
+  sl.registerLazySingleton<CreateCheckout>(() => CreateCheckout(sl()));
+  sl.registerLazySingleton<CheckPaymentStatus>(() => CheckPaymentStatus(sl()));
+  sl.registerLazySingleton<GetPaymentHistory>(() => GetPaymentHistory(sl()));
+  sl.registerLazySingleton<GetPaymentDetail>(() => GetPaymentDetail(sl()));
 }
 
 /// registerCameraSession

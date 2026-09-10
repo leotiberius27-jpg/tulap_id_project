@@ -14,6 +14,8 @@ import '../../../auth/domain/usecases/is_biometric_login_enabled.dart';
 import '../../../auth/domain/usecases/logout.dart';
 import '../../../sync_queue/domain/repositories/sync_queue_repository.dart';
 import '../../../sync_queue/presentation/pages/sync_center_page.dart';
+import '../../../subscription/presentation/pages/payment_history_page.dart';
+import '../../../subscription/presentation/pages/subscription_page.dart';
 import '../../domain/entities/storage_breakdown_entity.dart';
 import '../../domain/usecases/clear_app_cache.dart';
 import '../../domain/usecases/get_storage_breakdown.dart';
@@ -125,6 +127,39 @@ class _AccountView extends StatelessWidget {
                   const SizedBox(height: AppSpacing.lg),
 
                   // ============================================================
+                  // 1B. SECTION — PAKET & LANGGANAN (Redesign folder carousel)
+                  // ============================================================
+                  AccountSectionCard(
+                    title: 'PAKET & LANGGANAN',
+                    children: [
+                      AccountMenuRow(
+                        icon: Icons.folder_special_outlined,
+                        iconBgColor: AppColors.iconSoftBlue,
+                        title: 'Paket Tulap',
+                        subtitle: 'Lihat & kelola paket kegiatan bulanan Anda',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SubscriptionPage(),
+                          ),
+                        ),
+                      ),
+                      AccountMenuRow(
+                        icon: Icons.receipt_long_outlined,
+                        iconBgColor: AppColors.iconSoftTeal,
+                        title: 'Riwayat Pembayaran',
+                        subtitle: 'Transaksi QRIS/VA paket Tulap Anda',
+                        showDivider: false,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const PaymentHistoryPage(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // ============================================================
                   // 2. SECTION 1 — AKUN & KEAMANAN
                   // ============================================================
                   AccountSectionCard(
@@ -134,13 +169,15 @@ class _AccountView extends StatelessWidget {
                         icon: Icons.person_outline,
                         iconBgColor: AppColors.iconSoftBlue,
                         title: 'Informasi Profil',
-                        subtitle: 'Rincian identitas, NIP, & instansi penugasan',
+                        subtitle:
+                            'Rincian identitas, NIP, & instansi penugasan',
                         onTap: () async {
-                          final updated = await Navigator.of(context).push<bool>(
-                            MaterialPageRoute(
-                              builder: (_) => ProfileInfoPage(user: user),
-                            ),
-                          );
+                          final updated = await Navigator.of(context)
+                              .push<bool>(
+                                MaterialPageRoute(
+                                  builder: (_) => ProfileInfoPage(user: user),
+                                ),
+                              );
                           if (updated == true) {
                             controller.refresh();
                           }
@@ -163,23 +200,27 @@ class _AccountView extends StatelessWidget {
                         title: 'Login Biometrik',
                         subtitle: controller.state.biometricHardwareAvailable
                             ? (controller.state.biometricLoginEnabled
-                                ? 'Aktif (Sidik Jari / Wajah)'
-                                : 'Nonaktif')
+                                  ? 'Aktif (Sidik Jari / Wajah)'
+                                  : 'Nonaktif')
                             : 'Tidak tersedia di perangkat ini',
                         showDivider: false,
                         trailing: controller.state.biometricHardwareAvailable
                             ? (controller.state.isTogglingBiometric
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : Switch(
-                                    value: controller.state.biometricLoginEnabled,
-                                    onChanged: (val) =>
-                                        controller.toggleBiometricLogin(val),
-                                    activeTrackColor: AppColors.primary,
-                                  ))
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Switch(
+                                      value: controller
+                                          .state
+                                          .biometricLoginEnabled,
+                                      onChanged: (val) =>
+                                          controller.toggleBiometricLogin(val),
+                                      activeTrackColor: AppColors.primary,
+                                    ))
                             : Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
@@ -367,7 +408,8 @@ class _AccountView extends StatelessWidget {
                         icon: Icons.language_rounded,
                         iconBgColor: AppColors.iconSoftBlue,
                         title: 'Bahasa / Language',
-                        subtitle: sl<LanguageController>().currentLanguage.label,
+                        subtitle:
+                            sl<LanguageController>().currentLanguage.label,
                         showDivider: false,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
@@ -413,9 +455,7 @@ class _AccountView extends StatelessWidget {
                         title: 'Syarat Penggunaan',
                         subtitle: 'Aturan kepatuhan dokumentasi kegiatan',
                         onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const TermsPage(),
-                          ),
+                          MaterialPageRoute(builder: (_) => const TermsPage()),
                         ),
                       ),
                       AccountMenuRow(
@@ -467,7 +507,10 @@ class _AccountView extends StatelessWidget {
                               ),
                             ),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.danger, width: 1.2),
+                        side: const BorderSide(
+                          color: AppColors.danger,
+                          width: 1.2,
+                        ),
                         backgroundColor: AppColors.surface,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppRadius.button),
@@ -537,14 +580,16 @@ class _AccountView extends StatelessWidget {
       pendingCount: controller.state.pendingSyncCount,
     );
 
-    if (action == null || action == LogoutDialogAction.cancel || !context.mounted) {
+    if (action == null ||
+        action == LogoutDialogAction.cancel ||
+        !context.mounted) {
       return;
     }
 
     if (action == LogoutDialogAction.syncNow) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const SyncCenterPage()),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const SyncCenterPage()));
       return;
     }
 

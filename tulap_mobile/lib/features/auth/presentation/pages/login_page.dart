@@ -22,8 +22,8 @@ import 'register_page.dart';
 /// ----------------------------------------------------------------------
 /// Layar Masuk resmi Tulap.id (Clean, Minimal, Modern & Responsive).
 /// Mengikuti struktur visual: Logo -> Selamat Datang -> Form Email/Password
-/// -> Lupa Password -> Tombol Masuk -> Divider -> Social Login (Google/Facebook)
-/// -> Quick Biometric -> Register -> Terms/Privacy.
+/// -> Lupa Password -> Tombol Masuk -> Divider -> Login dengan Google ->
+/// Quick Biometric -> Register -> Terms/Privacy.
 /// ----------------------------------------------------------------------
 class LoginPage extends StatelessWidget {
   final ValueChanged<AuthUserEntity> onLoginSuccess;
@@ -109,14 +109,6 @@ class _LoginViewState extends State<_LoginView> {
     FocusScope.of(context).unfocus();
     HapticFeedback.lightImpact();
     final success = await controller.submitWithGoogle();
-    if (!mounted || success != true) return;
-    _onSuccess(controller);
-  }
-
-  Future<void> _submitFacebook(LoginController controller) async {
-    FocusScope.of(context).unfocus();
-    HapticFeedback.lightImpact();
-    final success = await controller.submitWithFacebook();
     if (!mounted || success != true) return;
     _onSuccess(controller);
   }
@@ -614,72 +606,45 @@ class _LoginViewState extends State<_LoginView> {
                             ),
                             SizedBox(height: isShort ? 12 : 16),
 
-                            // 7. SOCIAL LOGIN ("Lanjutkan dengan")
-                            const Text(
-                              'Lanjutkan dengan',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontFamily: AppTypography.fontFamily,
-                                fontSize: 13,
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w500,
+                            // 7. LOGIN DENGAN GOOGLE
+                            OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(50),
+                                backgroundColor: Colors.white,
+                                foregroundColor: AppColors.textPrimary,
+                                side: const BorderSide(
+                                  color: Color(0xFFE2E8F0),
+                                  width: 1.2,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              onPressed: isBusy
+                                  ? null
+                                  : () => _submitGoogle(controller),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  GoogleLogoIcon(size: 20),
+                                  SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      'Masuk dengan Google',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontFamily: AppTypography.fontFamily,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 12),
-
-                            // Tombol Google & Facebook
-                            if (isNarrow)
-                              Column(
-                                children: [
-                                  _buildSocialButton(
-                                    label: 'Google',
-                                    icon: const GoogleLogoIcon(size: 20),
-                                    onTap: isBusy
-                                        ? null
-                                        : () => _submitGoogle(controller),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _buildSocialButton(
-                                    label: 'Facebook',
-                                    icon: const Icon(
-                                      Icons.facebook,
-                                      color: Color(0xFF1877F2),
-                                      size: 24,
-                                    ),
-                                    onTap: isBusy
-                                        ? null
-                                        : () => _submitFacebook(controller),
-                                  ),
-                                ],
-                              )
-                            else
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildSocialButton(
-                                      label: 'Google',
-                                      icon: const GoogleLogoIcon(size: 20),
-                                      onTap: isBusy
-                                          ? null
-                                          : () => _submitGoogle(controller),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: _buildSocialButton(
-                                      label: 'Facebook',
-                                      icon: const Icon(
-                                        Icons.facebook,
-                                        color: Color(0xFF1877F2),
-                                        size: 24,
-                                      ),
-                                      onTap: isBusy
-                                          ? null
-                                          : () => _submitFacebook(controller),
-                                    ),
-                                  ),
-                                ],
-                              ),
 
                             // 8. QUICK BIOMETRIC LOGIN (OPSIONAL JIKA AKTIF)
                             if (state.biometricAvailable) ...[
@@ -854,42 +819,4 @@ class _LoginViewState extends State<_LoginView> {
     );
   }
 
-  Widget _buildSocialButton({
-    required String label,
-    required Widget icon,
-    required VoidCallback? onTap,
-  }) {
-    return OutlinedButton(
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(50),
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textPrimary,
-        side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      ),
-      onPressed: onTap,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          icon,
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontFamily: AppTypography.fontFamily,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

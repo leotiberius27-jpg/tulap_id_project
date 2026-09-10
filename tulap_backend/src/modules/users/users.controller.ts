@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,14 +8,21 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { RoleName } from '@prisma/client';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { QueryUsersDto } from './dto/query-users.dto';
+import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
+
+const MAX_AVATAR_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const ALLOWED_AVATAR_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
 
 /// Pembuatan user baru (Create) SENGAJA TIDAK ada di controller ini -
 /// endpoint tsb sudah ada di AuthController (`POST /auth/register`),
@@ -24,6 +32,47 @@ import { UsersService } from './users.service';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  /// PATCH /users/me - update profil DIRI SENDIRI (nama, telepon,
+  /// instansi, NIP). Dideklarasikan SEBELUM `@Patch(':id')` di bawah -
+  /// urutan ini WAJIB, kalau tidak Express/Nest akan mencocokkan 'me'
+  /// sebagai nilai `:id` dan salah memanggil `update()` Admin-only.
+  /// Sengaja TANPA @Roles() - berlaku untuk semua role yang sudah login.
+  @Patch('me')
+  updateOwnProfile(
+    @Body() dto: UpdateOwnProfileDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.usersService.updateOwnProfile(actor.id, dto);
+  }
+
+  /// POST /users/me/photo - unggah/ganti foto profil sendiri, disimpan
+  /// permanen di S3 (bukan path lokal device) supaya tetap sama di
+  /// perangkat/instalasi manapun user login berikutnya.
+  @Post('me/photo')
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: MAX_AVATAR_SIZE_BYTES } }),
+  )
+  updateOwnPhoto(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File foto wajib disertakan.');
+    }
+    if (!ALLOWED_AVATAR_MIME_TYPES.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Format foto tidak didukung. Gunakan JPG atau PNG.',
+      );
+    }
+    return this.usersService.updateOwnPhoto(actor.id, file);
+  }
+
+  /// DELETE /users/me/photo - hapus foto profil sendiri.
+  @Delete('me/photo')
+  deleteOwnPhoto(@CurrentUser() actor: AuthenticatedUser) {
+    return this.usersService.deleteOwnPhoto(actor.id);
+  }
 
   /// GET /users - daftar pegawai, hanya ADMIN/VERIFIKATOR/SUPER_ADMIN
   /// yang perlu melihat daftar lengkap pegawai lintas instansi.

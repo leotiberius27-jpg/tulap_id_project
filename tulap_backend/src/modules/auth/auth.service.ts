@@ -102,6 +102,8 @@ export class AuthService {
         email: user.email,
         role: user.role.name,
         instansiName: user.instansiName,
+        phoneNumber: user.phoneNumber,
+        photoUrl: user.photoUrl,
       },
     };
   }
@@ -288,6 +290,8 @@ export class AuthService {
         email: newUser.email,
         role: newUser.role.name,
         instansiName: newUser.instansiName,
+        phoneNumber: newUser.phoneNumber,
+        photoUrl: newUser.photoUrl,
       },
     };
   }
@@ -388,10 +392,8 @@ export class AuthService {
   async loginWithFacebook(dto: FacebookAuthDto) {
     const profile = await this.oauthVerifier.verifyFacebookAccessToken(
       dto.accessToken,
-      dto.fullName,
-      dto.email,
     );
-    return this.loginOrCreateFromOAuth(profile, 'googleId');
+    return this.loginOrCreateFromOAuth(profile, 'facebookId');
   }
 
   /**
@@ -403,7 +405,7 @@ export class AuthService {
    */
   private async loginOrCreateFromOAuth(
     profile: VerifiedOAuthProfile,
-    providerIdField: 'googleId' | 'appleId',
+    providerIdField: 'googleId' | 'appleId' | 'facebookId',
   ) {
     let user = await this.prisma.user.findFirst({
       where: { [providerIdField]: profile.providerId },
@@ -485,6 +487,8 @@ export class AuthService {
         email: user.email,
         role: user.role.name,
         instansiName: user.instansiName,
+        phoneNumber: user.phoneNumber,
+        photoUrl: user.photoUrl,
       },
     };
   }

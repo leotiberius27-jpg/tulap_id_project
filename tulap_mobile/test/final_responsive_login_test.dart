@@ -270,8 +270,7 @@ void main() {
           expect(find.text('Password'), findsOneWidget);
           expect(find.text('Masuk'), findsOneWidget);
           expect(find.text('Lupa password?'), findsOneWidget);
-          expect(find.text('Google'), findsOneWidget);
-          expect(find.text('Facebook'), findsOneWidget);
+          expect(find.text('Masuk dengan Google'), findsOneWidget);
           expect(find.text('Daftar'), findsOneWidget);
 
           expect(tester.takeException(), isNull);
@@ -385,24 +384,10 @@ void main() {
       AuthUserEntity? loggedInUser;
       await openLoginPage(tester, onSuccess: (user) => loggedInUser = user);
 
-      await tester.tap(find.text('Google'));
+      await tester.tap(find.text('Masuk dengan Google'));
       await tester.pumpAndSettle();
 
       expect(loggedInUser?.id, 'usr-google');
-    });
-
-    testWidgets('Triggers Facebook Sign-In on tap', (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
-
-      AuthUserEntity? loggedInUser;
-      await openLoginPage(tester, onSuccess: (user) => loggedInUser = user);
-
-      await tester.tap(find.text('Facebook'));
-      await tester.pumpAndSettle();
-
-      expect(loggedInUser?.id, 'usr-facebook');
     });
 
     testWidgets('Fingerprint biometric is tested first and fails if fingerprint does not match', (tester) async {
