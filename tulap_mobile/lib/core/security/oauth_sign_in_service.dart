@@ -58,17 +58,27 @@ class OAuthSignInService {
   /// sekali. Dialog "Choose an account" (menampilkan SEMUA akun Google di
   /// perangkat) hanya muncul saat belum ada izin tersimpan itu - baik
   /// karena ini percobaan pertama, maupun setelah `signOutGoogle()`.
+  ///
+  /// Set [forceAccountChooser] true untuk MELEWATI langkah silent di atas
+  /// dan langsung menampilkan dialog pemilihan akun - dipakai tautan
+  /// "Gunakan akun Google lain" di LoginPage, karena tanpa ini user yang
+  /// account Google-nya sudah tersimpan tidak akan pernah bisa memilih
+  /// akun Google lain (signInSilently selalu mengembalikan akun yang sama).
   /// Mengembalikan `null` jika user membatalkan dialog pemilihan akun -
   /// itu bukan kegagalan. Error lain (mis. Google Play Services / SHA-1
   /// belum terdaftar) dilempar apa adanya, TIDAK boleh dipalsukan jadi
   /// sukses - pemanggil (LoginController) yang menampilkan pesan error.
   Future<({String idToken, String? email, String? displayName})?>
-  signInWithGoogle() async {
+  signInWithGoogle({bool forceAccountChooser = false}) async {
     GoogleSignInAccount? account;
-    try {
-      account = await _google.signInSilently();
-    } catch (_) {
-      account = null;
+    if (forceAccountChooser) {
+      await signOutGoogle();
+    } else {
+      try {
+        account = await _google.signInSilently();
+      } catch (_) {
+        account = null;
+      }
     }
     account ??= await _google.signIn();
     if (account == null) return null; // Dialog dibatalkan user

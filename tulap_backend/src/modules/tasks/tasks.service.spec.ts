@@ -5,6 +5,7 @@ import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { ChecklistService } from '../checklist/checklist.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 
 describe('TasksService', () => {
@@ -13,6 +14,7 @@ describe('TasksService', () => {
   let checklistService: any;
   let audit: any;
   let notifications: any;
+  let subscriptions: any;
 
   const mockAdminUser: AuthenticatedUser = {
     id: 'admin_1',
@@ -48,6 +50,10 @@ describe('TasksService', () => {
       notify: jest.fn().mockResolvedValue(undefined),
     };
 
+    subscriptions = {
+      assertActivityQuotaAvailable: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TasksService,
@@ -55,6 +61,7 @@ describe('TasksService', () => {
         { provide: ChecklistService, useValue: checklistService },
         { provide: AuditService, useValue: audit },
         { provide: NotificationsService, useValue: notifications },
+        { provide: SubscriptionsService, useValue: subscriptions },
       ],
     }).compile();
 
@@ -104,6 +111,32 @@ describe('TasksService', () => {
           mockAdminUser,
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('Bagian 24 instruksi payment: menolak membuat tugas jika kuota kegiatan assignee sudah tercapai', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'pegawai_1',
+        isActive: true,
+        role: { name: 'PEGAWAI' },
+      });
+      subscriptions.assertActivityQuotaAvailable.mockRejectedValue(
+        new Error('Kuota kegiatan bulan ini sudah tercapai.'),
+      );
+
+      await expect(
+        service.create(
+          {
+            taskName: 'Inspeksi',
+            destination: 'Jayapura',
+            startDate: '2026-08-10',
+            endDate: '2026-08-12',
+            budgetAmount: 1500000,
+            assigneeId: 'pegawai_1',
+          },
+          mockAdminUser,
+        ),
+      ).rejects.toThrow('Kuota kegiatan bulan ini sudah tercapai.');
+      expect(prisma.task_SPPD.create).not.toHaveBeenCalled();
     });
 
     it('should create task and generate valid taskCode', async () => {

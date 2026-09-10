@@ -185,11 +185,13 @@ class LoginController extends ChangeNotifier {
   /// (bukan simulasi), lalu idToken hasilnya diverifikasi backend.
   /// Mengembalikan `null` (bukan error) jika user membatalkan dialog
   /// pemilihan akun - itu bukan kegagalan, cukup diam.
-  Future<bool?> submitWithGoogle() async {
+  Future<bool?> submitWithGoogle({bool forceAccountChooser = false}) async {
     _update(const LoginState(status: LoginStatus.submitting));
 
     try {
-      final googleData = await _oauthSignInService.signInWithGoogle();
+      final googleData = await _oauthSignInService.signInWithGoogle(
+        forceAccountChooser: forceAccountChooser,
+      );
       if (googleData == null) {
         _update(const LoginState()); // Dibatalkan user, bukan error
         return null;

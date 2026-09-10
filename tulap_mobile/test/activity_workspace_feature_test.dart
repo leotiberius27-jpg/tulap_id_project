@@ -1,8 +1,13 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:tulap_mobile/app/di/injection_container.dart';
 import 'package:tulap_mobile/core/error/failures.dart';
+import 'package:tulap_mobile/core/network/network_info.dart';
+import 'package:tulap_mobile/features/assistant/presentation/controllers/tula_position_store.dart';
+import 'package:tulap_mobile/features/assistant/presentation/controllers/tula_visibility_controller.dart';
 import 'package:tulap_mobile/features/expense_ocr/data/datasources/expense_ocr_local_datasource.dart';
 import 'package:tulap_mobile/features/expense_ocr/data/models/expense_note_model.dart';
 import 'package:tulap_mobile/features/geotag_camera/data/datasources/geotag_camera_local_datasource.dart';
@@ -28,6 +33,20 @@ import 'package:tulap_mobile/features/task_detail/domain/usecases/toggle_checkli
 import 'package:tulap_mobile/features/task_detail/presentation/controllers/task_detail_controller.dart';
 import 'package:tulap_mobile/features/task_detail/presentation/pages/task_detail_page.dart';
 import 'package:tulap_mobile/features/task_detail/presentation/widgets/checklist_item_tile.dart';
+
+/// Menghindari MissingPluginException dari `connectivity_plus` di
+/// lingkungan widget test - TulaVisibilityController butuh NetworkInfo
+/// karena TaskDetailPage sekarang selalu membungkus diri dengan
+/// TulaTaskContextBinder (Tula draggable global, lihat main.dart).
+class _FakeNetworkInfo extends NetworkInfo {
+  _FakeNetworkInfo() : super(Connectivity());
+
+  @override
+  Future<bool> get isConnected async => true;
+
+  @override
+  Stream<bool> get onConnectivityChanged => const Stream.empty();
+}
 
 class _MockTaskRepository implements TaskRepository {
   TaskEntity task;
@@ -209,7 +228,13 @@ void main() {
     getActivityNotes = GetActivityNotes(noteRepo);
     addActivityNote = AddActivityNote(noteRepo);
     getTaskExpenses = GetTaskExpenses(expenseDatasource);
+
+    sl.registerLazySingleton<TulaVisibilityController>(
+      () => TulaVisibilityController(_FakeNetworkInfo(), const TulaPositionStore()),
+    );
   });
+
+  tearDown(() => sl.reset());
 
   Widget buildTestableWidget(TaskDetailController controller) {
     return MaterialApp(

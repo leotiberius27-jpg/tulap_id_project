@@ -50,13 +50,18 @@ export class S3StorageService {
   async uploadFile(params: {
     buffer: Buffer;
     mimeType: string;
-    category: 'photo' | 'receipt' | 'video' | 'report';
+    category: 'photo' | 'receipt' | 'video' | 'report' | 'avatar';
     originalFilename?: string;
   }): Promise<{ key: string; url: string }> {
     const now = new Date();
     const datePath = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
     const extension = this._extensionFromMimeType(params.mimeType);
-    const key = `evidence/${params.category}/${datePath}/${randomUUID()}${extension}`;
+    // 'avatar' bukan bukti kegiatan lapangan (evidence) - taruh di root
+    // folder terpisah, bukan di bawah 'evidence/' seperti photo/receipt/dll.
+    const key =
+      params.category === 'avatar'
+        ? `avatar/${datePath}/${randomUUID()}${extension}`
+        : `evidence/${params.category}/${datePath}/${randomUUID()}${extension}`;
 
     await this.client.send(
       new PutObjectCommand({
@@ -73,6 +78,16 @@ export class S3StorageService {
       key,
       url: `${this.publicUrlBase}/${key}`,
     };
+  }
+
+  /// Mengekstrak `key` dari sebuah URL publik yang dihasilkan service ini
+  /// sendiri (`uploadFile().url`) - `null` jika bukan URL dari bucket ini
+  /// (mis. URL foto Google/Facebook, atau path lokal device dari versi
+  /// app lama), supaya pemanggil TIDAK PERNAH salah mengirim
+  /// `deleteFile()` untuk resource yang bukan milik bucket kita.
+  keyFromUrl(url: string | null | undefined): string | null {
+    if (!url || !url.startsWith(`${this.publicUrlBase}/`)) return null;
+    return url.slice(this.publicUrlBase.length + 1);
   }
 
   async deleteFile(key: string): Promise<void> {

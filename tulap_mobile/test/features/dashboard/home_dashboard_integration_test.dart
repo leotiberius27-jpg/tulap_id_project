@@ -9,6 +9,8 @@ import 'package:tulap_mobile/core/error/failures.dart';
 import 'package:tulap_mobile/core/network/network_info.dart';
 import 'package:tulap_mobile/core/session/auth_session_manager.dart';
 import 'package:tulap_mobile/core/sync/background_sync_service.dart';
+import 'package:tulap_mobile/features/assistant/presentation/controllers/tula_position_store.dart';
+import 'package:tulap_mobile/features/assistant/presentation/controllers/tula_visibility_controller.dart';
 import 'package:tulap_mobile/features/auth/domain/entities/auth_user_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/get_current_session.dart';
@@ -145,23 +147,11 @@ class _FakeSyncQueueRepository implements SyncQueueRepository {
   @override
   Future<Either<Failure, List<SyncRecordEntity>>> getAllRecords() async => const Right([]);
   @override
-  Future<Either<Failure, void>> enqueueRecord(SyncRecordEntity record) async => const Right(null);
-  @override
   Future<Either<Failure, SyncRecordEntity>> enqueue({
     required SyncEntityType entityType,
-    required String entityId,
     required String entityLocalId,
-    String? taskId,
-    required Map<String, dynamic> payload,
-    String? filePath,
+    required String taskId,
   }) async => throw UnimplementedError();
-  @override
-  Future<Either<Failure, void>> updateRecordStatus(String id, SyncStatus status, {String? errorMessage}) async =>
-      const Right(null);
-  @override
-  Future<Either<Failure, void>> deleteRecord(String id) async => const Right(null);
-  @override
-  Future<Either<Failure, void>> clearCompletedRecords() async => const Right(null);
   @override
   Future<Either<Failure, SyncRecordEntity>> processRecord(String recordId) async => throw UnimplementedError();
   @override
@@ -385,6 +375,9 @@ void main() {
     sl.registerLazySingleton<SyncQueueRepository>(() => syncRepo);
     final netInfo = _FakeNetworkInfo();
     sl.registerLazySingleton<NetworkInfo>(() => netInfo);
+    sl.registerLazySingleton<TulaVisibilityController>(
+      () => TulaVisibilityController(netInfo, const TulaPositionStore()),
+    );
     sl.registerLazySingleton<BackgroundSyncService>(
       () => BackgroundSyncService(
         processSyncQueue: ProcessSyncQueue(

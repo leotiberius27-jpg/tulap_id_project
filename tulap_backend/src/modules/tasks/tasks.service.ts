@@ -10,6 +10,7 @@ import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interfa
 import { ChecklistService } from '../checklist/checklist.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -43,11 +44,17 @@ export class TasksService {
     private readonly checklistService: ChecklistService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly subscriptions: SubscriptionsService,
   ) {}
 
   /// Membuat tugas baru. `taskCode` dibuat otomatis dengan format
   /// TL-<tahun><bulan>-<sequence 4 digit> agar mudah dibaca manusia
   /// namun tetap terurut & unik per bulan.
+  ///
+  /// Kuota kegiatan paket Tulap milik ASSIGNEE ditegakkan DI SINI, bukan
+  /// hanya ditampilkan di frontend (Bagian 24 instruksi payment -
+  /// "Backend Enforcement"). Melempar ForbiddenException jika kuota
+  /// bulan berjalan sudah tercapai - lihat SubscriptionsService.
   async create(dto: CreateTaskDto, creator: AuthenticatedUser) {
     const assignee = await this.prisma.user.findUnique({
       where: { id: dto.assigneeId },
@@ -59,6 +66,8 @@ export class TasksService {
         'Petugas yang dipilih tidak ditemukan atau tidak aktif.',
       );
     }
+
+    await this.subscriptions.assertActivityQuotaAvailable(assignee.id);
 
     if (new Date(dto.endDate) < new Date(dto.startDate)) {
       throw new BadRequestException(

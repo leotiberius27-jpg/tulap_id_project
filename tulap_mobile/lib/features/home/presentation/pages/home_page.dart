@@ -40,6 +40,7 @@ import '../../../assistant/presentation/controllers/tula_visibility_controller.d
 import '../../../task_list/presentation/controllers/task_list_controller.dart';
 import '../../../task_list/presentation/pages/task_list_page.dart';
 import '../../../travel_mission/presentation/pages/travel_mission_list_page.dart';
+import '../../../subscription/presentation/utils/activity_quota_guard.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/action_required_section.dart';
 import '../widgets/activity_trend_chart.dart';
@@ -118,7 +119,8 @@ class _HomeView extends StatelessWidget {
           builder: (context, controller, _) {
             final state = controller.state;
 
-            if (state.status == HomeStatus.loading && state.allActiveTasks.isEmpty) {
+            if (state.status == HomeStatus.loading &&
+                state.allActiveTasks.isEmpty) {
               return const AppLoadingView(label: 'Memuat beranda...');
             }
 
@@ -148,13 +150,13 @@ class _HomeView extends StatelessWidget {
             // sudah dimuat HomeController.
             final String? tulaInsightMessage = urgentCount > 0
                 ? (activeTask != null
-                    ? '$urgentCount checklist belum selesai'
-                    : '$urgentCount tugas perlu perhatian')
+                      ? '$urgentCount checklist belum selesai'
+                      : '$urgentCount tugas perlu perhatian')
                 : state.pendingSyncCount > 0
-                    ? '${state.pendingSyncCount} data menunggu internet'
-                    : (summary?.actionRequired.isNotEmpty ?? false)
-                        ? '${summary!.actionRequired.length} hal perlu ditinjau'
-                        : null;
+                ? '${state.pendingSyncCount} data menunggu internet'
+                : (summary?.actionRequired.isNotEmpty ?? false)
+                ? '${summary!.actionRequired.length} hal perlu ditinjau'
+                : null;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               final tula = sl<TulaVisibilityController>();
               // Beranda tetap "mounted" selamanya di dalam IndexedStack
@@ -284,7 +286,7 @@ class _HomeView extends StatelessWidget {
                         : () => Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) =>
-                                   LpjSummaryPage(taskId: activeTask.id),
+                                  LpjSummaryPage(taskId: activeTask.id),
                             ),
                           ),
                   ),
@@ -328,11 +330,8 @@ class _HomeView extends StatelessWidget {
                       const SizedBox(height: AppSpacing.md),
                       ActionRequiredSection(
                         actionItems: summary.actionRequired,
-                        onItemTap: (item) => _handleActionRequiredTap(
-                          context,
-                          item,
-                          state,
-                        ),
+                        onItemTap: (item) =>
+                            _handleActionRequiredTap(context, item, state),
                       ),
                     ],
 
@@ -365,7 +364,8 @@ class _HomeView extends StatelessWidget {
                     ],
 
                     // 10. PHASE 11: EXPENSE INTELLIGENCE
-                    if (summary.expenseTotal > 0 || summary.expenseByCategory.isNotEmpty) ...[
+                    if (summary.expenseTotal > 0 ||
+                        summary.expenseByCategory.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.md),
                       ExpenseIntelligenceCard(
                         totalExpense: summary.expenseTotal,
@@ -532,18 +532,15 @@ class _HomeView extends StatelessWidget {
           const Text(
             'Buat tugas dinas baru atau tunggu penugasan dari atasan.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textMuted,
-            ),
+            style: TextStyle(fontSize: 12, color: AppColors.textMuted),
           ),
           const SizedBox(height: AppSpacing.md),
           ElevatedButton.icon(
             onPressed: () async {
+              final canCreate = await ensureActivityQuotaAvailable(context);
+              if (!canCreate || !context.mounted) return;
               final result = await Navigator.of(context).push<bool>(
-                MaterialPageRoute(
-                  builder: (_) => const CreateActivityPage(),
-                ),
+                MaterialPageRoute(builder: (_) => const CreateActivityPage()),
               );
               if (result == true) {
                 if (context.mounted) {

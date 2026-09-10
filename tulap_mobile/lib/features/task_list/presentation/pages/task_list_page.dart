@@ -5,6 +5,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/app_date_formatter.dart';
 import '../../../../core/widgets/app_state_views.dart';
 import '../../../geotag_camera/domain/usecases/get_task_photo_previews.dart';
+import '../../../subscription/presentation/utils/activity_quota_guard.dart';
 import '../../../task_detail/domain/entities/task_entity.dart';
 import '../../../task_detail/domain/usecases/get_task_detail.dart';
 import '../../../task_detail/domain/usecases/start_task.dart';
@@ -52,7 +53,9 @@ class _TaskListView extends StatelessWidget {
             tooltip: 'Perjalanan Dinas (SPPD)',
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const TravelMissionListPage()),
+                MaterialPageRoute(
+                  builder: (_) => const TravelMissionListPage(),
+                ),
               );
             },
           ),
@@ -60,6 +63,8 @@ class _TaskListView extends StatelessWidget {
             icon: const Icon(Icons.add_circle_outline_rounded),
             tooltip: 'Buat Kegiatan Lapangan',
             onPressed: () async {
+              final canCreate = await ensureActivityQuotaAvailable(context);
+              if (!canCreate || !context.mounted) return;
               final created = await Navigator.of(context).push<TaskEntity>(
                 MaterialPageRoute(builder: (_) => const CreateActivityPage()),
               );
@@ -79,7 +84,9 @@ class _TaskListView extends StatelessWidget {
               final state = controller.state;
 
               if (state.status == TaskListStatus.loading) {
-                return const AppLoadingView(label: 'Memuat tugas & kegiatan...');
+                return const AppLoadingView(
+                  label: 'Memuat tugas & kegiatan...',
+                );
               }
 
               if (state.status == TaskListStatus.error) {
@@ -109,10 +116,12 @@ class _TaskListView extends StatelessWidget {
                                 const SizedBox(height: 80),
                                 AppEmptyState(
                                   icon: Icons.assignment_outlined,
-                                  title: state.selectedFilter == TaskListFilter.all
+                                  title:
+                                      state.selectedFilter == TaskListFilter.all
                                       ? 'Belum ada tugas aktif'
                                       : 'Tidak ada tugas "${state.selectedFilter.label}"',
-                                  message: state.selectedFilter == TaskListFilter.all
+                                  message:
+                                      state.selectedFilter == TaskListFilter.all
                                       ? 'Tugas atau kegiatan baru akan muncul di sini.'
                                       : 'Pilih filter lain untuk melihat tugas yang tersedia.',
                                 ),
@@ -185,9 +194,7 @@ class _TaskListView extends StatelessWidget {
                 backgroundColor: colors.surfaceElevated,
                 selectedColor: colors.primary,
                 side: BorderSide(
-                  color: isSelected
-                      ? colors.primary
-                      : colors.border,
+                  color: isSelected ? colors.primary : colors.border,
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppRadius.small),
@@ -356,7 +363,10 @@ class _TaskListCard extends StatelessWidget {
                   const SizedBox(width: 5),
                   Expanded(
                     child: Text(
-                      AppDateFormatter.formatDateRange(task.startDate, task.endDate),
+                      AppDateFormatter.formatDateRange(
+                        task.startDate,
+                        task.endDate,
+                      ),
                       style: TextStyle(
                         fontFamily: AppTypography.fontFamily,
                         fontSize: 12,
@@ -484,7 +494,10 @@ class _TaskListCard extends StatelessWidget {
                   task.latestRevisionNote != null) ...[
                 const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.warningSoft,
                     borderRadius: BorderRadius.circular(AppRadius.small),

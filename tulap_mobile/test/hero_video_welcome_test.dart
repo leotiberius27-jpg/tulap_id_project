@@ -46,7 +46,7 @@ class _FakeBiometricAuthService implements BiometricAuthService {
 class _FakeOAuthService implements OAuthSignInService {
   @override
   Future<({String idToken, String? email, String? displayName})?>
-  signInWithGoogle() async => null;
+  signInWithGoogle({bool forceAccountChooser = false}) async => null;
 
   @override
   Future<({String identityToken, String? fullName})?> signInWithApple() async =>

@@ -15,6 +15,8 @@ import 'package:tulap_mobile/core/session/auth_session_manager.dart';
 import 'package:tulap_mobile/core/theme/app_theme_mode.dart';
 import 'package:tulap_mobile/core/theme/theme_controller.dart';
 import 'package:tulap_mobile/features/account/data/datasources/account_local_datasource.dart';
+import 'package:tulap_mobile/features/assistant/presentation/controllers/tula_position_store.dart';
+import 'package:tulap_mobile/features/assistant/presentation/controllers/tula_visibility_controller.dart';
 import 'package:tulap_mobile/features/account/domain/entities/account_settings_entity.dart';
 import 'package:tulap_mobile/features/account/domain/entities/storage_breakdown_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/entities/auth_user_entity.dart';
@@ -33,7 +35,7 @@ import 'package:tulap_mobile/main.dart';
 class _FakeOAuthSignInService implements OAuthSignInService {
   @override
   Future<({String idToken, String? email, String? displayName})?>
-  signInWithGoogle() async => null;
+  signInWithGoogle({bool forceAccountChooser = false}) async => null;
 
   @override
   Future<({String identityToken, String? fullName})?>
@@ -232,6 +234,10 @@ void main() {
     );
     sl.registerLazySingleton<BiometricAuthService>(
       () => BiometricAuthService(),
+    );
+    sl.registerLazySingleton<TulaPositionStore>(() => const TulaPositionStore());
+    sl.registerLazySingleton<TulaVisibilityController>(
+      () => TulaVisibilityController(sl<NetworkInfo>(), sl<TulaPositionStore>()),
     );
   });
 

@@ -134,7 +134,7 @@ class _FakeAuthRepository implements AuthRepository {
 class _FakeOAuthService implements OAuthSignInService {
   @override
   Future<({String idToken, String? email, String? displayName})?>
-  signInWithGoogle() async {
+  signInWithGoogle({bool forceAccountChooser = false}) async {
     return (
       idToken: 'mock-google-token',
       email: 'google@tulap.id',

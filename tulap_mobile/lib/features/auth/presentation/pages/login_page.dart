@@ -105,10 +105,15 @@ class _LoginViewState extends State<_LoginView> {
     }
   }
 
-  Future<void> _submitGoogle(LoginController controller) async {
+  Future<void> _submitGoogle(
+    LoginController controller, {
+    bool forceAccountChooser = false,
+  }) async {
     FocusScope.of(context).unfocus();
     HapticFeedback.lightImpact();
-    final success = await controller.submitWithGoogle();
+    final success = await controller.submitWithGoogle(
+      forceAccountChooser: forceAccountChooser,
+    );
     if (!mounted || success != true) return;
     _onSuccess(controller);
   }
@@ -643,6 +648,39 @@ class _LoginViewState extends State<_LoginView> {
                                     ),
                                   ),
                                 ],
+                              ),
+                            ),
+
+                            // Tautan ganti akun Google - signInSilently()
+                            // di atas selalu mengembalikan akun Google
+                            // yang SAMA dengan yang terakhir dipakai, jadi
+                            // user butuh jalan eksplisit untuk memilih
+                            // akun Google lain di perangkat ini.
+                            Center(
+                              child: TextButton(
+                                onPressed: isBusy
+                                    ? null
+                                    : () => _submitGoogle(
+                                          controller,
+                                          forceAccountChooser: true,
+                                        ),
+                                style: TextButton.styleFrom(
+                                  minimumSize: Size.zero,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: const Text(
+                                  'Gunakan akun Google lain',
+                                  style: TextStyle(
+                                    fontFamily: AppTypography.fontFamily,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.action,
+                                  ),
+                                ),
                               ),
                             ),
 
