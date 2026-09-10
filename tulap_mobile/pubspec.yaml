@@ -67,6 +67,7 @@ dependencies:
   share_plus: ^10.1.4          # Bagikan foto dan video bukti kegiatan lapangan
   pdf: ^3.13.0
   printing: ^5.15.0
+  google_maps_flutter: ^2.18.0
 
 dev_dependencies:
   flutter_test:

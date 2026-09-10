@@ -18,6 +18,19 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+// Peta Sebaran Lokasi (Beranda) pakai google_maps_flutter - API key SELALU
+// dibaca dari android/local.properties (sudah digitignore bawaan Flutter,
+// TIDAK PERNAH dikomit), baris "MAPS_API_KEY=...". Jika belum diisi,
+// manifestPlaceholders jatuh ke string kosong - APK tetap bisa dibuild,
+// hanya SDK Peta akan menolak render (lihat LocationDistributionMapPage
+// untuk pesan fallback-nya).
+val localPropertiesFile = rootProject.file("local.properties")
+val localProperties = Properties()
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
+}
+val mapsApiKey = localProperties.getProperty("MAPS_API_KEY", "")
+
 android {
     namespace = "id.tulap.tulap_mobile"
     compileSdk = flutter.compileSdkVersion
@@ -39,6 +52,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["mapsApiKey"] = mapsApiKey
     }
 
     signingConfigs {

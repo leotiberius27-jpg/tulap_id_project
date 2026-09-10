@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../dashboard/domain/entities/top_location_stat.dart';
+import '../pages/location_distribution_map_page.dart';
 
 class LocationIntelligenceCard extends StatelessWidget {
   final List<TopLocationStat> topLocations;
@@ -81,8 +82,46 @@ class LocationIntelligenceCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Visual Mini Map Cluster Box
-            _buildVisualMapBox(context, isDark),
+            // Visual Mini Map Cluster Box - ketuk untuk membuka peta
+            // Google Maps sungguhan dengan marker koordinat GPS asli.
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => _openFullMap(context),
+              child: Stack(
+                children: [
+                  _buildVisualMapBox(context, isDark),
+                  Positioned(
+                    right: 8,
+                    bottom: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.map_rounded, size: 12, color: Colors.white),
+                          SizedBox(width: 4),
+                          Text(
+                            'Peta Lengkap',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
             const SizedBox(height: 14),
 
@@ -161,6 +200,14 @@ class LocationIntelligenceCard extends StatelessWidget {
             }),
           ],
         ),
+      ),
+    );
+  }
+
+  void _openFullMap(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LocationDistributionMapPage(topLocations: topLocations),
       ),
     );
   }

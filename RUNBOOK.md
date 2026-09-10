@@ -70,6 +70,24 @@ flutter run
 flutter run --dart-define=API_BASE_URL=http://<IP_LAN_KOMPUTER>:3000
 ```
 
+**Peta Sebaran Lokasi (Beranda) — Google Maps API Key:**
+
+Kartu "Peta & Sebaran Lokasi" di Beranda memakai `google_maps_flutter`.
+Tanpa API key, app tetap bisa dibuild dan dijalankan (tidak crash) —
+hanya SDK Peta yang menolak menampilkan tile map sungguhan.
+
+1. Buat API key di [Google Cloud Console](https://console.cloud.google.com/)
+   > APIs & Services > Credentials, lalu aktifkan **Maps SDK for Android**
+   (dan **Maps SDK for iOS** jika akan build iOS). Batasi key ke package
+   name `id.tulap.tulap_mobile` (Android) / Bundle ID app (iOS).
+2. Android: tambahkan baris berikut ke `tulap_mobile/android/local.properties`
+   (file ini sudah digitignore, JANGAN pernah dikomit):
+   ```
+   MAPS_API_KEY=isi_key_anda_di_sini
+   ```
+3. iOS: isi nilai `GMSApiKey` di `tulap_mobile/ios/Runner/Info.plist`
+   dengan key iOS Anda.
+
 ---
 
 ## TAHAP 3 — Build Siap Rilis Play Store

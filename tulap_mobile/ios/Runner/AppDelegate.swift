@@ -1,4 +1,5 @@
 import Flutter
+import GoogleMaps
 import UIKit
 
 @main
@@ -9,6 +10,14 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Peta Sebaran Lokasi (Beranda) - key diisi lewat Info.plist
+    // "GMSApiKey" (lihat komentar di sana), TIDAK di-hardcode di sini.
+    if let apiKey = Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String,
+      !apiKey.isEmpty
+    {
+      GMSServices.provideAPIKey(apiKey)
+    }
+
     let controller: FlutterViewController = window?.rootViewController as! FlutterViewController
     let securityChannel = FlutterMethodChannel(
       name: channelName,

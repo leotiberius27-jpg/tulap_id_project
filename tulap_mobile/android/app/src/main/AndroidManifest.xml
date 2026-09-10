@@ -67,6 +67,13 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Peta Sebaran Lokasi (Beranda) - google_maps_flutter. Nilai
+             ${mapsApiKey} disuntik dari android/local.properties lewat
+             manifestPlaceholders di build.gradle.kts, TIDAK PERNAH
+             hard-code di sini. -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${mapsApiKey}" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
