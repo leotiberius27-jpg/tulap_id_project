@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -14,16 +15,19 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/assistant/presentation/widgets/tula_overlay.dart';
 import 'features/auth/presentation/pages/login_page.dart';
+import 'firebase_options.dart';
 
 /// main.dart
 /// ----------------------------------------------------------------------
 /// Urutan inisialisasi WAJIB seperti ini:
 ///   1. WidgetsFlutterBinding - agar plugin native (sqflite, camera,
 ///      geolocator) siap dipanggil sebelum widget tree dibangun.
-///   2. initDependencies() - merangkai seluruh service locator.
-///   3. Preload theme mode & language dari local secure storage (mencegah flash).
-///   4. Mulai BackgroundSyncService & FastLocationService warm-up.
-///   5. runApp()
+///   2. Firebase.initializeApp() - sebelum service lain yang mungkin
+///      bergantung padanya (mis. push notification di masa depan).
+///   3. initDependencies() - merangkai seluruh service locator.
+///   4. Preload theme mode & language dari local secure storage (mencegah flash).
+///   5. Mulai BackgroundSyncService & FastLocationService warm-up.
+///   6. runApp()
 /// ----------------------------------------------------------------------
 Future<void> main() async {
   if (kReleaseMode) {
@@ -33,6 +37,10 @@ Future<void> main() async {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
 
       // WatermarkOverlay & App memformat tanggal dengan locale 'id_ID' dan 'en_US'
       await initializeDateFormatting('id_ID', null);

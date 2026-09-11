@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "774895050810",
+    "project_id": "tulapid-dfaed",
+    "storage_bucket": "tulapid-dfaed.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:774895050810:android:2da86c4d42f31cc6cc9503",
+        "android_client_info": {
+          "package_name": "id.tulap.tulap_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvKOYW5pCknJkFgZS6pYunee9BuL3Ftrg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
