@@ -79,14 +79,20 @@ hanya SDK Peta yang menolak menampilkan tile map sungguhan.
 1. Buat API key di [Google Cloud Console](https://console.cloud.google.com/)
    > APIs & Services > Credentials, lalu aktifkan **Maps SDK for Android**
    (dan **Maps SDK for iOS** jika akan build iOS). Batasi key ke package
-   name `id.tulap.tulap_mobile` (Android) / Bundle ID app (iOS).
+   name `id.tulap.tulap_mobile` (Android) / Bundle ID app (iOS) - satu
+   key TIDAK otomatis berlaku untuk kedua platform, restriction-nya
+   per-platform.
 2. Android: tambahkan baris berikut ke `tulap_mobile/android/local.properties`
    (file ini sudah digitignore, JANGAN pernah dikomit):
    ```
-   MAPS_API_KEY=isi_key_anda_di_sini
+   MAPS_API_KEY=isi_key_android_anda_di_sini
    ```
 3. iOS: isi nilai `GMSApiKey` di `tulap_mobile/ios/Runner/Info.plist`
-   dengan key iOS Anda.
+   dengan key iOS Anda (key Android di atas TIDAK otomatis jalan di sini).
+
+Sempat dicoba juga alternatif gratis (`flutter_map` + tile OpenStreetMap,
+tanpa API key) selama key Google Maps belum tersedia - kalau suatu saat
+ingin kembali ke opsi itu, lihat riwayat commit untuk implementasinya.
 
 ---
 

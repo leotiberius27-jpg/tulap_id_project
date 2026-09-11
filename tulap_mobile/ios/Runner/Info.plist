@@ -55,11 +55,12 @@
 	<string>Aplikasi Tulap.id memerlukan izin mikrofon untuk merekam audio pada video dokumentasi lapangan.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Aplikasi Tulap.id memerlukan izin lokasi untuk mencatat koordinat GPS pada bukti dokumentasi tugas.</string>
-	<!-- Peta Sebaran Lokasi (Beranda) - google_maps_flutter iOS. Isi
-	     dengan Google Maps API key iOS Anda sendiri (Google Cloud
-	     Console > Credentials, dibatasi ke Bundle ID app ini) sebelum
-	     build iOS - kosong berarti peta tidak akan render di iOS,
-	     Android tetap terpisah lewat android/local.properties. -->
+	<!-- Peta Sebaran Lokasi (Beranda) - google_maps_flutter iOS. Key
+	     Android yang sudah ada TIDAK otomatis berlaku di sini - buat key
+	     TERPISAH dibatasi ke Bundle ID app ini (Google Cloud Console >
+	     Credentials), isi di bawah sebelum build iOS. Kosong = peta
+	     tidak render di iOS saja, Android tetap terpisah lewat
+	     android/local.properties. -->
 	<key>GMSApiKey</key>
 	<string></string>
 	<key>UILaunchStoryboardName</key>

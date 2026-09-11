@@ -17,7 +17,12 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    // Marker punya halo pulsa yang berulang terus-menerus (Bagian "hidup"
+    // peta) - pumpAndSettle() TIDAK PERNAH selesai karena itu, sama seperti
+    // WelcomePage. Pump beberapa frame tetap saja, cukup untuk melewati
+    // entrance animation (700ms).
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
 
     expect(find.text('Peta Sebaran Lokasi'), findsOneWidget);
     expect(
@@ -47,7 +52,12 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    // Marker punya halo pulsa yang berulang terus-menerus (Bagian "hidup"
+    // peta) - pumpAndSettle() TIDAK PERNAH selesai karena itu, sama seperti
+    // WelcomePage. Pump beberapa frame tetap saja, cukup untuk melewati
+    // entrance animation (700ms).
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
 
     expect(find.text('Lokasi tanpa koordinat GPS (1)'), findsOneWidget);
     expect(find.text('Tanpa Koordinat'), findsOneWidget);
