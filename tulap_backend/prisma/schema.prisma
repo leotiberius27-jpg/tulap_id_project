@@ -98,6 +98,7 @@ model User {
   travelMissions  Travel_Mission[]
   subscription    Subscription?
   paymentTransactions PaymentTransaction[]
+  deviceTokens    DeviceToken[]
 
   @@index([roleId])
   @@index([email])
@@ -367,6 +368,40 @@ model Notification {
   @@index([userId, isRead])
   @@index([createdAt])
   @@map("notifications")
+}
+
+enum DevicePlatform {
+  ANDROID
+  IOS
+  WEB
+
+  @@map("device_platform")
+}
+
+/// DeviceToken
+/// ----------------------------------------------------------------------
+/// Token FCM per perangkat, dipakai NotificationsService.notify() untuk
+/// mengirim push notification server-to-server (lihat
+/// src/infrastructure/push/push-notification.service.ts) setiap kali
+/// Notification baru dibuat. `token` unique (bukan per-user) karena satu
+/// token fisik cuma boleh terikat ke SATU user aktif sekaligus - re-login
+/// dengan akun lain di HP yang sama mengambil-alih token itu (upsert by
+/// token, bukan insert baru).
+/// ----------------------------------------------------------------------
+model DeviceToken {
+  id String @id @default(uuid())
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token    String         @unique
+  platform DevicePlatform @default(ANDROID)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("device_tokens")
 }
 
 // =====================================================================

@@ -24,4 +24,18 @@ class NotificationsRemoteDataSource {
   Future<void> markAllRead() async {
     await _dioClient.dio.patch('/notifications/read-all');
   }
+
+  Future<void> registerDeviceToken(String token) async {
+    await _dioClient.dio.post(
+      '/notifications/device-token',
+      data: {'token': token, 'platform': 'ANDROID'},
+    );
+  }
+
+  Future<void> unregisterDeviceToken(String token) async {
+    await _dioClient.dio.delete(
+      '/notifications/device-token',
+      data: {'token': token},
+    );
+  }
 }

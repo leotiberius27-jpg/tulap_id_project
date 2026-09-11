@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -9,6 +10,7 @@ import 'app/presentation/main_shell.dart';
 import 'core/geo/fast_location_service.dart';
 import 'core/localization/app_localizations.dart';
 import 'core/localization/language_controller.dart';
+import 'core/notifications/push_notification_service.dart';
 import 'core/session/auth_session_manager.dart';
 import 'core/sync/background_sync_service.dart';
 import 'core/theme/app_theme.dart';
@@ -26,7 +28,10 @@ import 'firebase_options.dart';
 ///      bergantung padanya (mis. push notification di masa depan).
 ///   3. initDependencies() - merangkai seluruh service locator.
 ///   4. Preload theme mode & language dari local secure storage (mencegah flash).
-///   5. Mulai BackgroundSyncService & FastLocationService warm-up.
+///   5. Mulai BackgroundSyncService, FastLocationService warm-up, &
+///      PushNotificationService (FCM) - listener sesinya dipasang SEBELUM
+///      runApp() supaya sesi lama yang dipulihkan AuthGate (setelah
+///      runApp()) tetap tertangkap dengan benar.
 ///   6. runApp()
 /// ----------------------------------------------------------------------
 Future<void> main() async {
@@ -41,6 +46,7 @@ Future<void> main() async {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
       // WatermarkOverlay & App memformat tanggal dengan locale 'id_ID' dan 'en_US'
       await initializeDateFormatting('id_ID', null);
@@ -54,6 +60,7 @@ Future<void> main() async {
 
       sl<BackgroundSyncService>().start();
       FastLocationService.instance.startWarmUp();
+      await sl<PushNotificationService>().init();
 
       runApp(const TulapApp());
     },

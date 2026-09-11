@@ -1,7 +1,9 @@
-import { Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { QueryNotificationsDto } from './dto/query-notifications.dto';
+import { RegisterDeviceTokenDto } from './dto/register-device-token.dto';
+import { UnregisterDeviceTokenDto } from './dto/unregister-device-token.dto';
 import { NotificationsService } from './notifications.service';
 
 /// NotificationsController
@@ -28,5 +30,21 @@ export class NotificationsController {
   @Patch('read-all')
   markAllRead(@CurrentUser() actor: AuthenticatedUser) {
     return this.notificationsService.markAllRead(actor);
+  }
+
+  @Post('device-token')
+  registerDeviceToken(
+    @Body() dto: RegisterDeviceTokenDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.notificationsService.registerDeviceToken(dto, actor);
+  }
+
+  @Delete('device-token')
+  unregisterDeviceToken(
+    @Body() dto: UnregisterDeviceTokenDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.notificationsService.unregisterDeviceToken(dto.token, actor);
   }
 }

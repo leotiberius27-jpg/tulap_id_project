@@ -18,6 +18,7 @@ import '../../core/media/media_share_service.dart';
 import '../../core/media/media_thumbnail_service.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/network/network_info.dart';
+import '../../core/notifications/push_notification_service.dart';
 import '../../core/ocr/receipt_ocr_engine.dart';
 import '../../core/ocr/receipt_parser.dart';
 import '../../core/qr/qr_location_generator.dart';
@@ -33,6 +34,7 @@ import '../../core/sync/background_sync_service.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/localization/language_controller.dart';
 
+import '../../features/assistant/presentation/widgets/tula_overlay.dart';
 import '../../features/auth/data/datasources/auth_local_datasource.dart';
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
@@ -550,6 +552,14 @@ Future<void> initDependencies({Database? database}) async {
       createOrUpdateNotification: sl(),
       notificationsRepository: sl(),
       authSessionManager: sl(),
+    ),
+  );
+  sl.registerLazySingleton<PushNotificationService>(
+    () => PushNotificationService(
+      authSessionManager: sl(),
+      remoteDataSource: sl(),
+      notificationsRepository: sl(),
+      navigatorKey: TulaOverlay.navigatorKey,
     ),
   );
 

@@ -21,6 +21,12 @@
          bawaan Android, murni gerbang lokal sebelum memulihkan sesi yang
          sudah tersimpan (lihat AuthLocalDataSource.restoreBiometricSession). -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <!-- Push Notification (FCM) - wajib dideklarasikan eksplisit untuk
+         Android 13+ (API 33), diminta saat runtime lewat
+         FirebaseMessaging.requestPermission() setelah sesi login
+         terbentuk (lihat PushNotificationService), bukan langsung saat
+         app dibuka. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="Tulap.id"
         android:name="${applicationName}"
@@ -74,6 +80,18 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="${mapsApiKey}" />
+        <!-- Push Notification (FCM) - channel & ikon default dipakai
+             saat app di background/terminated dan sistem Android
+             menampilkan notifikasi tray otomatis dari payload
+             `notification` (tanpa kode tambahan). ic_launcher dipakai
+             sebagai default pragmatis - belum ada aset ikon monokrom
+             khusus notifikasi. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="tulap_default_channel" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
