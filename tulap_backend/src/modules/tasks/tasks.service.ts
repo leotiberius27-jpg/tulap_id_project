@@ -11,6 +11,7 @@ import { ChecklistService } from '../checklist/checklist.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { FirestoreSyncService } from '../../infrastructure/firestore/firestore-sync.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -45,6 +46,7 @@ export class TasksService {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly subscriptions: SubscriptionsService,
+    private readonly firestoreSync: FirestoreSyncService,
   ) {}
 
   /// Membuat tugas baru. `taskCode` dibuat otomatis dengan format
@@ -313,8 +315,8 @@ export class TasksService {
   /// harus sudah dicentang - ini menuntaskan validasi kelengkapan
   /// bukti yang sebelumnya baru berupa catatan rencana.
   async submitForVerification(id: string, actor: AuthenticatedUser) {
-    const task = await this._findOrThrow(id);
-    if (task.assigneeId !== actor.id) {
+    const existingTask = await this._findOrThrow(id);
+    if (existingTask.assigneeId !== actor.id) {
       throw new ForbiddenException('Anda bukan petugas yang ditugaskan pada tugas ini.');
     }
 
@@ -326,7 +328,9 @@ export class TasksService {
       });
     }
 
-    return this.transitionStatus(id, 'PENDING_VERIFICATION', actor);
+    const task = await this.transitionStatus(id, 'PENDING_VERIFICATION', actor);
+    await this._mirrorActivityReportToFirestore(task);
+    return task;
   }
 
   /// Dipanggil VERIFIKATOR/SUPER_ADMIN - lihat Verification Workspace
@@ -416,11 +420,13 @@ export class TasksService {
   /// ONGOING) - ALLOWED_TRANSITIONS sudah menangani keduanya karena
   /// tujuannya sama-sama PENDING_VERIFICATION.
   async resubmitAfterRevision(id: string, actor: AuthenticatedUser) {
-    const task = await this._findOrThrow(id);
-    if (task.assigneeId !== actor.id) {
+    const existingTask = await this._findOrThrow(id);
+    if (existingTask.assigneeId !== actor.id) {
       throw new ForbiddenException('Anda bukan petugas yang ditugaskan pada tugas ini.');
     }
-    return this.transitionStatus(id, 'PENDING_VERIFICATION', actor);
+    const task = await this.transitionStatus(id, 'PENDING_VERIFICATION', actor);
+    await this._mirrorActivityReportToFirestore(task);
+    return task;
   }
 
   /// Dipanggil BENDAHARA/ADMIN setelah LPJ terbit - lihat LPJ Generator
@@ -462,6 +468,30 @@ export class TasksService {
 
     const sequence = String(count + 1).padStart(4, '0');
     return `TL-${yearMonth}-${sequence}`;
+  }
+
+  /// Salinan realtime tambahan ke Cloud Firestore setiap kali PEGAWAI
+  /// mengirim laporan lapangan (submit ATAU resubmit setelah revisi) -
+  /// lihat FirestoreSyncService untuk kenapa PostgreSQL tetap sumber
+  /// kebenaran dan ini murni best-effort.
+  private async _mirrorActivityReportToFirestore(
+    task: Awaited<ReturnType<TasksService['transitionStatus']>>,
+  ): Promise<void> {
+    await this.firestoreSync.mirrorActivityReport({
+      id: task.id,
+      taskCode: task.taskCode,
+      taskName: task.taskName,
+      destination: task.destination,
+      description: task.description,
+      status: task.status,
+      assigneeId: task.assignee.id,
+      assigneeName: task.assignee.fullName,
+      creatorId: task.creator.id,
+      startDate: task.startDate,
+      endDate: task.endDate,
+      budgetAmount: task.budgetAmount,
+      realizedAmount: task.realizedAmount,
+    });
   }
 
   private _defaultInclude() {

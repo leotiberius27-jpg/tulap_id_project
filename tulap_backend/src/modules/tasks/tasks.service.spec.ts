@@ -6,6 +6,7 @@ import { ChecklistService } from '../checklist/checklist.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { FirestoreSyncService } from '../../infrastructure/firestore/firestore-sync.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 
 describe('TasksService', () => {
@@ -15,12 +16,21 @@ describe('TasksService', () => {
   let audit: any;
   let notifications: any;
   let subscriptions: any;
+  let firestoreSync: any;
 
   const mockAdminUser: AuthenticatedUser = {
     id: 'admin_1',
     email: 'admin@tulap.id',
     fullName: 'Admin Super',
     role: 'SUPER_ADMIN',
+    instansiName: 'Dinas PU',
+  };
+
+  const mockPegawaiUser: AuthenticatedUser = {
+    id: 'pegawai_1',
+    email: 'budi@tulap.id',
+    fullName: 'Budi Santoso',
+    role: 'PEGAWAI',
     instansiName: 'Dinas PU',
   };
 
@@ -40,6 +50,7 @@ describe('TasksService', () => {
 
     checklistService = {
       createTemplatesForTask: jest.fn().mockResolvedValue([]),
+      getIncompleteMandatoryItems: jest.fn().mockResolvedValue([]),
     };
 
     audit = {
@@ -54,6 +65,10 @@ describe('TasksService', () => {
       assertActivityQuotaAvailable: jest.fn().mockResolvedValue(undefined),
     };
 
+    firestoreSync = {
+      mirrorActivityReport: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TasksService,
@@ -62,6 +77,7 @@ describe('TasksService', () => {
         { provide: AuditService, useValue: audit },
         { provide: NotificationsService, useValue: notifications },
         { provide: SubscriptionsService, useValue: subscriptions },
+        { provide: FirestoreSyncService, useValue: firestoreSync },
       ],
     }).compile();
 
@@ -174,6 +190,70 @@ describe('TasksService', () => {
       expect(result.taskCode).toMatch(/^TL-\d{6}-\d{4}$/);
       expect(prisma.task_SPPD.create).toHaveBeenCalled();
       expect(audit.log).toHaveBeenCalled();
+    });
+  });
+
+  describe('submitForVerification', () => {
+    const fullTask = {
+      id: 'task_1',
+      taskCode: 'TL-202609-0001',
+      taskName: 'Inspeksi Jembatan',
+      destination: 'Jayapura',
+      description: null,
+      status: 'PENDING_VERIFICATION',
+      assigneeId: 'pegawai_1',
+      creatorId: 'admin_1',
+      startDate: new Date('2026-09-10'),
+      endDate: new Date('2026-09-12'),
+      budgetAmount: 1500000,
+      realizedAmount: 0,
+      assignee: { id: 'pegawai_1', fullName: 'Budi Santoso' },
+      creator: { id: 'admin_1' },
+    };
+
+    it('should mirror the report to Firestore after a successful submission', async () => {
+      prisma.task_SPPD.findUnique.mockResolvedValue({
+        id: 'task_1',
+        assigneeId: 'pegawai_1',
+        status: 'ONGOING',
+      });
+      prisma.task_SPPD.update.mockResolvedValue(fullTask);
+
+      const result = await service.submitForVerification('task_1', mockPegawaiUser);
+
+      expect(result).toEqual(fullTask);
+      expect(firestoreSync.mirrorActivityReport).toHaveBeenCalledWith({
+        id: 'task_1',
+        taskCode: 'TL-202609-0001',
+        taskName: 'Inspeksi Jembatan',
+        destination: 'Jayapura',
+        description: null,
+        status: 'PENDING_VERIFICATION',
+        assigneeId: 'pegawai_1',
+        assigneeName: 'Budi Santoso',
+        creatorId: 'admin_1',
+        startDate: fullTask.startDate,
+        endDate: fullTask.endDate,
+        budgetAmount: 1500000,
+        realizedAmount: 0,
+      });
+    });
+
+    it('should throw and never touch Firestore when mandatory checklist items are incomplete', async () => {
+      prisma.task_SPPD.findUnique.mockResolvedValue({
+        id: 'task_1',
+        assigneeId: 'pegawai_1',
+        status: 'ONGOING',
+      });
+      checklistService.getIncompleteMandatoryItems.mockResolvedValue([
+        { id: 'item_1', label: 'Foto lokasi' },
+      ]);
+
+      await expect(
+        service.submitForVerification('task_1', mockPegawaiUser),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(firestoreSync.mirrorActivityReport).not.toHaveBeenCalled();
     });
   });
 });

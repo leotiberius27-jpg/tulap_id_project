@@ -12,6 +12,7 @@ import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { S3StorageService } from '../../infrastructure/storage/s3-storage.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { AuditService } from '../audit/audit.service';
+import { FirestoreSyncService } from '../../infrastructure/firestore/firestore-sync.service';
 import { UploadPhotoDto } from './dto/upload-photo.dto';
 import { UploadReceiptDto } from './dto/upload-receipt.dto';
 
@@ -23,6 +24,7 @@ export class EvidenceService {
     private readonly prisma: PrismaService,
     private readonly storage: S3StorageService,
     private readonly audit: AuditService,
+    private readonly firestoreSync: FirestoreSyncService,
   ) {}
 
   /// uploadPhoto
@@ -118,6 +120,19 @@ export class EvidenceService {
         hashVerified: hashMatches,
         shortEvidenceId: dto.shortEvidenceId,
       },
+    });
+
+    await this.firestoreSync.mirrorAssetDocument({
+      id: photo.id,
+      taskId: photo.taskId,
+      uploaderId: photo.uploaderId,
+      photoUrl: photo.photoUrl,
+      latitude: photo.latitude,
+      longitude: photo.longitude,
+      address: photo.address,
+      caption: photo.caption,
+      mediaType: isVideo ? 'VIDEO' : 'PHOTO',
+      serverTimestamp: authoritativeTimestamp,
     });
 
     return {

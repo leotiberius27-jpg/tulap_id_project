@@ -4,6 +4,7 @@ import { EvidenceService } from './evidence.service';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { S3StorageService } from '../../infrastructure/storage/s3-storage.service';
 import { AuditService } from '../audit/audit.service';
+import { FirestoreSyncService } from '../../infrastructure/firestore/firestore-sync.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { createHash } from 'crypto';
 
@@ -12,6 +13,7 @@ describe('EvidenceService', () => {
   let prisma: any;
   let storage: any;
   let audit: any;
+  let firestoreSync: any;
 
   const mockUser: AuthenticatedUser = {
     id: 'user_1',
@@ -49,12 +51,17 @@ describe('EvidenceService', () => {
       log: jest.fn().mockResolvedValue(undefined),
     };
 
+    firestoreSync = {
+      mirrorAssetDocument: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EvidenceService,
         { provide: PrismaService, useValue: prisma },
         { provide: S3StorageService, useValue: storage },
         { provide: AuditService, useValue: audit },
+        { provide: FirestoreSyncService, useValue: firestoreSync },
       ],
     }).compile();
 
@@ -137,7 +144,13 @@ describe('EvidenceService', () => {
 
       prisma.geotag_Photo.create.mockResolvedValue({
         id: 'photo_1',
+        taskId: 'task_1',
+        uploaderId: 'user_1',
         photoUrl: 'https://storage.tulap.id/evidence/photo/2026/08/26/test.jpg',
+        latitude: -2.53,
+        longitude: 140.71,
+        address: 'Jl. Ahmad Yani, Jayapura',
+        caption: null,
       });
 
       const result = await service.uploadPhoto(
@@ -160,6 +173,18 @@ describe('EvidenceService', () => {
       expect(result.hashVerified).toBe(true);
       expect(storage.uploadFile).toHaveBeenCalled();
       expect(audit.log).toHaveBeenCalled();
+      expect(firestoreSync.mirrorAssetDocument).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'photo_1',
+          taskId: 'task_1',
+          uploaderId: 'user_1',
+          photoUrl: 'https://storage.tulap.id/evidence/photo/2026/08/26/test.jpg',
+          latitude: -2.53,
+          longitude: 140.71,
+          address: 'Jl. Ahmad Yani, Jayapura',
+          mediaType: 'PHOTO',
+        }),
+      );
     });
   });
 
