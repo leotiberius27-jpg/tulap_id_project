@@ -139,4 +139,12 @@ class AuthRemoteDataSource {
     final response = await _dioClient.dio.delete('/users/me/photo');
     return response.data as Map<String, dynamic>;
   }
+
+  /// GET /users/me - profil lengkap diri sendiri langsung dari server,
+  /// dipakai untuk menyegarkan cache sesi lokal saat app dibuka (lihat
+  /// AuthSessionManager.refreshFromServer()).
+  Future<Map<String, dynamic>> getMyProfile() async {
+    final response = await _dioClient.dio.get('/users/me');
+    return response.data as Map<String, dynamic>;
+  }
 }

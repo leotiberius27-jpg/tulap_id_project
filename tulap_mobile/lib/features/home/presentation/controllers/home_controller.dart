@@ -376,7 +376,15 @@ class HomeController extends ChangeNotifier {
     _update(
       HomeState(
         status: HomeStatus.loaded,
-        user: user,
+        // Baca ulang dari AuthSessionManager (bukan variabel `user` yang
+        // ditangkap di AWAL loadHome()) - loadHome() mengambil waktu cukup
+        // lama (task list, detail, dashboard analytics berurutan), jadi
+        // refresh sesi diam-diam (AuthSessionManager._refreshFromServerSilently)
+        // bisa saja selesai DI TENGAH loadHome() berjalan lewat listener
+        // _onUserSessionChanged, lalu tertimpa kembali oleh nilai lama di
+        // sini kalau tidak dibaca ulang - race condition nyata yang
+        // ditemukan langsung di perangkat fisik.
+        user: _authSessionManager?.currentUser ?? user,
         activeTask: activeTask,
         allActiveTasks: allActiveTasks,
         taskPhotos: photoMap,

@@ -178,6 +178,9 @@ class _MockAuthRepository implements AuthRepository {
     );
     return Right(currentUser!);
   }
+
+  @override
+  Future<AuthUserEntity?> refreshStoredUserFromServer() async => currentUser;
 }
 
 class _MockSyncQueueRepository implements SyncQueueRepository {

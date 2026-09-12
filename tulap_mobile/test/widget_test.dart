@@ -148,6 +148,9 @@ class _NoSessionAuthRepository implements AuthRepository {
     String? nip,
     String? photoUrl,
   }) async => throw UnimplementedError();
+
+  @override
+  Future<AuthUserEntity?> refreshStoredUserFromServer() async => null;
 }
 
 class _FakeAccountLocalDataSource implements AccountLocalDataSource {

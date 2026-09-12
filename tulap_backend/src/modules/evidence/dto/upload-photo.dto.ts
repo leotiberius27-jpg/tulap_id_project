@@ -95,5 +95,32 @@ export class UploadPhotoDto {
   @IsISO8601()
   @IsOptional()
   deviceTimestamp?: string;
+
+  /// Field berikut dikirim oleh GeotagPhotoModel.toUploadPayload() di
+  /// mobile tapi tidak punya kolom yang sesuai di Geotag_Photo (uploaderId
+  /// diambil dari actor.id sisi server, bukan dari client) - dideklarasikan
+  /// di sini semata agar tidak ditolak `forbidNonWhitelisted`, nilainya
+  /// tidak dipakai.
+  @IsString()
+  @IsOptional()
+  userId?: string;
+
+  @IsString()
+  @IsOptional()
+  evidenceId?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  altitude?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  heading?: number;
+
+  @IsString()
+  @IsOptional()
+  verificationStatus?: string;
 }
 

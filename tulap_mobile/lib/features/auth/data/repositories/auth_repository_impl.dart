@@ -453,4 +453,18 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(LocalStorageFailure('Gagal memperbarui profil: ${e.toString()}'));
     }
   }
+
+  @override
+  Future<AuthUserEntity?> refreshStoredUserFromServer() async {
+    try {
+      final json = await _remoteDataSource.getMyProfile();
+      final latest = AuthUserModel.fromUserJson(json);
+      await _localDataSource.updateUserProfile(latest);
+      return latest;
+    } catch (_) {
+      // Best-effort - offline atau server error tidak boleh mengganggu
+      // sesi yang sudah ada dari cache lokal.
+      return null;
+    }
+  }
 }

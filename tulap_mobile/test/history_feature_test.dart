@@ -139,6 +139,8 @@ class _FakeAuthRepository implements AuthRepository {
     String? nip,
     String? photoUrl,
   }) async => Right(user!);
+  @override
+  Future<AuthUserEntity?> refreshStoredUserFromServer() async => user;
 }
 
 class _FakeSearchArchiveRepository implements SearchArchiveRepository {

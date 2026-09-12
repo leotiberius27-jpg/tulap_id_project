@@ -611,76 +611,94 @@ class _LoginViewState extends State<_LoginView> {
                             ),
                             SizedBox(height: isShort ? 12 : 16),
 
-                            // 7. LOGIN DENGAN GOOGLE
-                            OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(50),
-                                backgroundColor: Colors.white,
-                                foregroundColor: AppColors.textPrimary,
-                                side: const BorderSide(
-                                  color: Color(0xFFE2E8F0),
+                            // 7. LOGIN DENGAN GOOGLE - satu tombol gabungan
+                            // (bukan dua baris terpisah): area utama masuk
+                            // dengan akun yang sudah tersimpan (signInSilently
+                            // di baliknya selalu mengembalikan akun yang SAMA
+                            // dengan terakhir dipakai), chevron di kanan
+                            // membuka pemilih akun Google untuk ganti akun -
+                            // dua aksi, satu elemen visual, biar Halaman
+                            // Masuk tidak terlihat penuh.
+                            Container(
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
                                   width: 1.2,
                                 ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                              onPressed: isBusy
-                                  ? null
-                                  : () => _submitGoogle(controller),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
+                              child: Row(
                                 children: [
-                                  GoogleLogoIcon(size: 20),
-                                  SizedBox(width: 8),
-                                  Flexible(
-                                    child: Text(
-                                      'Masuk dengan Google',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontFamily: AppTypography.fontFamily,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimary,
+                                  Expanded(
+                                    child: Material(
+                                      type: MaterialType.transparency,
+                                      child: InkWell(
+                                        borderRadius: const BorderRadius.horizontal(
+                                          left: Radius.circular(14),
+                                        ),
+                                        onTap: isBusy
+                                            ? null
+                                            : () => _submitGoogle(controller),
+                                        child: const Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            GoogleLogoIcon(size: 20),
+                                            SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text(
+                                                'Masuk dengan Google',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontFamily:
+                                                      AppTypography.fontFamily,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppColors.textPrimary,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 1,
+                                    height: 26,
+                                    color: const Color(0xFFE2E8F0),
+                                  ),
+                                  Material(
+                                    type: MaterialType.transparency,
+                                    child: Tooltip(
+                                      message: 'Gunakan akun Google lain',
+                                      child: InkWell(
+                                        borderRadius: const BorderRadius.horizontal(
+                                          right: Radius.circular(14),
+                                        ),
+                                        onTap: isBusy
+                                            ? null
+                                            : () => _submitGoogle(
+                                                  controller,
+                                                  forceAccountChooser: true,
+                                                ),
+                                        child: const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                          ),
+                                          child: Icon(
+                                            Icons.expand_more_rounded,
+                                            size: 20,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ],
-                              ),
-                            ),
-
-                            // Tautan ganti akun Google - signInSilently()
-                            // di atas selalu mengembalikan akun Google
-                            // yang SAMA dengan yang terakhir dipakai, jadi
-                            // user butuh jalan eksplisit untuk memilih
-                            // akun Google lain di perangkat ini.
-                            Center(
-                              child: TextButton(
-                                onPressed: isBusy
-                                    ? null
-                                    : () => _submitGoogle(
-                                          controller,
-                                          forceAccountChooser: true,
-                                        ),
-                                style: TextButton.styleFrom(
-                                  minimumSize: Size.zero,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                  ),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: const Text(
-                                  'Gunakan akun Google lain',
-                                  style: TextStyle(
-                                    fontFamily: AppTypography.fontFamily,
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.action,
-                                  ),
-                                ),
                               ),
                             ),
 

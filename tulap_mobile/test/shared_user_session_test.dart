@@ -64,6 +64,9 @@ class _FakeAuthRepo extends Fake implements AuthRepository {
   Future<void> logout() async {
     storedUser = null;
   }
+
+  @override
+  Future<AuthUserEntity?> refreshStoredUserFromServer() async => null;
 }
 
 class _FakeNetworkInfo extends Fake implements NetworkInfo {

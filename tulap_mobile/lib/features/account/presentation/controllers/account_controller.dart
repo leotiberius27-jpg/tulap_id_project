@@ -174,7 +174,10 @@ class AccountController extends ChangeNotifier {
 
     _update(
       _state.copyWith(
-        user: user,
+        // Baca ulang dari AuthSessionManager, bukan `user` yang ditangkap
+        // di awal fungsi ini - lihat catatan race condition yang sama di
+        // HomeController.loadHome().
+        user: _authSessionManager?.currentUser ?? user,
         biometricHardwareAvailable: hardwareAvailable,
         biometricLoginEnabled: biometricEnabled,
         isSyncing: _backgroundSyncService.isSyncing,

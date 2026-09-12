@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import '../../features/auth/domain/entities/auth_user_entity.dart';
@@ -32,10 +33,24 @@ class AuthSessionManager extends ChangeNotifier {
     try {
       final user = await _authRepository.getStoredUser();
       _currentUser = user;
+      if (user != null) {
+        // Best-effort, tidak diawait oleh pemanggil - tampilan awal
+        // tetap secepat cache lokal, lalu diperbarui diam-diam begitu
+        // respons server datang jika ada perbedaan (mis. photoUrl yang
+        // baru saja diperbaiki langsung di database).
+        unawaited(_refreshFromServerSilently());
+      }
       return user;
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _refreshFromServerSilently() async {
+    final refreshed = await _authRepository.refreshStoredUserFromServer();
+    if (refreshed != null) {
+      updateUser(refreshed);
     }
   }
 

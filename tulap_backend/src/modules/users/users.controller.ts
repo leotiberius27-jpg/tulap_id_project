@@ -74,6 +74,19 @@ export class UsersController {
     return this.usersService.deleteOwnPhoto(actor.id);
   }
 
+  /// GET /users/me - profil LENGKAP diri sendiri (termasuk photoUrl,
+  /// nip, phoneNumber - berbeda dari GET /auth/profile yang hanya
+  /// membawa klaim JWT minimal). Dideklarasikan SEBELUM `@Get(':id')`
+  /// dengan alasan sama seperti `@Patch('me')` di atas. Dipakai mobile
+  /// app untuk menyegarkan cache sesi lokal saat startup, supaya
+  /// perubahan data yang terjadi di luar flow app itu sendiri (mis.
+  /// perbaikan langsung di database) tetap tercermin tanpa user harus
+  /// logout/login manual.
+  @Get('me')
+  getOwnProfile(@CurrentUser() actor: AuthenticatedUser) {
+    return this.usersService.findOne(actor.id);
+  }
+
   /// GET /users - daftar pegawai, hanya ADMIN/VERIFIKATOR/SUPER_ADMIN
   /// yang perlu melihat daftar lengkap pegawai lintas instansi.
   @Roles(RoleName.ADMIN, RoleName.VERIFIKATOR, RoleName.SUPER_ADMIN)

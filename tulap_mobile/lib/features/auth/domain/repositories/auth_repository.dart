@@ -87,4 +87,12 @@ abstract class AuthRepository {
     String? nip,
     String? photoUrl,
   });
+
+  /// Mengambil profil TERBARU langsung dari server (GET /users/me) dan
+  /// menimpa cache lokal dengannya - null jika gagal (offline, dsb),
+  /// TANPA melempar/menghapus sesi yang sudah ada (best-effort refresh).
+  /// Menutup celah: perubahan data yang terjadi di luar flow app (mis.
+  /// perbaikan data langsung di database) sebelumnya tidak pernah
+  /// tercermin di cache lokal sampai user logout/login manual.
+  Future<AuthUserEntity?> refreshStoredUserFromServer();
 }
