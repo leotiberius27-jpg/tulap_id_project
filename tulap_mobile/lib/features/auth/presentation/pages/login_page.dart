@@ -3,17 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../app/presentation/main_shell.dart';
-import '../../../../core/security/biometric_auth_service.dart';
 import '../../../../core/security/oauth_sign_in_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/google_logo_icon.dart';
 import '../../domain/entities/auth_user_entity.dart';
-import '../../domain/usecases/is_biometric_login_enabled.dart';
 import '../../domain/usecases/login.dart';
 import '../../domain/usecases/login_with_apple.dart';
 import '../../domain/usecases/login_with_facebook.dart';
 import '../../domain/usecases/login_with_google.dart';
-import '../../domain/usecases/restore_biometric_session.dart';
 import '../controllers/login_controller.dart';
 import 'forgot_password_page.dart';
 import 'register_page.dart';
@@ -23,7 +20,7 @@ import 'register_page.dart';
 /// Layar Masuk resmi Tulap.id (Clean, Minimal, Modern & Responsive).
 /// Mengikuti struktur visual: Logo -> Selamat Datang -> Form Email/Password
 /// -> Lupa Password -> Tombol Masuk -> Divider -> Login dengan Google ->
-/// Quick Biometric -> Register -> Terms/Privacy.
+/// Register -> Terms/Privacy.
 /// ----------------------------------------------------------------------
 class LoginPage extends StatelessWidget {
   final ValueChanged<AuthUserEntity> onLoginSuccess;
@@ -39,15 +36,6 @@ class LoginPage extends StatelessWidget {
         loginWithApple: sl.isRegistered<LoginWithApple>() ? sl<LoginWithApple>() : null,
         loginWithFacebook: sl.isRegistered<LoginWithFacebook>() ? sl<LoginWithFacebook>() : null,
         oauthSignInService: sl<OAuthSignInService>(),
-        restoreBiometricSession: sl.isRegistered<RestoreBiometricSession>()
-            ? sl<RestoreBiometricSession>()
-            : null,
-        isBiometricLoginEnabled: sl.isRegistered<IsBiometricLoginEnabled>()
-            ? sl<IsBiometricLoginEnabled>()
-            : null,
-        biometricAuthService: sl.isRegistered<BiometricAuthService>()
-            ? sl<BiometricAuthService>()
-            : null,
       ),
       child: _LoginView(onLoginSuccess: onLoginSuccess),
     );
@@ -115,14 +103,6 @@ class _LoginViewState extends State<_LoginView> {
       forceAccountChooser: forceAccountChooser,
     );
     if (!mounted || success != true) return;
-    _onSuccess(controller);
-  }
-
-  Future<void> _submitBiometric(LoginController controller) async {
-    FocusScope.of(context).unfocus();
-    HapticFeedback.lightImpact();
-    final success = await controller.submitBiometric();
-    if (!mounted || !success) return;
     _onSuccess(controller);
   }
 
@@ -701,43 +681,6 @@ class _LoginViewState extends State<_LoginView> {
                                 ],
                               ),
                             ),
-
-                            // 8. QUICK BIOMETRIC LOGIN (OPSIONAL JIKA AKTIF)
-                            if (state.biometricAvailable) ...[
-                              const SizedBox(height: 10),
-                              OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(48),
-                                  backgroundColor: AppColors.iconSoftBlue
-                                      .withValues(alpha: 0.4),
-                                  foregroundColor: AppColors.primary,
-                                  side: BorderSide(
-                                    color: AppColors.primary.withValues(
-                                      alpha: 0.25,
-                                    ),
-                                    width: 1.2,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                                onPressed: isBusy
-                                    ? null
-                                    : () => _submitBiometric(controller),
-                                icon: const Icon(
-                                  Icons.fingerprint_rounded,
-                                  size: 22,
-                                ),
-                                label: const Text(
-                                  'Masuk dengan Biometrik',
-                                  style: TextStyle(
-                                    fontFamily: AppTypography.fontFamily,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
                             SizedBox(height: isShort ? 14 : 18),
 
                             // 9. REGISTER PROMPT: "Belum punya akun? Daftar"

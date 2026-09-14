@@ -122,16 +122,6 @@ class _FakeAuthRepository implements AuthRepository {
     String? fullName,
   }) => throw UnimplementedError();
   @override
-  Future<bool> isBiometricLoginEnabled() async => false;
-  @override
-  Future<void> enableBiometricLogin() async {}
-  @override
-  Future<void> disableBiometricLogin() async {}
-  @override
-  Future<AuthUserEntity?> getBiometricGreetingUser() async => user;
-  @override
-  Future<AuthUserEntity?> restoreBiometricSession() async => user;
-  @override
   Future<Either<Failure, AuthUserEntity>> updateProfile({
     required String fullName,
     String? phoneNumber,

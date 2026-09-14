@@ -3,12 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../core/network/network_info.dart';
-import '../../../../core/security/biometric_auth_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/micro_interactions.dart';
 import '../../domain/entities/auth_user_entity.dart';
-import '../../domain/usecases/get_biometric_greeting_user.dart';
-import '../../domain/usecases/restore_biometric_session.dart';
 import '../controllers/welcome_controller.dart';
 import 'login_page.dart';
 
@@ -21,7 +18,7 @@ import 'login_page.dart';
 ///   * Header atas: Tulap.id brand & Dynamic Online/Offline status pill.
 ///   * Area visual karakter: wajah, kepala, torso, tangan, dan handphone tampil proporsional.
 ///   * Panel bawah: Kartu putih melengkung Akses Cepat (Tugas Saya, Kamera Lokasi,
-///     Scan Nota, Sinkronisasi) + Tombol Masuk Utama & Biometrik.
+///     Scan Nota, Sinkronisasi) + Tombol Masuk Utama.
 ///   * Kaki/bagian bawah tubuh karakter tertutup secara natural di belakang kartu.
 /// ----------------------------------------------------------------------
 class WelcomePage extends StatelessWidget {
@@ -32,12 +29,7 @@ class WelcomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<WelcomeController>(
-      create: (_) => WelcomeController(
-        networkInfo: sl<NetworkInfo>(),
-        getBiometricGreetingUser: sl<GetBiometricGreetingUser>(),
-        restoreBiometricSession: sl<RestoreBiometricSession>(),
-        biometricAuthService: sl<BiometricAuthService>(),
-      ),
+      create: (_) => WelcomeController(networkInfo: sl<NetworkInfo>()),
       child: _WelcomeView(onLoginSuccess: onLoginSuccess),
     );
   }
@@ -90,29 +82,6 @@ class _WelcomeViewState extends State<_WelcomeView>
     Navigator.of(
       context,
     ).push(slideFadeRoute(LoginPage(onLoginSuccess: widget.onLoginSuccess)));
-  }
-
-  Future<void> _tryBiometric(
-    BuildContext context,
-    WelcomeController controller,
-  ) async {
-    HapticFeedback.mediumImpact();
-    final user = await controller.authenticateWithBiometric();
-    if (!context.mounted) return;
-
-    if (user != null) {
-      widget.onLoginSuccess(user);
-      return;
-    }
-
-    final error = controller.state.biometricError;
-    if (error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
-    } else if (!controller.state.biometricAvailable) {
-      _openLogin(context);
-    }
   }
 
   @override
@@ -328,42 +297,30 @@ class _WelcomeViewState extends State<_WelcomeView>
                           ),
                           SizedBox(height: isShort ? 14 : 20),
 
-                          // Baris Tombol Masuk & Biometrik
-                          Row(
-                            children: [
-                              Expanded(
-                                child: SizedBox(
-                                  height: isShort ? 48 : 52,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF0D6EFD),
-                                      foregroundColor: Colors.white,
-                                      elevation: 3,
-                                      shadowColor: const Color(0x600D6EFD),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                    ),
-                                    onPressed: () => _openLogin(context),
-                                    child: const Text(
-                                      'Masuk',
-                                      style: TextStyle(
-                                        fontFamily: AppTypography.fontFamily,
-                                        fontSize: 16.5,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
-                                  ),
+                          // Tombol Masuk
+                          SizedBox(
+                            height: isShort ? 48 : 52,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0D6EFD),
+                                foregroundColor: Colors.white,
+                                elevation: 3,
+                                shadowColor: const Color(0x600D6EFD),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              _BiometricButton(
-                                size: isShort ? 48 : 52,
-                                isLoading: state.isRestoringBiometric,
-                                onTap: () => _tryBiometric(context, controller),
+                              onPressed: () => _openLogin(context),
+                              child: const Text(
+                                'Masuk',
+                                style: TextStyle(
+                                  fontFamily: AppTypography.fontFamily,
+                                  fontSize: 16.5,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
+                                ),
                               ),
-                            ],
+                            ),
                           ),
                         ],
                       ),
@@ -516,57 +473,3 @@ class _QuickPreviewIcon extends StatelessWidget {
   }
 }
 
-class _BiometricButton extends StatelessWidget {
-  final double size;
-  final bool isLoading;
-  final VoidCallback onTap;
-
-  const _BiometricButton({
-    this.size = 52,
-    required this.isLoading,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D6EFD),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x600D6EFD),
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: isLoading ? null : onTap,
-          child: Center(
-            child: isLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(
-                    Icons.fingerprint_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-}

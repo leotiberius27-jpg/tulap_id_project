@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
-import '../../../../core/security/biometric_auth_service.dart';
 import '../../../../core/session/auth_session_manager.dart';
 import '../../../../core/sync/background_sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_state_views.dart';
 import '../../../../main.dart';
-import '../../../auth/domain/usecases/disable_biometric_login.dart';
-import '../../../auth/domain/usecases/enable_biometric_login.dart';
 import '../../../auth/domain/usecases/get_current_session.dart';
-import '../../../auth/domain/usecases/is_biometric_login_enabled.dart';
 import '../../../auth/domain/usecases/logout.dart';
 import '../../../sync_queue/domain/repositories/sync_queue_repository.dart';
 import '../../../sync_queue/presentation/pages/sync_center_page.dart';
@@ -43,7 +39,7 @@ import 'terms_page.dart';
 /// ----------------------------------------------------------------------
 /// Modul Akun & Profil Lapangan Resmi Tulap.id:
 /// 1. ProfileHeader (Avatar Dinamis, Nama, Email, Instansi, Edit Profil)
-/// 2. Section 1: Akun & Keamanan (Info Profil, Keamanan, Biometrik Asli)
+/// 2. Section 1: Akun & Keamanan (Info Profil, Keamanan & Login)
 /// 3. Section 2: Data & Sinkronisasi (Status Outbox, Storage, Cache Aman)
 /// 4. Section 3: Pengaturan (Notifikasi, Kamera Geotag, Lokasi GPS, Tampilan)
 /// 5. Section 4: Bantuan & Informasi (Panduan Lapangan, Privasi, Syarat, Tentang)
@@ -58,10 +54,6 @@ class AccountPage extends StatelessWidget {
       create: (_) => AccountController(
         getCurrentSession: sl<GetCurrentSession>(),
         logout: sl<Logout>(),
-        isBiometricLoginEnabled: sl<IsBiometricLoginEnabled>(),
-        enableBiometricLogin: sl<EnableBiometricLogin>(),
-        disableBiometricLogin: sl<DisableBiometricLogin>(),
-        biometricAuthService: sl<BiometricAuthService>(),
         syncQueueRepository: sl<SyncQueueRepository>(),
         backgroundSyncService: sl<BackgroundSyncService>(),
         getStorageBreakdown: sl<GetStorageBreakdown>(),
@@ -188,56 +180,12 @@ class _AccountView extends StatelessWidget {
                         iconBgColor: AppColors.iconSoftIndigo,
                         title: 'Keamanan & Login',
                         subtitle: 'Metode otentikasi & proteksi kredensial',
+                        showDivider: false,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => SecurityLoginPage(user: user),
                           ),
                         ),
-                      ),
-                      AccountMenuRow(
-                        icon: Icons.fingerprint,
-                        iconBgColor: AppColors.iconSoftCyan,
-                        title: 'Login Biometrik',
-                        subtitle: controller.state.biometricHardwareAvailable
-                            ? (controller.state.biometricLoginEnabled
-                                  ? 'Aktif (Sidik Jari / Wajah)'
-                                  : 'Nonaktif')
-                            : 'Tidak tersedia di perangkat ini',
-                        showDivider: false,
-                        trailing: controller.state.biometricHardwareAvailable
-                            ? (controller.state.isTogglingBiometric
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : Switch(
-                                      value: controller
-                                          .state
-                                          .biometricLoginEnabled,
-                                      onChanged: (val) =>
-                                          controller.toggleBiometricLogin(val),
-                                      activeTrackColor: AppColors.primary,
-                                    ))
-                            : Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.background,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  'N/A',
-                                  style: AppTypography.small.copyWith(
-                                    fontSize: 10,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ),
                       ),
                     ],
                   ),

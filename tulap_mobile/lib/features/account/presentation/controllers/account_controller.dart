@@ -1,12 +1,8 @@
 import 'package:flutter/foundation.dart';
-import '../../../../core/security/biometric_auth_service.dart';
 import '../../../../core/session/auth_session_manager.dart';
 import '../../../../core/sync/background_sync_service.dart';
 import '../../../auth/domain/entities/auth_user_entity.dart';
-import '../../../auth/domain/usecases/disable_biometric_login.dart';
-import '../../../auth/domain/usecases/enable_biometric_login.dart';
 import '../../../auth/domain/usecases/get_current_session.dart';
-import '../../../auth/domain/usecases/is_biometric_login_enabled.dart';
 import '../../../auth/domain/usecases/logout.dart';
 import '../../../sync_queue/domain/entities/sync_record_entity.dart';
 import '../../../sync_queue/domain/repositories/sync_queue_repository.dart';
@@ -17,9 +13,6 @@ import '../../domain/usecases/get_storage_breakdown.dart';
 class AccountState {
   final AuthUserEntity? user;
   final bool isLoggingOut;
-  final bool biometricHardwareAvailable;
-  final bool biometricLoginEnabled;
-  final bool isTogglingBiometric;
   final int pendingSyncCount;
   final int failedSyncCount;
   final bool allSynced;
@@ -31,9 +24,6 @@ class AccountState {
   const AccountState({
     this.user,
     this.isLoggingOut = false,
-    this.biometricHardwareAvailable = false,
-    this.biometricLoginEnabled = false,
-    this.isTogglingBiometric = false,
     this.pendingSyncCount = 0,
     this.failedSyncCount = 0,
     this.allSynced = true,
@@ -59,9 +49,6 @@ class AccountState {
   AccountState copyWith({
     AuthUserEntity? user,
     bool? isLoggingOut,
-    bool? biometricHardwareAvailable,
-    bool? biometricLoginEnabled,
-    bool? isTogglingBiometric,
     int? pendingSyncCount,
     int? failedSyncCount,
     bool? allSynced,
@@ -73,11 +60,6 @@ class AccountState {
     return AccountState(
       user: user ?? this.user,
       isLoggingOut: isLoggingOut ?? this.isLoggingOut,
-      biometricHardwareAvailable:
-          biometricHardwareAvailable ?? this.biometricHardwareAvailable,
-      biometricLoginEnabled:
-          biometricLoginEnabled ?? this.biometricLoginEnabled,
-      isTogglingBiometric: isTogglingBiometric ?? this.isTogglingBiometric,
       pendingSyncCount: pendingSyncCount ?? this.pendingSyncCount,
       failedSyncCount: failedSyncCount ?? this.failedSyncCount,
       allSynced: allSynced ?? this.allSynced,
@@ -92,10 +74,6 @@ class AccountState {
 class AccountController extends ChangeNotifier {
   final GetCurrentSession _getCurrentSession;
   final Logout _logout;
-  final IsBiometricLoginEnabled _isBiometricLoginEnabled;
-  final EnableBiometricLogin _enableBiometricLogin;
-  final DisableBiometricLogin _disableBiometricLogin;
-  final BiometricAuthService _biometricAuthService;
   final SyncQueueRepository _syncQueueRepository;
   final BackgroundSyncService _backgroundSyncService;
   final GetStorageBreakdown _getStorageBreakdown;
@@ -108,10 +86,6 @@ class AccountController extends ChangeNotifier {
   AccountController({
     required GetCurrentSession getCurrentSession,
     required Logout logout,
-    required IsBiometricLoginEnabled isBiometricLoginEnabled,
-    required EnableBiometricLogin enableBiometricLogin,
-    required DisableBiometricLogin disableBiometricLogin,
-    required BiometricAuthService biometricAuthService,
     required SyncQueueRepository syncQueueRepository,
     required BackgroundSyncService backgroundSyncService,
     required GetStorageBreakdown getStorageBreakdown,
@@ -119,10 +93,6 @@ class AccountController extends ChangeNotifier {
     AuthSessionManager? authSessionManager,
   }) : _getCurrentSession = getCurrentSession,
        _logout = logout,
-       _isBiometricLoginEnabled = isBiometricLoginEnabled,
-       _enableBiometricLogin = enableBiometricLogin,
-       _disableBiometricLogin = disableBiometricLogin,
-       _biometricAuthService = biometricAuthService,
        _syncQueueRepository = syncQueueRepository,
        _backgroundSyncService = backgroundSyncService,
        _getStorageBreakdown = getStorageBreakdown,
@@ -169,17 +139,12 @@ class AccountController extends ChangeNotifier {
     if (_authSessionManager != null && _authSessionManager.currentUser == null && user != null) {
       _authSessionManager.updateUser(user);
     }
-    final hardwareAvailable = await _biometricAuthService.isAvailable();
-    final biometricEnabled = await _isBiometricLoginEnabled();
-
     _update(
       _state.copyWith(
         // Baca ulang dari AuthSessionManager, bukan `user` yang ditangkap
         // di awal fungsi ini - lihat catatan race condition yang sama di
         // HomeController.loadHome().
         user: _authSessionManager?.currentUser ?? user,
-        biometricHardwareAvailable: hardwareAvailable,
-        biometricLoginEnabled: biometricEnabled,
         isSyncing: _backgroundSyncService.isSyncing,
       ),
     );
@@ -220,30 +185,6 @@ class AccountController extends ChangeNotifier {
       final storage = await _getStorageBreakdown();
       _update(_state.copyWith(storageBreakdown: storage));
     } catch (_) {}
-  }
-
-  /// Mengaktifkan/menonaktifkan Masuk Cepat dengan Biometrik
-  Future<void> toggleBiometricLogin(bool enable) async {
-    _update(_state.copyWith(isTogglingBiometric: true));
-
-    if (enable) {
-      final verified = await _biometricAuthService.authenticate(
-        'Verifikasi untuk mengaktifkan Masuk Cepat dengan Biometrik',
-      );
-      if (verified) {
-        await _enableBiometricLogin();
-      }
-    } else {
-      await _disableBiometricLogin();
-    }
-
-    final biometricEnabled = await _isBiometricLoginEnabled();
-    _update(
-      _state.copyWith(
-        isTogglingBiometric: false,
-        biometricLoginEnabled: biometricEnabled,
-      ),
-    );
   }
 
   /// Membersihkan cache aplikasi dengan aman tanpa menghapus database / foto bukti

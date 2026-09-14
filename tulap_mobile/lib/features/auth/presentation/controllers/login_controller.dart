@@ -1,13 +1,10 @@
 import 'package:flutter/foundation.dart';
-import '../../../../core/security/biometric_auth_service.dart';
 import '../../../../core/security/oauth_sign_in_service.dart';
 import '../../domain/entities/auth_user_entity.dart';
-import '../../domain/usecases/is_biometric_login_enabled.dart';
 import '../../domain/usecases/login.dart';
 import '../../domain/usecases/login_with_apple.dart';
 import '../../domain/usecases/login_with_facebook.dart';
 import '../../domain/usecases/login_with_google.dart';
-import '../../domain/usecases/restore_biometric_session.dart';
 
 enum LoginStatus { idle, submitting, error }
 
@@ -15,26 +12,22 @@ class LoginState {
   final LoginStatus status;
   final AuthUserEntity? user;
   final String? errorMessage;
-  final bool biometricAvailable;
 
   const LoginState({
     this.status = LoginStatus.idle,
     this.user,
     this.errorMessage,
-    this.biometricAvailable = false,
   });
 
   LoginState copyWith({
     LoginStatus? status,
     AuthUserEntity? user,
     String? errorMessage,
-    bool? biometricAvailable,
   }) {
     return LoginState(
       status: status ?? this.status,
       user: user ?? this.user,
       errorMessage: errorMessage ?? this.errorMessage,
-      biometricAvailable: biometricAvailable ?? this.biometricAvailable,
     );
   }
 }
@@ -51,9 +44,6 @@ class LoginController extends ChangeNotifier {
   final LoginWithApple? _loginWithApple;
   final LoginWithFacebook? _loginWithFacebook;
   final OAuthSignInService _oauthSignInService;
-  final RestoreBiometricSession? _restoreBiometricSession;
-  final IsBiometricLoginEnabled? _isBiometricLoginEnabled;
-  final BiometricAuthService? _biometricAuthService;
 
   LoginState _state = const LoginState();
   LoginState get state => _state;
@@ -64,102 +54,15 @@ class LoginController extends ChangeNotifier {
     LoginWithApple? loginWithApple,
     LoginWithFacebook? loginWithFacebook,
     required OAuthSignInService oauthSignInService,
-    RestoreBiometricSession? restoreBiometricSession,
-    IsBiometricLoginEnabled? isBiometricLoginEnabled,
-    BiometricAuthService? biometricAuthService,
   }) : _login = login,
        _loginWithGoogle = loginWithGoogle,
        _loginWithApple = loginWithApple,
        _loginWithFacebook = loginWithFacebook,
-       _oauthSignInService = oauthSignInService,
-       _restoreBiometricSession = restoreBiometricSession,
-       _isBiometricLoginEnabled = isBiometricLoginEnabled,
-       _biometricAuthService = biometricAuthService {
-    _checkBiometric();
-  }
-
-  Future<void> _checkBiometric() async {
-    if (_isBiometricLoginEnabled != null && _restoreBiometricSession != null) {
-      final enabled = await _isBiometricLoginEnabled();
-      final hardwareAvailable = _biometricAuthService != null
-          ? await _biometricAuthService.isAvailable()
-          : true;
-      if (enabled && hardwareAvailable) {
-        _update(_state.copyWith(biometricAvailable: true));
-      }
-    }
-  }
+       _oauthSignInService = oauthSignInService;
 
   void _update(LoginState newState) {
     _state = newState;
     notifyListeners();
-  }
-
-  /// Memverifikasi sidik jari/biometrik fisik terlebih dahulu.
-  /// HANYA jika sidik jari teruji cocok/sesuai, sesi akun dipulihkan
-  /// dan user diizinkan masuk ke Beranda.
-  Future<bool> submitBiometric() async {
-    if (_restoreBiometricSession == null) return false;
-
-    // 1. Verifikasi hardware sensor sidik jari terlebih dahulu
-    if (_biometricAuthService != null) {
-      final isAvailable = await _biometricAuthService.isAvailable();
-      if (!isAvailable) {
-        _update(
-          _state.copyWith(
-            status: LoginStatus.error,
-            errorMessage: 'Sensor sidik jari tidak tersedia pada perangkat.',
-          ),
-        );
-        return false;
-      }
-
-      _update(
-        _state.copyWith(status: LoginStatus.submitting, errorMessage: null),
-      );
-
-      final verified = await _biometricAuthService.authenticate(
-        'Pindai sidik jari Anda untuk memverifikasi dan masuk ke Tulap.id',
-      );
-
-      if (!verified) {
-        _update(
-          _state.copyWith(
-            status: LoginStatus.error,
-            errorMessage: 'Sidik jari tidak cocok atau verifikasi dibatalkan.',
-          ),
-        );
-        return false;
-      }
-    } else {
-      _update(
-        _state.copyWith(status: LoginStatus.submitting, errorMessage: null),
-      );
-    }
-
-    // 2. Jika sensor sidik jari lolos pengujian & sesuai, pulihkan sesi akun
-    try {
-      final user = await _restoreBiometricSession();
-      if (user != null) {
-        _update(_state.copyWith(status: LoginStatus.idle, user: user));
-        return true;
-      }
-      _update(
-        _state.copyWith(
-          status: LoginStatus.error,
-          errorMessage: 'Sesi sidik jari tidak ditemukan. Silakan masuk dengan email & kata sandi.',
-        ),
-      );
-      return false;
-    } catch (_) {
-      _update(
-        _state.copyWith(
-          status: LoginStatus.error,
-          errorMessage: 'Gagal memulihkan sesi biometrik. Silakan coba lagi.',
-        ),
-      );
-      return false;
-    }
   }
 
   Future<bool> submit({required String email, required String password}) async {
@@ -218,6 +121,9 @@ class LoginController extends ChangeNotifier {
         },
       );
     } on OAuthNotConfiguredException catch (e) {
+      _update(LoginState(status: LoginStatus.error, errorMessage: e.message));
+      return false;
+    } on GoogleSignInMisconfiguredException catch (e) {
       _update(LoginState(status: LoginStatus.error, errorMessage: e.message));
       return false;
     } catch (_) {

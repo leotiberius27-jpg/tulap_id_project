@@ -11,10 +11,7 @@ import 'package:tulap_mobile/features/account/presentation/controllers/account_c
 import 'package:tulap_mobile/features/account/presentation/widgets/profile_header_card.dart';
 import 'package:tulap_mobile/features/auth/domain/entities/auth_user_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/repositories/auth_repository.dart';
-import 'package:tulap_mobile/features/auth/domain/usecases/disable_biometric_login.dart';
-import 'package:tulap_mobile/features/auth/domain/usecases/enable_biometric_login.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/get_current_session.dart';
-import 'package:tulap_mobile/features/auth/domain/usecases/is_biometric_login_enabled.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/logout.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/update_user_profile.dart';
 import 'package:tulap_mobile/features/home/presentation/controllers/home_controller.dart';
@@ -24,7 +21,6 @@ import 'package:tulap_mobile/features/task_detail/domain/usecases/get_active_tas
 import 'package:tulap_mobile/features/task_detail/domain/usecases/get_task_detail.dart';
 import 'package:tulap_mobile/features/account/domain/usecases/clear_app_cache.dart';
 import 'package:tulap_mobile/features/account/domain/usecases/get_storage_breakdown.dart';
-import 'package:tulap_mobile/core/security/biometric_auth_service.dart';
 
 import 'package:tulap_mobile/core/error/failures.dart';
 import 'package:tulap_mobile/features/sync_queue/domain/entities/sync_record_entity.dart';
@@ -97,18 +93,6 @@ class _FakeBackgroundSyncService extends Fake implements BackgroundSyncService {
   void removeListener(VoidCallback listener) {}
 }
 
-class _FakeBiometricAuthService extends Fake implements BiometricAuthService {
-  @override
-  Future<bool> isAvailable() async => false;
-}
-
-class _FakeIsBiometricLoginEnabled extends Fake implements IsBiometricLoginEnabled {
-  @override
-  Future<bool> call() async => false;
-}
-
-class _FakeEnableBiometricLogin extends Fake implements EnableBiometricLogin {}
-class _FakeDisableBiometricLogin extends Fake implements DisableBiometricLogin {}
 class _FakeGetStorageBreakdown extends Fake implements GetStorageBreakdown {}
 class _FakeClearAppCache extends Fake implements ClearAppCache {}
 
@@ -231,10 +215,6 @@ void main() {
       accountController = AccountController(
         getCurrentSession: GetCurrentSession(fakeAuthRepo),
         logout: Logout(fakeAuthRepo, sessionManager),
-        isBiometricLoginEnabled: _FakeIsBiometricLoginEnabled(),
-        enableBiometricLogin: _FakeEnableBiometricLogin(),
-        disableBiometricLogin: _FakeDisableBiometricLogin(),
-        biometricAuthService: _FakeBiometricAuthService(),
         syncQueueRepository: _FakeSyncQueueRepo(),
         backgroundSyncService: _FakeBackgroundSyncService(),
         getStorageBreakdown: _FakeGetStorageBreakdown(),

@@ -10,7 +10,6 @@ import 'package:tulap_mobile/core/error/failures.dart';
 import 'package:tulap_mobile/core/localization/app_language.dart';
 import 'package:tulap_mobile/core/localization/language_controller.dart';
 import 'package:tulap_mobile/core/network/network_info.dart';
-import 'package:tulap_mobile/core/security/biometric_auth_service.dart';
 import 'package:tulap_mobile/core/session/auth_session_manager.dart';
 import 'package:tulap_mobile/core/theme/app_theme_mode.dart';
 import 'package:tulap_mobile/core/theme/theme_controller.dart';
@@ -21,12 +20,9 @@ import 'package:tulap_mobile/features/account/domain/entities/account_settings_e
 import 'package:tulap_mobile/features/account/domain/entities/storage_breakdown_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/entities/auth_user_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/repositories/auth_repository.dart';
-import 'package:tulap_mobile/features/auth/domain/usecases/get_biometric_greeting_user.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/get_current_session.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login.dart';
-import 'package:tulap_mobile/features/auth/domain/usecases/restore_biometric_session.dart';
 import 'package:tulap_mobile/core/security/oauth_sign_in_service.dart';
-import 'package:tulap_mobile/features/auth/domain/usecases/is_biometric_login_enabled.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login_with_apple.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login_with_facebook.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login_with_google.dart';
@@ -126,21 +122,6 @@ class _NoSessionAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<bool> isBiometricLoginEnabled() async => false;
-
-  @override
-  Future<void> enableBiometricLogin() async {}
-
-  @override
-  Future<void> disableBiometricLogin() async {}
-
-  @override
-  Future<AuthUserEntity?> getBiometricGreetingUser() async => null;
-
-  @override
-  Future<AuthUserEntity?> restoreBiometricSession() async => null;
-
-  @override
   Future<Either<Failure, AuthUserEntity>> updateProfile({
     required String fullName,
     String? phoneNumber,
@@ -214,12 +195,6 @@ void main() {
       () => Login(fakeRepository, sl<AuthSessionManager>()),
     );
     sl.registerLazySingleton<NetworkInfo>(() => _FakeNetworkInfo());
-    sl.registerLazySingleton<GetBiometricGreetingUser>(
-      () => GetBiometricGreetingUser(fakeRepository),
-    );
-    sl.registerLazySingleton<RestoreBiometricSession>(
-      () => RestoreBiometricSession(fakeRepository, sl<AuthSessionManager>()),
-    );
     sl.registerLazySingleton<LoginWithGoogle>(
       () => LoginWithGoogle(fakeRepository, sl<AuthSessionManager>()),
     );
@@ -231,12 +206,6 @@ void main() {
     );
     sl.registerLazySingleton<OAuthSignInService>(
       () => _FakeOAuthSignInService(),
-    );
-    sl.registerLazySingleton<IsBiometricLoginEnabled>(
-      () => IsBiometricLoginEnabled(fakeRepository),
-    );
-    sl.registerLazySingleton<BiometricAuthService>(
-      () => BiometricAuthService(),
     );
     sl.registerLazySingleton<TulaPositionStore>(() => const TulaPositionStore());
     sl.registerLazySingleton<TulaVisibilityController>(

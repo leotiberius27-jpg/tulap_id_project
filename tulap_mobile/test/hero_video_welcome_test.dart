@@ -5,17 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tulap_mobile/core/error/failures.dart';
 import 'package:tulap_mobile/core/network/network_info.dart';
-import 'package:tulap_mobile/core/security/biometric_auth_service.dart';
 import 'package:tulap_mobile/core/security/oauth_sign_in_service.dart';
 import 'package:tulap_mobile/features/auth/domain/entities/auth_user_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/repositories/auth_repository.dart';
-import 'package:tulap_mobile/features/auth/domain/usecases/get_biometric_greeting_user.dart';
-import 'package:tulap_mobile/features/auth/domain/usecases/is_biometric_login_enabled.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login_with_apple.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login_with_facebook.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/login_with_google.dart';
-import 'package:tulap_mobile/features/auth/domain/usecases/restore_biometric_session.dart';
 import 'package:tulap_mobile/features/auth/presentation/pages/welcome_page.dart';
 
 class _FakeNetworkInfo extends NetworkInfo {
@@ -24,23 +20,6 @@ class _FakeNetworkInfo extends NetworkInfo {
 
   @override
   Future<bool> get isConnected async => online;
-}
-
-class _FakeBiometricAuthService implements BiometricAuthService {
-  bool available = true;
-  bool shouldSucceed = true;
-
-  @override
-  Future<bool> isAvailable() async => available;
-
-  @override
-  Future<bool> authenticate(String reason) async => shouldSucceed;
-
-  @override
-  Future<bool> isSupported() async => available;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeOAuthService implements OAuthSignInService {
@@ -61,15 +40,6 @@ class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<AuthUserEntity?> getStoredUser() async => storedUser;
-
-  @override
-  Future<AuthUserEntity?> getBiometricGreetingUser() async => storedUser;
-
-  @override
-  Future<AuthUserEntity?> restoreBiometricSession() async => storedUser;
-
-  @override
-  Future<bool> isBiometricLoginEnabled() async => false;
 
   @override
   Future<Either<Failure, AuthUserEntity>> login({
@@ -140,13 +110,11 @@ class _FakeAuthRepository implements AuthRepository {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late _FakeNetworkInfo fakeNetwork;
-  late _FakeBiometricAuthService fakeBiometric;
   late _FakeOAuthService fakeOAuth;
   late _FakeAuthRepository fakeRepo;
 
   setUp(() {
     fakeNetwork = _FakeNetworkInfo(online: true);
-    fakeBiometric = _FakeBiometricAuthService();
     fakeOAuth = _FakeOAuthService();
     fakeRepo = _FakeAuthRepository();
 
@@ -154,17 +122,7 @@ void main() {
     sl.reset();
 
     sl.registerLazySingleton<NetworkInfo>(() => fakeNetwork);
-    sl.registerLazySingleton<BiometricAuthService>(() => fakeBiometric);
     sl.registerLazySingleton<OAuthSignInService>(() => fakeOAuth);
-    sl.registerLazySingleton<GetBiometricGreetingUser>(
-      () => GetBiometricGreetingUser(fakeRepo),
-    );
-    sl.registerLazySingleton<RestoreBiometricSession>(
-      () => RestoreBiometricSession(fakeRepo),
-    );
-    sl.registerLazySingleton<IsBiometricLoginEnabled>(
-      () => IsBiometricLoginEnabled(fakeRepo),
-    );
     sl.registerLazySingleton<Login>(() => Login(fakeRepo));
     sl.registerLazySingleton<LoginWithGoogle>(() => LoginWithGoogle(fakeRepo));
     sl.registerLazySingleton<LoginWithApple>(() => LoginWithApple(fakeRepo));
@@ -220,7 +178,6 @@ void main() {
 
           // 3. Verifikasi Action Buttons
           expect(find.text('Masuk'), findsOneWidget);
-          expect(find.byIcon(Icons.fingerprint_rounded), findsOneWidget);
 
           // Zero exceptions / zero overflows
           expect(tester.takeException(), isNull);

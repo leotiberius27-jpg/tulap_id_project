@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tulap_mobile/app/di/injection_container.dart';
 import 'package:tulap_mobile/core/error/failures.dart';
-import 'package:tulap_mobile/core/security/biometric_auth_service.dart';
 import 'package:tulap_mobile/core/sync/background_sync_service.dart';
 import 'package:tulap_mobile/core/localization/app_language.dart';
 import 'package:tulap_mobile/core/localization/language_controller.dart';
@@ -34,10 +33,7 @@ import 'package:tulap_mobile/features/account/presentation/widgets/profile_heade
 import 'package:tulap_mobile/features/auth/data/models/auth_user_model.dart';
 import 'package:tulap_mobile/features/auth/domain/entities/auth_user_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/repositories/auth_repository.dart';
-import 'package:tulap_mobile/features/auth/domain/usecases/disable_biometric_login.dart';
-import 'package:tulap_mobile/features/auth/domain/usecases/enable_biometric_login.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/get_current_session.dart';
-import 'package:tulap_mobile/features/auth/domain/usecases/is_biometric_login_enabled.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/logout.dart';
 import 'package:tulap_mobile/features/sync_queue/domain/entities/sync_record_entity.dart';
 import 'package:tulap_mobile/features/sync_queue/domain/repositories/sync_queue_repository.dart';
@@ -86,8 +82,6 @@ class _MockAuthRepository implements AuthRepository {
     phoneNumber: '08123456789',
   );
 
-  bool biometricEnabled = false;
-
   @override
   Future<AuthUserEntity?> getStoredUser() async => currentUser;
 
@@ -95,25 +89,6 @@ class _MockAuthRepository implements AuthRepository {
   Future<void> logout() async {
     currentUser = null;
   }
-
-  @override
-  Future<bool> isBiometricLoginEnabled() async => biometricEnabled;
-
-  @override
-  Future<void> enableBiometricLogin() async {
-    biometricEnabled = true;
-  }
-
-  @override
-  Future<void> disableBiometricLogin() async {
-    biometricEnabled = false;
-  }
-
-  @override
-  Future<AuthUserEntity?> getBiometricGreetingUser() async => currentUser;
-
-  @override
-  Future<AuthUserEntity?> restoreBiometricSession() async => currentUser;
 
   @override
   Future<Either<Failure, AuthUserEntity>> login({
@@ -267,21 +242,12 @@ class _MockAccountLocalDataSource implements AccountLocalDataSource {
   }
 }
 
-class _MockBiometricAuthService extends BiometricAuthService {
-  @override
-  Future<bool> isAvailable() async => true;
-
-  @override
-  Future<bool> authenticate(String reason) async => true;
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late _MockAuthRepository mockAuthRepo;
   late _MockSyncQueueRepository mockSyncRepo;
   late _MockAccountLocalDataSource mockAccountLocal;
-  late _MockBiometricAuthService mockBiometric;
   late AccountRepository accountRepo;
   late BackgroundSyncService backgroundSync;
 
@@ -289,7 +255,6 @@ void main() {
     mockAuthRepo = _MockAuthRepository();
     mockSyncRepo = _MockSyncQueueRepository();
     mockAccountLocal = _MockAccountLocalDataSource();
-    mockBiometric = _MockBiometricAuthService();
     accountRepo = AccountRepositoryImpl(localDataSource: mockAccountLocal);
 
     final netInfo = _FakeNetworkInfo();
@@ -314,9 +279,6 @@ void main() {
 
     if (sl.isRegistered<AccountRepository>()) sl.unregister<AccountRepository>();
     sl.registerSingleton<AccountRepository>(accountRepo);
-
-    if (sl.isRegistered<BiometricAuthService>()) sl.unregister<BiometricAuthService>();
-    sl.registerSingleton<BiometricAuthService>(mockBiometric);
 
     if (sl.isRegistered<LanguageController>()) sl.unregister<LanguageController>();
     sl.registerSingleton<LanguageController>(LanguageController(localDataSource: mockAccountLocal));
@@ -415,10 +377,6 @@ void main() {
       final controller = AccountController(
         getCurrentSession: GetCurrentSession(mockAuthRepo),
         logout: Logout(mockAuthRepo),
-        isBiometricLoginEnabled: IsBiometricLoginEnabled(mockAuthRepo),
-        enableBiometricLogin: EnableBiometricLogin(mockAuthRepo),
-        disableBiometricLogin: DisableBiometricLogin(mockAuthRepo),
-        biometricAuthService: mockBiometric,
         syncQueueRepository: mockSyncRepo,
         backgroundSyncService: backgroundSync,
         getStorageBreakdown: GetStorageBreakdown(accountRepo),
@@ -429,36 +387,9 @@ void main() {
 
       expect(controller.state.user, isNotNull);
       expect(controller.state.user?.fullName, equals('Leo Tiberius'));
-      expect(controller.state.biometricHardwareAvailable, isTrue);
       expect(controller.state.allSynced, isTrue);
       expect(controller.state.syncStatusSubtitle, contains('Semua data tersinkronisasi'));
       expect(controller.state.storageBreakdown, isNotNull);
-
-      controller.dispose();
-    });
-
-    test('Toggles biometric login state', () async {
-      final controller = AccountController(
-        getCurrentSession: GetCurrentSession(mockAuthRepo),
-        logout: Logout(mockAuthRepo),
-        isBiometricLoginEnabled: IsBiometricLoginEnabled(mockAuthRepo),
-        enableBiometricLogin: EnableBiometricLogin(mockAuthRepo),
-        disableBiometricLogin: DisableBiometricLogin(mockAuthRepo),
-        biometricAuthService: mockBiometric,
-        syncQueueRepository: mockSyncRepo,
-        backgroundSyncService: backgroundSync,
-        getStorageBreakdown: GetStorageBreakdown(accountRepo),
-        clearAppCache: ClearAppCache(accountRepo),
-      );
-
-      await Future.delayed(const Duration(milliseconds: 50));
-      expect(controller.state.biometricLoginEnabled, isFalse);
-
-      await controller.toggleBiometricLogin(true);
-      expect(controller.state.biometricLoginEnabled, isTrue);
-
-      await controller.toggleBiometricLogin(false);
-      expect(controller.state.biometricLoginEnabled, isFalse);
 
       controller.dispose();
     });
@@ -467,10 +398,6 @@ void main() {
       final controller = AccountController(
         getCurrentSession: GetCurrentSession(mockAuthRepo),
         logout: Logout(mockAuthRepo),
-        isBiometricLoginEnabled: IsBiometricLoginEnabled(mockAuthRepo),
-        enableBiometricLogin: EnableBiometricLogin(mockAuthRepo),
-        disableBiometricLogin: DisableBiometricLogin(mockAuthRepo),
-        biometricAuthService: mockBiometric,
         syncQueueRepository: mockSyncRepo,
         backgroundSyncService: backgroundSync,
         getStorageBreakdown: GetStorageBreakdown(accountRepo),
@@ -517,7 +444,6 @@ void main() {
       // 3. Check Rows
       expect(find.text('Informasi Profil'), findsOneWidget);
       expect(find.text('Keamanan & Login'), findsOneWidget);
-      expect(find.text('Login Biometrik'), findsOneWidget);
       expect(find.text('Status Sinkronisasi'), findsOneWidget);
       expect(find.text('Penyimpanan Perangkat'), findsOneWidget);
       expect(find.text('Data & Cache'), findsOneWidget);

@@ -27,7 +27,6 @@ import '../../core/security/mock_location_detector.dart';
 import '../../core/security/report_security_event.dart';
 import '../../core/security/root_detector.dart';
 import '../../core/security/security_event_local_datasource.dart';
-import '../../core/security/biometric_auth_service.dart';
 import '../../core/security/oauth_sign_in_service.dart';
 import '../../core/session/auth_session_manager.dart';
 import '../../core/sync/background_sync_service.dart';
@@ -39,19 +38,14 @@ import '../../features/auth/data/datasources/auth_local_datasource.dart';
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
-import '../../features/auth/domain/usecases/disable_biometric_login.dart';
-import '../../features/auth/domain/usecases/enable_biometric_login.dart';
 import '../../features/auth/domain/usecases/forgot_password.dart';
-import '../../features/auth/domain/usecases/get_biometric_greeting_user.dart';
 import '../../features/auth/domain/usecases/get_current_session.dart';
-import '../../features/auth/domain/usecases/is_biometric_login_enabled.dart';
 import '../../features/auth/domain/usecases/login.dart';
 import '../../features/auth/domain/usecases/login_with_apple.dart';
 import '../../features/auth/domain/usecases/login_with_facebook.dart';
 import '../../features/auth/domain/usecases/login_with_google.dart';
 import '../../features/auth/domain/usecases/logout.dart';
 import '../../features/auth/domain/usecases/reset_password.dart';
-import '../../features/auth/domain/usecases/restore_biometric_session.dart';
 import '../../features/auth/domain/usecases/self_register.dart';
 import '../../features/auth/domain/usecases/update_user_profile.dart';
 
@@ -327,25 +321,9 @@ Future<void> initDependencies({Database? database}) async {
   sl.registerLazySingleton<LoginWithFacebook>(
     () => LoginWithFacebook(sl(), sl()),
   );
-  sl.registerLazySingleton<IsBiometricLoginEnabled>(
-    () => IsBiometricLoginEnabled(sl()),
-  );
-  sl.registerLazySingleton<EnableBiometricLogin>(
-    () => EnableBiometricLogin(sl()),
-  );
-  sl.registerLazySingleton<DisableBiometricLogin>(
-    () => DisableBiometricLogin(sl()),
-  );
-  sl.registerLazySingleton<GetBiometricGreetingUser>(
-    () => GetBiometricGreetingUser(sl()),
-  );
-  sl.registerLazySingleton<RestoreBiometricSession>(
-    () => RestoreBiometricSession(sl(), sl()),
-  );
   sl.registerLazySingleton<UpdateUserProfile>(
     () => UpdateUserProfile(sl(), sl()),
   );
-  sl.registerLazySingleton<BiometricAuthService>(() => BiometricAuthService());
   sl.registerLazySingleton<OAuthSignInService>(() => OAuthSignInService());
 
   // ============================================================

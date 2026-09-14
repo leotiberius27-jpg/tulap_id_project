@@ -15,12 +15,6 @@ import java.io.File
 /// untuk menaikkan usaha yang dibutuhkan pemalsu GPS, sejalan dengan
 /// catatan RootDetector.dart bahwa sumber deteksi bisa diganti kapan
 /// pun (mis. `safe_device`) tanpa mengubah kode pemanggil.
-///
-/// PENTING: FlutterFragmentActivity (bukan FlutterActivity biasa) -
-/// package `local_auth` (Masuk Cepat dengan Biometrik) MEWAJIBKAN
-/// androidx.fragment.app.FragmentActivity untuk menampilkan dialog
-/// prompt biometrik Android; dengan FlutterActivity biasa method
-/// `authenticate()`-nya crash di runtime.
 /// ----------------------------------------------------------------------
 class MainActivity : FlutterFragmentActivity() {
     private val CHANNEL = "id.tulap.security/device_integrity"

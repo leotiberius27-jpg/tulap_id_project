@@ -23,14 +23,6 @@ class AuthRepositoryImpl implements AuthRepository {
   }) : _remoteDataSource = remoteDataSource,
        _localDataSource = localDataSource;
 
-  static final AuthUserModel _defaultDemoUser = AuthUserModel(
-    id: 'usr_local_01',
-    fullName: 'Leonardo',
-    email: 'leonardo@tulap.id',
-    role: 'PEGAWAI',
-    instansiName: 'BPKAD Kabupaten Mimika',
-  );
-
   @override
   Future<Either<Failure, AuthUserEntity>> login({
     required String email,
@@ -356,39 +348,6 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       return Right(savedFb);
     }
-  }
-
-  @override
-  Future<bool> isBiometricLoginEnabled() {
-    return _localDataSource.hasBiometricBackup();
-  }
-
-  @override
-  Future<void> enableBiometricLogin() {
-    return _localDataSource.saveBiometricBackup();
-  }
-
-  @override
-  Future<void> disableBiometricLogin() {
-    return _localDataSource.clearBiometricBackup();
-  }
-
-  @override
-  Future<AuthUserEntity?> getBiometricGreetingUser() async {
-    final user = await _localDataSource.getBiometricBackupUser();
-    return user ?? _defaultDemoUser;
-  }
-
-  @override
-  Future<AuthUserEntity?> restoreBiometricSession() async {
-    final user = await _localDataSource.restoreBiometricSession();
-    if (user != null) return user;
-    final savedDemo = await _localDataSource.saveSession(
-      accessToken: 'mock-biometric-access-token',
-      refreshToken: 'mock-biometric-refresh-token',
-      user: _defaultDemoUser,
-    );
-    return savedDemo;
   }
 
   /// Memperbarui profil DI BACKEND (bukan hanya lokal) - PATCH /users/me
