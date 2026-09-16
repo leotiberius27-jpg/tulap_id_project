@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -37,6 +39,9 @@ class _LocationDistributionMapPageState
   TopLocationStat? _selected;
 
   late final AnimationController _pulseController;
+  Timer? _pulseTimer;
+  Set<Marker> _markers = {};
+  Set<Circle> _circles = {};
 
   @override
   void initState() {
@@ -45,13 +50,35 @@ class _LocationDistributionMapPageState
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat();
+    _markers = _buildMarkers();
+    _circles = _buildPulseCircles();
+
+    // GoogleMap adalah native view - setiap perubahan `circles`/`markers`
+    // dikirim lewat platform channel. Sebelumnya animasi denyut dibangun
+    // dengan AnimatedBuilder yang rebuild SELURUH Stack (termasuk
+    // GoogleMap) di SETIAP frame (~60x/detik) selama halaman ini terbuka,
+    // membanjiri platform channel dan membuat peta macet-macet di
+    // perangkat fisik. Di-throttle ke ~8x/detik lewat Timer - animasi
+    // denyut tetap terlihat mengalir tanpa membanjiri channel tersebut.
+    _pulseTimer = Timer.periodic(const Duration(milliseconds: 120), (_) {
+      if (!mounted) return;
+      setState(() => _circles = _buildPulseCircles());
+    });
   }
 
   @override
   void dispose() {
+    _pulseTimer?.cancel();
     _pulseController.dispose();
     _mapController?.dispose();
     super.dispose();
+  }
+
+  void _selectLocation(TopLocationStat? loc) {
+    setState(() {
+      _selected = loc;
+      _markers = _buildMarkers();
+    });
   }
 
   List<TopLocationStat> get _plotted => widget.topLocations
@@ -117,7 +144,7 @@ class _LocationDistributionMapPageState
         ),
         infoWindow: InfoWindow(title: loc.location, snippet: '${loc.count} kegiatan'),
         onTap: () {
-          setState(() => _selected = loc);
+          _selectLocation(loc);
           _mapController?.animateCamera(
             CameraUpdate.newLatLng(LatLng(loc.latitude!, loc.longitude!)),
           );
@@ -164,42 +191,39 @@ class _LocationDistributionMapPageState
           Expanded(
             child: plotted.isEmpty
                 ? _buildEmptyCoordinatesState(isDark)
-                : AnimatedBuilder(
-                    animation: _pulseController,
-                    builder: (context, _) => Stack(
-                      children: [
-                        GoogleMap(
-                          initialCameraPosition: _initialCamera(),
-                          onMapCreated: _onMapCreated,
-                          markers: _buildMarkers(),
-                          circles: _buildPulseCircles(),
-                          myLocationButtonEnabled: false,
-                          zoomControlsEnabled: true,
-                          onTap: (_) => setState(() => _selected = null),
-                        ),
-                        Positioned(
-                          left: 16,
-                          right: 16,
-                          bottom: 16,
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 220),
-                            transitionBuilder: (child, animation) => SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0, 0.3),
-                                end: Offset.zero,
-                              ).animate(animation),
-                              child: FadeTransition(opacity: animation, child: child),
-                            ),
-                            child: _selected == null
-                                ? const SizedBox.shrink(key: ValueKey('empty'))
-                                : _SelectedLocationCard(
-                                    key: ValueKey(_selected!.location),
-                                    location: _selected!,
-                                  ),
+                : Stack(
+                    children: [
+                      GoogleMap(
+                        initialCameraPosition: _initialCamera(),
+                        onMapCreated: _onMapCreated,
+                        markers: _markers,
+                        circles: _circles,
+                        myLocationButtonEnabled: false,
+                        zoomControlsEnabled: true,
+                        onTap: (_) => _selectLocation(null),
+                      ),
+                      Positioned(
+                        left: 16,
+                        right: 16,
+                        bottom: 16,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          transitionBuilder: (child, animation) => SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.3),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: FadeTransition(opacity: animation, child: child),
                           ),
+                          child: _selected == null
+                              ? const SizedBox.shrink(key: ValueKey('empty'))
+                              : _SelectedLocationCard(
+                                  key: ValueKey(_selected!.location),
+                                  location: _selected!,
+                                ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
           ),
           if (unplotted.isNotEmpty) _buildUnplottedList(unplotted, isDark),

@@ -291,43 +291,66 @@ class HomeController extends ChangeNotifier {
     FastLocationService.instance.startWarmUp();
     _update(_state.copyWith(status: HomeStatus.loading));
 
-    final user = _authSessionManager?.currentUser ?? await _getCurrentSession();
+    final activePeriod = _state.safePeriod;
+    final cachedUser = _authSessionManager?.currentUser;
+
+    // Semua panggilan yang TIDAK saling bergantung dijalankan PARALEL
+    // (bukan berurutan seperti sebelumnya) - waktu tunggu Beranda dulu
+    // adalah JUMLAH semua round-trip (task list + task detail + dashboard
+    // analytics + dst, satu per satu), sekarang jadi hanya operasi
+    // TERLAMA saja. Ini sumber utama loading Beranda yang sangat lama
+    // setelah login, ditemukan lewat laporan pengguna langsung.
+    final userFuture = cachedUser != null
+        ? Future.value(cachedUser)
+        : _getCurrentSession();
+    final onlineFuture = _networkInfo.isConnected;
+    final tasksFuture = _getActiveTasks();
+    final syncFuture = _syncQueueRepository.getAllRecords();
+    final unreadFuture = _getUnreadNotificationCount?.call();
+    final dashboardFuture = _getDashboardAnalytics?.call(period: activePeriod);
+
+    final user = await userFuture;
     if (_authSessionManager != null && _authSessionManager.currentUser == null && user != null) {
       _authSessionManager.updateUser(user);
     }
-    final isOnline = await _networkInfo.isConnected;
+    final isOnline = await onlineFuture;
 
     TaskEntity? activeTask;
     List<TaskEntity> allActiveTasks = const [];
-    final tasksResult = await _getActiveTasks();
-    await tasksResult.fold(
-      (_) async {
-        activeTask = null;
-      },
-      (tasks) async {
-        allActiveTasks = tasks;
-        final candidate = _pickActiveTask(tasks);
-        if (candidate != null) {
-          final detailResult = await _getTaskDetail(candidate.id);
-          activeTask = detailResult.fold((_) => candidate, (detail) => detail);
-        }
-      },
-    );
+    TaskEntity? candidate;
+    final tasksResult = await tasksFuture;
+    tasksResult.fold((_) {}, (tasks) {
+      allActiveTasks = tasks;
+      candidate = _pickActiveTask(tasks);
+    });
+
+    // Detail tugas aktif & preview foto tiap tugas juga independen satu
+    // sama lain - dimulai bersamaan, baru di-await.
+    final detailFuture = candidate != null ? _getTaskDetail(candidate!.id) : null;
+    final getTaskPhotoPreviews = _getTaskPhotoPreviews;
+    final photoFutures = getTaskPhotoPreviews != null
+        ? allActiveTasks.map((t) => getTaskPhotoPreviews(t.id)).toList()
+        : null;
+
+    if (detailFuture != null) {
+      final detailResult = await detailFuture;
+      activeTask = detailResult.fold((_) => candidate, (detail) => detail);
+    }
 
     // Muat cover photo untuk tugas-tugas aktif
     final Map<String, String?> photoMap = {};
-    if (_getTaskPhotoPreviews != null) {
-      for (final task in allActiveTasks) {
-        final photosResult = await _getTaskPhotoPreviews(task.id);
-        photosResult.fold((_) => null, (photos) {
+    if (photoFutures != null && photoFutures.isNotEmpty) {
+      final photoResults = await Future.wait(photoFutures);
+      for (var i = 0; i < allActiveTasks.length; i++) {
+        photoResults[i].fold((_) => null, (photos) {
           if (photos.isNotEmpty) {
-            photoMap[task.id] = photos.first.localFilePath;
+            photoMap[allActiveTasks[i].id] = photos.first.localFilePath;
           }
         });
       }
     }
 
-    final syncResult = await _syncQueueRepository.getAllRecords();
+    final syncResult = await syncFuture;
     final records = syncResult.fold(
       (_) => const <SyncRecordEntity>[],
       (records) => records,
@@ -342,34 +365,35 @@ class HomeController extends ChangeNotifier {
         .where((r) => r.status == SyncStatus.synced)
         .length;
 
-    // Evaluasi notifikasi antrean sinkronisasi
-    await _notificationCoordinator?.evaluateSyncQueue(
+    // Efek samping notifikasi lokal (SQLite, bukan network) - tidak perlu
+    // memblokir tampilnya Beranda, jadi tidak di-await. unreadCount final
+    // tetap diambil dari unreadFuture yang sudah berjalan paralel sejak
+    // awal fungsi ini.
+    unawaited(_notificationCoordinator?.evaluateSyncQueue(
       pendingCount: pendingCount,
       failedCount: failedCount,
       syncedCount: syncedCount,
-    );
+    ));
 
-    // Evaluasi notifikasi kegiatan aktif
     if (activeTask != null && activeTask!.status == TaskStatusEntity.ongoing) {
       final completed = activeTask!.checklistItems.where((c) => c.isCompleted).length;
       final total = activeTask!.checklistItems.length;
-      await _notificationCoordinator?.notifyActiveTask(
+      unawaited(_notificationCoordinator?.notifyActiveTask(
         taskId: activeTask!.id,
         taskName: activeTask!.taskName,
         completedChecklists: completed,
         totalChecklists: total,
-      );
+      ));
     }
 
     // Ambil hitungan real notifikasi yang belum dibaca
-    final unreadResult = await _getUnreadNotificationCount?.call();
+    final unreadResult = await unreadFuture;
     final unreadCount = unreadResult?.fold((_) => 0, (c) => c) ?? 0;
 
     // Phase 11: Muat analitik dashboard
     DashboardSummaryEntity? dashboardSummary;
-    final activePeriod = _state.safePeriod;
-    if (_getDashboardAnalytics != null) {
-      final summaryResult = await _getDashboardAnalytics(period: activePeriod);
+    if (dashboardFuture != null) {
+      final summaryResult = await dashboardFuture;
       dashboardSummary = summaryResult.fold((_) => null, (s) => s);
     }
 
