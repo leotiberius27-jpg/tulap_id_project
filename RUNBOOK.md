@@ -99,10 +99,29 @@ flutter run --dart-define=API_BASE_URL=http://<IP_LAN_KOMPUTER>:3000
    sama-sama di komputer ini, tidak lewat jaringan HP sama sekali).
 4. **MinIO (`tulap-minio` container Docker) harus benar-benar
    berjalan** - cek dengan `docker ps`, kalau statusnya "Exited" jalankan
-   `docker start tulap-minio`. Tanpa ini, upload foto/nota/LPJ gagal
-   dengan "Internal server error" (bukan "tidak dapat terhubung ke
-   server" - request-nya sampai ke backend, backend-nya yang gagal
-   menghubungi MinIO).
+   `docker start tulap-minio`. Tanpa ini, upload foto/nota/LPJ/avatar
+   GAGAL DI MOBILE dengan pesan **"Tidak dapat terhubung ke server.
+   Periksa koneksi internet Anda."** - bukan salah baca koneksi HP,
+   tapi request BENAR-BENAR menggantung karena AWS S3 SDK di backend
+   retry berkali-kali mencoba konek ke MinIO yang mati sampai melewati
+   `receiveTimeout` 30 detik di Dio (mobile), jadi Dio melempar error
+   TANPA response sama sekali dari server - persis kejadian nyata yang
+   ditemukan 2026-09-16/17 (`tulap-minio` mati sendiri "Exited (255)"
+   setelah komputer lama tidak restart Docker Desktop).
+5. **`S3_PUBLIC_URL_BASE` yang isinya IP LAN (poin 3 di atas) TIDAK
+   otomatis mengikuti kalau IP komputer berubah** (ganti WiFi, DHCP
+   renew, restart router) - `photoUrl` yang SUDAH TERSIMPAN di database
+   dari upload sebelumnya tetap membawa IP LAMA selamanya (URL final
+   disimpan sebagai string utuh saat upload, BUKAN dihitung ulang saat
+   dibaca - lihat `S3StorageService.uploadFile()`). Gejalanya BUKAN
+   gagal simpan - PATCH/POST berhasil ("Profil berhasil diperbarui"),
+   tapi foto tampil kosong/inisial placeholder karena Image.network
+   gagal fetch dari IP yang sudah tidak ada. Fix: samakan
+   `S3_PUBLIC_URL_BASE` dengan IP LAN AKTIF SEKARANG (`ipconfig` >
+   IPv4 Address di adapter WiFi), restart backend, lalu upload ULANG
+   foto yang terdampak (foto lama tidak bisa diperbaiki tanpa migrasi
+   data manual). Kejadian nyata 2026-09-17: IP berubah dari
+   `10.181.220.200` ke `10.230.74.200` di sesi yang sama.
 
 **⚠️ PENTING - Masuk dengan Google/Apple perlu dart-define, SELALU
 sertakan di setiap `flutter run`/`flutter build apk` mulai sekarang:**
