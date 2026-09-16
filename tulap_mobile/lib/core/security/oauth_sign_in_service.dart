@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -26,6 +27,29 @@ const String kAppleOAuthRedirectUri = String.fromEnvironment(
 class OAuthNotConfiguredException implements Exception {
   final String message;
   OAuthNotConfiguredException(this.message);
+  @override
+  String toString() => message;
+}
+
+/// Dilempar saat SDK Google Sign-In gagal karena project Firebase/Google
+/// Cloud belum "mengenal" build ini - BUKAN karena user salah pilih akun
+/// atau koneksi jelek. Penyebab paling umum (gotcha yang sudah berulang
+/// beberapa kali):
+///   1. Fingerprint SHA-1 keystore yang dipakai build ini belum
+///      didaftarkan di Firebase Console (Project Settings > Your apps >
+///      Android app > Add fingerprint) - SETIAP debug.keystore baru
+///      (mesin baru, SDK di-reset) punya SHA-1 berbeda dan harus
+///      didaftarkan ulang, begitu juga keystore release.
+///   2. `android/app/google-services.json` belum di-download ULANG
+///      setelah SHA-1 di atas ditambahkan atau setelah provider Google
+///      diaktifkan di Firebase Authentication - filenya perlu punya
+///      entry `oauth_client` (client_type 3/Web) supaya idToken bisa
+///      diterbitkan; tanpa itu SDK gagal diam-diam atau idToken null.
+/// Pesan aslinya (dari PlatformException/SDK) disertakan supaya sesi
+/// berikutnya tidak perlu mengulang investigasi logcat dari nol.
+class GoogleSignInMisconfiguredException implements Exception {
+  final String message;
+  GoogleSignInMisconfiguredException(this.message);
   @override
   String toString() => message;
 }
@@ -80,15 +104,30 @@ class OAuthSignInService {
         account = null;
       }
     }
-    account ??= await _google.signIn();
-    if (account == null) return null; // Dialog dibatalkan user
+    try {
+      account ??= await _google.signIn();
+      if (account == null) return null; // Dialog dibatalkan user
 
-    final auth = await account.authentication;
-    final token = auth.idToken;
-    if (token == null) {
-      throw Exception('Google tidak mengembalikan idToken.');
+      final auth = await account.authentication;
+      final token = auth.idToken;
+      if (token == null) {
+        throw GoogleSignInMisconfiguredException(
+          'Google tidak mengembalikan idToken (SDK sukses tapi token kosong). '
+          'Biasanya karena android/app/google-services.json belum punya '
+          'oauth_client Web - cek provider Google di Firebase Authentication '
+          'sudah aktif dan file google-services.json sudah di-download ulang.',
+        );
+      }
+      return (idToken: token, email: account.email, displayName: account.displayName);
+    } on PlatformException catch (e) {
+      throw GoogleSignInMisconfiguredException(
+        'Google Sign-In gagal di level SDK (code=${e.code}, message=${e.message}). '
+        'Penyebab paling sering: fingerprint SHA-1 keystore build ini belum '
+        'didaftarkan di Firebase Console (Project Settings > Your apps > '
+        'Android app > Add fingerprint), atau google-services.json belum '
+        'di-download ulang setelah itu.',
+      );
     }
-    return (idToken: token, email: account.email, displayName: account.displayName);
   }
 
   /// Mengembalikan (identityToken, fullName) dari Sign In with Apple

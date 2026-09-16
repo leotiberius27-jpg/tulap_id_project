@@ -12,7 +12,28 @@
           "package_name": "id.tulap.tulap_mobile"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "774895050810-0pngh7aedng2vhdf3ho1i98npe0jps84.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "id.tulap.tulap_mobile",
+            "certificate_hash": "dacd0e389ff1e3599d55c23ee2b5f097c6c22e18"
+          }
+        },
+        {
+          "client_id": "774895050810-0q3gvceakbf9nq1nonp48iclhiv19tu9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "id.tulap.tulap_mobile",
+            "certificate_hash": "0a4a221012aa4331a01c7f087caf39cb449cfe11"
+          }
+        },
+        {
+          "client_id": "774895050810-qb3jsksfb4rsuk8j4m72rp7h2gd35lb7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCvKOYW5pCknJkFgZS6pYunee9BuL3Ftrg"
@@ -20,7 +41,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "774895050810-qb3jsksfb4rsuk8j4m72rp7h2gd35lb7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

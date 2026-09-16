@@ -50,3 +50,7 @@ app.*.map.json
 /android/key.properties
 /android/*.jks
 /android/*.keystore
+
+# OAuth client IDs for --dart-define-from-file (GOOGLE_OAUTH_CLIENT_ID dst.)
+# - sama persis dengan tulap_backend/.env, JANGAN commit. Lihat RUNBOOK.md.
+/dart_define.local.json

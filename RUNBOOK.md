@@ -122,7 +122,71 @@ sama persis dengan `GOOGLE_OAUTH_CLIENT_ID` di `tulap_backend/.env`
 nyata: sesi debugging Maps/FCM/Firestore sempat berulang kali
 menjalankan `flutter build apk --debug` polos (tanpa flag ini) dan
 menimpa build yang sebelumnya benar di perangkat fisik, membuat Google
-Sign-In berhenti bekerja sebagai efek samping tak disengaja.
+Sign-In berhenti bekerja sebagai efek samping tak disengaja. Terjadi
+LAGI persis sama tanggal 2026-09-14 (sesi debugging loading Beranda/Peta)
+- peringatan tulisan saja tidak cukup, siapapun (termasuk AI assistant)
+gampang lupa membaca RUNBOOK sebelum sekadar `flutter run` ulang.
+
+**Mitigasi permanen (sudah dipasang, jangan hapus):**
+`tulap_mobile/dart_define.local.json` (di-gitignore, isinya disalin dari
+`tulap_backend/.env`) menyimpan `GOOGLE_OAUTH_CLIENT_ID`/`APPLE_OAUTH_CLIENT_ID`
+secara permanen di mesin ini, dan run configuration Android Studio
+(`.idea/runConfigurations/main_dart.xml`, juga di-gitignore) sudah
+diset untuk selalu memakainya lewat `--dart-define-from-file`. Jadi:
+- **Lewat Android Studio**: jalankan seperti biasa, flag-nya otomatis ikut.
+- **Lewat CLI**: WAJIB pakai
+  `flutter run --dart-define-from-file=dart_define.local.json`
+  (bukan `flutter run` polos) - kalau file itu belum ada di mesin baru,
+  buat dulu dengan menyalin key yang sama dari `tulap_backend/.env`.
+- Kode di `oauth_sign_in_service.dart` juga sudah dibuat melempar
+  `GoogleSignInMisconfiguredException` dengan pesan jelas (bukan lagi
+  "Coba lagi" generik) kalau ini kejadian lagi, supaya sesi berikutnya
+  tidak perlu mengulang investigasi logcat dari nol.
+
+**Bug lain yang pernah bikin Google Sign-In gagal total (ditemukan &
+diperbaiki 2026-09-16):** `dart_define.local.json` sempat berisi value
+dengan tanda kutip literal ikut ter-embed (`"\"774895...com\""`, disalin
+apa adanya dari format `.env`), padahal JSON sudah punya kutipnya
+sendiri - akibatnya `GOOGLE_OAUTH_CLIENT_ID` yang benar-benar dikirim ke
+SDK punya karakter `"` di awal/akhir dan otomatis tidak valid. Value di
+file itu harus BARE STRING tanpa kutip tambahan:
+```json
+{ "GOOGLE_OAUTH_CLIENT_ID": "774895050810-....apps.googleusercontent.com" }
+```
+Setelah bug itu diperbaiki, gejala berubah jadi `ApiException: 10`
+(DEVELOPER_ERROR) - ini SELALU berarti SHA-1 keystore yang dipakai
+build saat itu belum/tidak lagi cocok dengan yang terdaftar di Firebase
+Console untuk app Android `id.tulap.tulap_mobile` (project
+`tulapid-dfaed`). Cara mendiagnosis & memperbaiki cepat lewat CLI (tidak
+perlu buka Firebase Console manual):
+```bash
+# 1) SHA-1 keystore debug yang AKTIF di mesin ini:
+keytool -list -v -keystore "$USERPROFILE/.android/debug.keystore" \
+  -alias androiddebugkey -storepass android -keypass android | grep SHA1
+
+# 2) SHA-1 yang SUDAH terdaftar di Firebase:
+firebase apps:android:sha:list 1:774895050810:android:2da86c4d42f31cc6cc9503 \
+  --project tulapid-dfaed
+
+# 3) Kalau tidak cocok, daftarkan yang baru (hilangkan tanda ':'):
+firebase apps:android:sha:create 1:774895050810:android:2da86c4d42f31cc6cc9503 \
+  <SHA1_TANPA_TITIK_DUA> --project tulapid-dfaed
+```
+Kejadian nyata 2026-09-16: SHA-1 keystore debug di mesin ini
+(`13EED945...`) TIDAK cocok dengan yang terdaftar (`0A4A2210...`), dan
+saat dicoba didaftarkan, Firebase menolak dengan `409 ALREADY_EXISTS`
+("Oauth client already exists in a different project") - SHA-1 itu
+ternyata sudah "dipakai" oleh project Google Cloud lain yang tidak
+terlihat oleh akun `leotiberius27@gmail.com` (kemungkinan sisa dari
+setup lama). Solusinya BUKAN mengejar project misterius itu, tapi
+regenerasi debug keystore baru di mesin ini (`mv
+~/.android/debug.keystore ~/.android/debug.keystore.old` lalu
+`flutter build apk --debug` - Gradle otomatis bikin yang baru), yang
+menghasilkan SHA-1 baru yang pasti belum pernah dipakai di mana pun,
+lalu daftarkan itu. Setelah didaftarkan, `google-services.json` juga
+di-refresh (`firebase apps:sdkconfig ANDROID <app-id> --project
+tulapid-dfaed`) supaya entry `oauth_client` type 1-nya sinkron - live
+diverifikasi berhasil login di perangkat fisik.
 
 **Peta Sebaran Lokasi (Beranda) — Google Maps API Key:**
 
