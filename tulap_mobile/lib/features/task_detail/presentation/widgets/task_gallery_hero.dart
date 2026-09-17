@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../evidence_gallery/presentation/pages/evidence_viewer_page.dart';
-import '../../../evidence_verification/presentation/pages/evidence_detail_page.dart';
 import '../../../geotag_camera/domain/entities/geotag_photo_entity.dart';
 import '../../domain/entities/task_entity.dart';
 import 'task_status_banner.dart';
