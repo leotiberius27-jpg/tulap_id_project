@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tulap_mobile/core/network/network_info.dart';
 import 'package:tulap_mobile/features/dashboard/data/datasources/dashboard_local_datasource.dart';
@@ -39,9 +38,6 @@ class _FakeNetworkInfo implements NetworkInfo {
 
   @override
   Future<bool> get isConnected async => connected;
-
-  @override
-  Connectivity get connectivity => Connectivity();
 
   @override
   Stream<bool> get onConnectivityChanged => _controller.stream;

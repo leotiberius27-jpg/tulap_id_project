@@ -62,10 +62,10 @@ class NotificationsRepositoryImpl implements NotificationsRepository {
 
       // 2. Jika online dan remote tersedia, sinkronkan di background tanpa memblokir
       if (_remoteDataSource != null && _networkInfo != null) {
-        final isConnected = await _networkInfo!.isConnected;
+        final isConnected = await _networkInfo.isConnected;
         if (isConnected) {
           try {
-            final remoteResult = await _remoteDataSource!.getNotifications();
+            final remoteResult = await _remoteDataSource.getNotifications();
             // Simpan data remote ke lokal
             for (final item in remoteResult.items) {
               await _localDataSource.saveNotification(
@@ -137,9 +137,9 @@ class NotificationsRepositoryImpl implements NotificationsRepository {
 
       // Best-effort remote patch
       if (_remoteDataSource != null && _networkInfo != null) {
-        final isConnected = await _networkInfo!.isConnected;
+        final isConnected = await _networkInfo.isConnected;
         if (isConnected) {
-          _remoteDataSource!.markRead(id).catchError((_) {});
+          _remoteDataSource.markRead(id).catchError((_) {});
         }
       }
 
@@ -157,9 +157,9 @@ class NotificationsRepositoryImpl implements NotificationsRepository {
 
       // Best-effort remote patch
       if (_remoteDataSource != null && _networkInfo != null) {
-        final isConnected = await _networkInfo!.isConnected;
+        final isConnected = await _networkInfo.isConnected;
         if (isConnected) {
-          _remoteDataSource!.markAllRead().catchError((_) {});
+          _remoteDataSource.markAllRead().catchError((_) {});
         }
       }
 

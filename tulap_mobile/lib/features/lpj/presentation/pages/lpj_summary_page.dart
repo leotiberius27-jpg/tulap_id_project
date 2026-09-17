@@ -180,7 +180,7 @@ class _LpjSummaryPageState extends State<LpjSummaryPage> {
       for (var i = 0; i < _photos.length; i++) {
         final p = _photos[i];
         buffer.writeln(
-          '${i + 1}. Koordinat: ${p.latitude.toStringAsFixed(6)}, ${p.longitude.toStringAsFixed(6)} (PlusCode: ${p.plusCode ?? "-"})',
+          '${i + 1}. Koordinat: ${p.latitude.toStringAsFixed(6)}, ${p.longitude.toStringAsFixed(6)} (PlusCode: ${p.plusCode})',
         );
         buffer.writeln('   SHA-256: ${p.integrityHash}');
       }

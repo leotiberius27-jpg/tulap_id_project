@@ -48,8 +48,6 @@ class EvidenceDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     String formattedDate;
     try {
       final df = DateFormat('dd MMMM yyyy • HH:mm', 'id_ID');

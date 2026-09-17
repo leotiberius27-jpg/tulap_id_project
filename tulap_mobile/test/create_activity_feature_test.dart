@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:tulap_mobile/core/theme/app_theme.dart';
-import 'package:tulap_mobile/core/utils/app_date_formatter.dart';
 import 'package:tulap_mobile/features/auth/domain/entities/auth_user_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/get_current_session.dart';
@@ -12,7 +11,7 @@ import 'package:tulap_mobile/features/task_detail/presentation/pages/create_acti
 
 class _FakeAuthRepo implements AuthRepository {
   @override
-  Future<AuthUserEntity?> getCurrentSession() async {
+  Future<AuthUserEntity?> getStoredUser() async {
     return const AuthUserEntity(
       id: 'usr-1',
       nip: '19900101',

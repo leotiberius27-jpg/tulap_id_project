@@ -27,7 +27,6 @@ import '../../../search_archive/domain/entities/search_result_entity.dart';
 import '../../../sync_queue/domain/repositories/sync_queue_repository.dart';
 import '../../../sync_queue/presentation/controllers/sync_center_controller.dart';
 import '../../../sync_queue/presentation/pages/sync_center_page.dart';
-import '../../../task_detail/domain/entities/task_entity.dart';
 import '../../../task_detail/domain/usecases/get_active_tasks.dart';
 import '../../../task_detail/domain/usecases/get_task_detail.dart';
 import '../../../task_detail/domain/usecases/start_task.dart';

@@ -32,26 +32,6 @@ class HomeHeader extends StatelessWidget {
     this.onLogoTap,
   });
 
-  String get _dynamicGreeting {
-    final hour = DateTime.now().hour;
-    if (hour >= 5 && hour < 11) {
-      return 'Selamat pagi,';
-    } else if (hour >= 11 && hour < 15) {
-      return 'Selamat siang,';
-    } else if (hour >= 15 && hour < 18) {
-      return 'Selamat sore,';
-    } else {
-      return 'Selamat malam,';
-    }
-  }
-
-  String get _initials {
-    final parts = fullName.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts.first.isEmpty) return 'U';
-    if (parts.length == 1) return parts.first[0].toUpperCase();
-    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-  }
-
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);

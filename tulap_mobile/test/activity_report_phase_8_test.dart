@@ -1,18 +1,13 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:crypto/crypto.dart';
-import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:tulap_mobile/core/security/hash_generator.dart';
 import 'package:tulap_mobile/features/activity_report/data/datasources/activity_report_local_datasource.dart';
-import 'package:tulap_mobile/features/activity_report/data/datasources/activity_report_remote_datasource.dart';
 import 'package:tulap_mobile/features/activity_report/data/models/activity_report_model.dart';
 import 'package:tulap_mobile/features/activity_report/data/services/report_data_assembler.dart';
 import 'package:tulap_mobile/features/activity_report/data/services/report_validator.dart';
 import 'package:tulap_mobile/features/activity_report/domain/entities/activity_report_entity.dart';
 import 'package:tulap_mobile/features/activity_report/domain/entities/report_draft_data.dart';
-import 'package:tulap_mobile/features/activity_report/domain/entities/report_template_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/entities/auth_user_entity.dart';
 import 'package:tulap_mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:tulap_mobile/features/expense_ocr/data/datasources/expense_ocr_local_datasource.dart';
@@ -20,7 +15,6 @@ import 'package:tulap_mobile/features/expense_ocr/data/models/expense_note_model
 import 'package:tulap_mobile/features/expense_ocr/domain/entities/expense_note_entity.dart';
 import 'package:tulap_mobile/features/geotag_camera/data/datasources/geotag_camera_local_datasource.dart';
 import 'package:tulap_mobile/features/geotag_camera/data/models/geotag_photo_model.dart';
-import 'package:tulap_mobile/features/geotag_camera/domain/entities/geotag_photo_entity.dart';
 import 'package:tulap_mobile/features/task_detail/data/datasources/timeline_local_datasource.dart';
 import 'package:tulap_mobile/features/task_detail/data/models/timeline_event_model.dart';
 import 'package:tulap_mobile/features/task_detail/domain/entities/task_entity.dart';

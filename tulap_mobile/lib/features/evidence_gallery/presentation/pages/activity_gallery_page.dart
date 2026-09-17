@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../../app/di/injection_container.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../geotag_camera/domain/entities/geotag_photo_entity.dart';
 import '../../../task_detail/domain/entities/task_entity.dart';
 import '../../domain/usecases/get_activity_evidence.dart';
@@ -76,7 +75,6 @@ class _ActivityGalleryPageState extends State<ActivityGalleryPage> {
       case GalleryMediaTypeFilter.video:
         return _allEvidence.where((e) => e.isVideo).toList();
       case GalleryMediaTypeFilter.all:
-      default:
         return _allEvidence;
     }
   }
@@ -106,7 +104,6 @@ class _ActivityGalleryPageState extends State<ActivityGalleryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final filtered = _filteredEvidence;
 
     return Scaffold(

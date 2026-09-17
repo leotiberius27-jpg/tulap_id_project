@@ -1,12 +1,9 @@
 import 'package:intl/intl.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
 import '../../../expense_ocr/data/datasources/expense_ocr_local_datasource.dart';
-import '../../../expense_ocr/domain/entities/expense_note_entity.dart';
 import '../../../geotag_camera/data/datasources/geotag_camera_local_datasource.dart';
-import '../../../geotag_camera/domain/entities/geotag_photo_entity.dart';
 import '../../../task_detail/domain/entities/task_entity.dart';
 import '../../../task_detail/data/datasources/timeline_local_datasource.dart';
-import '../../../task_detail/domain/entities/activity_note_entity.dart';
 import '../../../task_detail/domain/entities/timeline_event_entity.dart';
 import '../../domain/entities/report_draft_data.dart';
 import '../../domain/entities/report_template_entity.dart';

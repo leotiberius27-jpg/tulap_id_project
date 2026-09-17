@@ -12,7 +12,6 @@ import '../../../sync_queue/domain/repositories/sync_queue_repository.dart';
 import '../../../sync_queue/presentation/pages/sync_center_page.dart';
 import '../../../subscription/presentation/pages/payment_history_page.dart';
 import '../../../subscription/presentation/pages/subscription_page.dart';
-import '../../domain/entities/storage_breakdown_entity.dart';
 import '../../domain/usecases/clear_app_cache.dart';
 import '../../domain/usecases/get_storage_breakdown.dart';
 import '../controllers/account_controller.dart';

@@ -712,7 +712,6 @@ class _NotificationCard extends StatelessWidget {
           colors.iconSoftBlue,
         );
       case NotificationType.systemInfo:
-      default:
         return _NotificationIconConfig(
           Icons.notifications_outlined,
           colors.primary,

@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../../history/presentation/pages/history_page.dart';
 import '../../../lpj/presentation/pages/lpj_summary_page.dart';
 import '../../../search_archive/domain/entities/search_filter_state.dart';

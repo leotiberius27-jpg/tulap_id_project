@@ -139,7 +139,6 @@ class _TravelMissionDetailPageContentState extends State<_TravelMissionDetailPag
                   icon = Icons.receipt_long_outlined;
                   break;
                 case SupportingDocumentType.other:
-                default:
                   icon = Icons.insert_drive_file_outlined;
                   break;
               }

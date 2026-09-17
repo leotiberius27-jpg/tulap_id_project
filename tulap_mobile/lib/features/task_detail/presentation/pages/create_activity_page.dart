@@ -179,36 +179,22 @@ class _CreateActivityPageState extends State<CreateActivityPage> {
       );
 
       final pos = position;
-      if (pos != null) {
-        final geocoder = sl<ReverseGeocoder>();
-        final address = await geocoder.reverseGeocode(
-          latitude: pos.latitude,
-          longitude: pos.longitude,
+      final geocoder = sl<ReverseGeocoder>();
+      final address = await geocoder.reverseGeocode(
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+      );
+      if (mounted) {
+        setState(() {
+          _locationController.text = address;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Lokasi saat ini berhasil disematkan!'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 2),
+          ),
         );
-        if (mounted) {
-          setState(() {
-            _locationController.text = address ??
-                '${pos.latitude.toStringAsFixed(6)}, ${pos.longitude.toStringAsFixed(6)}';
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Lokasi saat ini berhasil disematkan!'),
-              backgroundColor: AppColors.success,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Tidak dapat memperoleh koordinat GPS. Silakan ketik manual.',
-              ),
-              backgroundColor: AppColors.warning,
-            ),
-          );
-        }
       }
     } catch (e) {
       if (mounted) {

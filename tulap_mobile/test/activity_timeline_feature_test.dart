@@ -4,8 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tulap_mobile/core/error/failures.dart';
 import 'package:tulap_mobile/features/geotag_camera/data/datasources/geotag_camera_local_datasource.dart';
 import 'package:tulap_mobile/features/geotag_camera/data/models/geotag_photo_model.dart';
-import 'package:tulap_mobile/features/geotag_camera/domain/entities/geotag_photo_entity.dart';
-import 'package:tulap_mobile/features/geotag_camera/domain/repositories/geotag_camera_repository.dart';
 import 'package:tulap_mobile/features/geotag_camera/domain/usecases/get_task_photo_previews.dart';
 import 'package:tulap_mobile/features/task_detail/data/datasources/timeline_local_datasource.dart';
 import 'package:tulap_mobile/features/task_detail/data/models/timeline_event_model.dart';

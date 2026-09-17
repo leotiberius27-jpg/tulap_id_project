@@ -920,7 +920,6 @@ class _CreateTravelMissionPageState extends State<CreateTravelMissionPage> {
       case TravelTransportMode.transportasiUmum:
         return Icons.directions_bus;
       case TravelTransportMode.lainnya:
-      default:
         return Icons.commute;
     }
   }

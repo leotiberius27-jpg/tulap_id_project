@@ -92,7 +92,7 @@ class _FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<AuthUserEntity?> getCurrentSession() async => null;
+  Future<AuthUserEntity?> getStoredUser() async => null;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -132,9 +132,6 @@ class _FakeTaskRepository implements TaskRepository {
   @override
   Future<Either<Failure, List<TaskEntity>>> getActiveTasks() async =>
       const Right([]);
-  @override
-  Future<Either<Failure, TaskEntity?>> pickActiveTask() async =>
-      const Right(null);
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

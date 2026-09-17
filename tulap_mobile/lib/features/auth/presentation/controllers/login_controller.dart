@@ -148,7 +148,7 @@ class LoginController extends ChangeNotifier {
         return null;
       }
 
-      final result = await _loginWithApple!(
+      final result = await _loginWithApple(
         identityToken: credential.identityToken,
         fullName: credential.fullName,
       );
@@ -192,7 +192,7 @@ class LoginController extends ChangeNotifier {
       }
 
       if (_loginWithFacebook != null) {
-        final result = await _loginWithFacebook!(
+        final result = await _loginWithFacebook(
           accessToken: credential.accessToken,
           email: credential.email,
           fullName: credential.displayName,

@@ -6,8 +6,6 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../evidence_gallery/presentation/pages/evidence_viewer_page.dart';
 import '../../../evidence_gallery/presentation/widgets/geotag_photo_location_card.dart';
-import '../../domain/entities/camera_preferences_entity.dart';
-import '../../domain/entities/watermark_template_entity.dart';
 import '../../domain/usecases/validate_location_integrity.dart';
 import '../controllers/geotag_camera_controller.dart';
 import '../widgets/camera_add_text_sheet.dart';
@@ -23,7 +21,6 @@ import '../widgets/camera_timer_countdown_overlay.dart';
 import '../widgets/camera_top_control_bar.dart';
 import '../widgets/camera_zoom_controls.dart';
 import '../widgets/mock_location_blocking_modal.dart';
-import '../widgets/task_photo_gallery_sheet.dart';
 import '../widgets/template_selector_sheet.dart';
 import 'advanced_camera_settings_page.dart';
 

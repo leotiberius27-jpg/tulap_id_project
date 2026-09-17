@@ -85,7 +85,6 @@ class ActionRequiredSection extends StatelessWidget {
         icon = Icons.info_outline_rounded;
         break;
       case ActionRequiredSeverity.warning:
-      default:
         cardColor = const Color(0xFFFFFBEB);
         borderColor = AppColors.warning.withValues(alpha: 0.3);
         iconColor = AppColors.warning;

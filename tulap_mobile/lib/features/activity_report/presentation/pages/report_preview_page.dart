@@ -5,7 +5,6 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../task_detail/domain/entities/task_entity.dart';
@@ -27,7 +26,6 @@ class ReportPreviewPage extends StatefulWidget {
 }
 
 class _ReportPreviewPageState extends State<ReportPreviewPage> {
-  bool _isVerifying = false;
   bool? _isHashValid;
   final DateFormat _dateFormat = DateFormat('dd MMMM yyyy HH:mm', 'id_ID');
 
@@ -43,7 +41,6 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
       return;
     }
 
-    setState(() => _isVerifying = true);
     final verifyUsecase = sl<VerifyReportSha256>();
     final result = await verifyUsecase(
       reportId: widget.report.id,
@@ -52,7 +49,6 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
 
     if (!mounted) return;
     setState(() {
-      _isVerifying = false;
       _isHashValid = result.fold((_) => false, (match) => match);
     });
   }

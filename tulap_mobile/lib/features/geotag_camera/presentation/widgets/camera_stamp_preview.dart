@@ -676,24 +676,6 @@ class CameraStampPreview extends StatelessWidget {
         'Lon: ${longitude!.toStringAsFixed(6)}';
   }
 
-  String _resolveRegionTitle() {
-    if (address != null && address!.trim().isNotEmpty) {
-      final parts = address!
-          .split(',')
-          .map((p) => p.trim())
-          .where((p) => p.isNotEmpty)
-          .toList();
-      if (parts.isNotEmpty) {
-        // Gabungkan 2-3 elemen wilayah pertama
-        if (parts.length >= 3) {
-          return '${parts[0]}, ${parts[1]}, ${parts.last}';
-        }
-        return parts.join(', ');
-      }
-    }
-    return _offlineCoordinateLabel;
-  }
-
   String _getDetailedAddressLine() {
     if (address == null || address!.trim().isEmpty) {
       return _offlineCoordinateLabel;
@@ -719,25 +701,6 @@ class CameraStampPreview extends StatelessWidget {
     if (accuracy <= 25.0) return const Color(0xFFFFC700);
     if (accuracy <= 50.0) return const Color(0xFFF59E0B);
     return const Color(0xFFEF4444);
-  }
-
-  String _formatIndonesianFullDateTimeWithDay(DateTime dt) {
-    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-    final dayName = days[dt.weekday - 1];
-    final dd = dt.day.toString().padLeft(2, '0');
-    final mm = dt.month.toString().padLeft(2, '0');
-    final yyyy = dt.year.toString();
-    final hh = dt.hour.toString().padLeft(2, '0');
-    final min = dt.minute.toString().padLeft(2, '0');
-    final ss = dt.second.toString().padLeft(2, '0');
-
-    final offset = dt.timeZoneOffset;
-    final sign = offset.isNegative ? '-' : '+';
-    final offsetHours = offset.inHours.abs().toString().padLeft(2, '0');
-    final offsetMins = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
-    final gmtStr = 'GMT$sign$offsetHours:$offsetMins';
-
-    return '$dayName, $dd/$mm/$yyyy $hh:$min:$ss $gmtStr';
   }
 
   String _formatIndonesianDateTime(DateTime dt) {

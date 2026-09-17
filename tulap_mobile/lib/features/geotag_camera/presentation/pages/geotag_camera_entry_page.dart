@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../core/camera/camera_capability_service.dart';
 import '../../../../core/camera/camera_level_sensor_service.dart';
-import '../../../../core/camera/file_naming_service.dart';
 import '../../../../core/geo/reverse_geocoder.dart';
 import '../../../assistant/presentation/controllers/tula_visibility_controller.dart';
 import '../../domain/repositories/camera_preferences_repository.dart';
@@ -82,9 +81,6 @@ class _GeotagCameraEntryPageState extends State<GeotagCameraEntryPage>
           : null,
       levelSensorService: sl.isRegistered<CameraLevelSensorService>()
           ? sl<CameraLevelSensorService>()
-          : null,
-      fileNamingService: sl.isRegistered<FileNamingService>()
-          ? sl<FileNamingService>()
           : null,
       taskId: widget.taskId,
     );

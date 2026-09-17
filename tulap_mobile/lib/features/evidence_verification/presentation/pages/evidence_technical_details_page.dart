@@ -128,8 +128,6 @@ class EvidenceTechnicalDetailsPage extends StatelessWidget {
     required IconData icon,
     required List<Widget> children,
   }) {
-    final theme = Theme.of(context);
-
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(

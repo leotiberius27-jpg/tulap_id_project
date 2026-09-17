@@ -22,7 +22,6 @@ class PdfReportGenerator {
   );
 
   final DateFormat _dateFormat = DateFormat('dd MMMM yyyy', 'id_ID');
-  final DateFormat _timeFormat = DateFormat('HH:mm', 'id_ID');
   final DateFormat _fullDateTimeFormat = DateFormat('dd/MM/yyyy HH:mm', 'id_ID');
 
   /// Menghasilkan file PDF resmi A4 portrait dan mengembalikan entitas laporan lengkap

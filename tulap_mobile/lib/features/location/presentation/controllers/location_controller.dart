@@ -58,13 +58,11 @@ class LocationController extends ChangeNotifier {
       ),
       (checkResult) async {
         String? address;
-        if (_reverseGeocoder != null &&
-            checkResult.latitude != null &&
-            checkResult.longitude != null) {
+        if (_reverseGeocoder != null) {
           try {
             address = await _reverseGeocoder.reverseGeocode(
-              latitude: checkResult.latitude!,
-              longitude: checkResult.longitude!,
+              latitude: checkResult.latitude,
+              longitude: checkResult.longitude,
             );
           } catch (_) {
             address = null;

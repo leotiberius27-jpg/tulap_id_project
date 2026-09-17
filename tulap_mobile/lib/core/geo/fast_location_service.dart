@@ -925,7 +925,7 @@ class FastLocationService {
         longitude: lng,
       );
 
-      if (address != null && _isCameraStreamRunning) {
+      if (_isCameraStreamRunning) {
         _cachedAddress = address;
         _cachedAddressLat = lat;
         _cachedAddressLng = lng;

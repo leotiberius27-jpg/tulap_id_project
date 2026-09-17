@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../../core/camera/camera_capability_service.dart';
 import '../../../../core/camera/camera_level_sensor_service.dart';
-import '../../../../core/camera/file_naming_service.dart';
 import '../../../../core/geo/fast_location_service.dart';
 import '../../../../core/geo/reverse_geocoder.dart';
 import '../../domain/entities/camera_preferences_entity.dart';
@@ -237,7 +236,6 @@ class GeotagCameraController extends ChangeNotifier {
   final CameraPreferencesRepository? cameraPreferencesRepository;
   final CameraCapabilityService _capabilityService;
   final CameraLevelSensorService _levelSensorService;
-  final FileNamingService _fileNamingService;
   final String taskId;
 
   late GeotagCameraViewState _state;
@@ -261,11 +259,9 @@ class GeotagCameraController extends ChangeNotifier {
     this.cameraPreferencesRepository,
     CameraCapabilityService? capabilityService,
     CameraLevelSensorService? levelSensorService,
-    FileNamingService? fileNamingService,
     required this.taskId,
   })  : _capabilityService = capabilityService ?? CameraCapabilityService(),
-        _levelSensorService = levelSensorService ?? CameraLevelSensorService(),
-        _fileNamingService = fileNamingService ?? FileNamingService() {
+        _levelSensorService = levelSensorService ?? CameraLevelSensorService() {
     _state = GeotagCameraViewState(currentTime: DateTime.now());
     _startClockTimer();
     _loadTaskPhotos();

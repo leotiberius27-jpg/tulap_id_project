@@ -3,7 +3,6 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tulap_mobile/core/camera/camera_capability_service.dart';
-import 'package:tulap_mobile/core/camera/camera_level_sensor_service.dart';
 import 'package:tulap_mobile/core/camera/file_naming_service.dart';
 import 'package:tulap_mobile/core/error/failures.dart';
 import 'package:tulap_mobile/core/geo/fast_location_service.dart';

@@ -16,7 +16,6 @@ import '../../domain/entities/report_validation_result.dart';
 import '../../domain/repositories/activity_report_repository.dart';
 import '../datasources/activity_report_local_datasource.dart';
 import '../datasources/activity_report_remote_datasource.dart';
-import '../models/activity_report_model.dart';
 import '../services/pdf_report_generator.dart';
 import '../services/report_data_assembler.dart';
 import '../services/report_validator.dart';
@@ -102,7 +101,7 @@ class ActivityReportRepositoryImpl implements ActivityReportRepository {
       // 3. Enqueue to outbox sync queue
       if (_syncLocalDataSource != null) {
         try {
-          await _syncLocalDataSource!.insertRecord(
+          await _syncLocalDataSource.insertRecord(
             entityType: SyncEntityType.activityReport,
             entityLocalId: saved.id,
             taskId: draft.task.id,
@@ -113,7 +112,7 @@ class ActivityReportRepositoryImpl implements ActivityReportRepository {
       // 4. Record to activity timeline
       if (_timelineLocalDataSource != null) {
         try {
-          await _timelineLocalDataSource!.saveEvent(
+          await _timelineLocalDataSource.saveEvent(
             TimelineEventModel(
               id: _uuid.v4(),
               taskId: draft.task.id,

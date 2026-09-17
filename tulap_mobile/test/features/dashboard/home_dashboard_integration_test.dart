@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,7 +24,6 @@ import 'package:tulap_mobile/features/dashboard/domain/repositories/dashboard_re
 import 'package:tulap_mobile/features/dashboard/domain/usecases/get_dashboard_analytics.dart';
 import 'package:tulap_mobile/features/geotag_camera/data/datasources/geotag_camera_local_datasource.dart';
 import 'package:tulap_mobile/features/geotag_camera/data/models/geotag_photo_model.dart';
-import 'package:tulap_mobile/features/geotag_camera/domain/entities/geotag_photo_entity.dart';
 import 'package:tulap_mobile/features/geotag_camera/domain/usecases/get_task_photo_previews.dart';
 import 'package:tulap_mobile/features/home/presentation/pages/home_page.dart';
 import 'package:tulap_mobile/features/notifications/domain/entities/notification_entity.dart';
@@ -155,8 +153,6 @@ class _FakeNetworkInfo implements NetworkInfo {
 
   @override
   Future<bool> get isConnected async => true;
-  @override
-  Connectivity get connectivity => Connectivity();
   @override
   Stream<bool> get onConnectivityChanged => _controller.stream;
 }

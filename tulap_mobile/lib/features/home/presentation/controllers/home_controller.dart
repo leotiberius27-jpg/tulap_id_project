@@ -375,12 +375,12 @@ class HomeController extends ChangeNotifier {
       syncedCount: syncedCount,
     ));
 
-    if (activeTask != null && activeTask!.status == TaskStatusEntity.ongoing) {
-      final completed = activeTask!.checklistItems.where((c) => c.isCompleted).length;
-      final total = activeTask!.checklistItems.length;
+    if (activeTask != null && activeTask.status == TaskStatusEntity.ongoing) {
+      final completed = activeTask.checklistItems.where((c) => c.isCompleted).length;
+      final total = activeTask.checklistItems.length;
       unawaited(_notificationCoordinator?.notifyActiveTask(
-        taskId: activeTask!.id,
-        taskName: activeTask!.taskName,
+        taskId: activeTask.id,
+        taskName: activeTask.taskName,
         completedChecklists: completed,
         totalChecklists: total,
       ));

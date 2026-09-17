@@ -161,7 +161,7 @@ class NotificationsController extends ChangeNotifier {
 
   Future<void> deleteReadNotifications() async {
     if (_deleteReadNotifications == null) return;
-    await _deleteReadNotifications!.call();
+    await _deleteReadNotifications.call();
     await load();
   }
 }

@@ -9,7 +9,6 @@ import 'package:tulap_mobile/features/auth/domain/entities/auth_user_entity.dart
 import 'package:tulap_mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:tulap_mobile/features/auth/domain/usecases/get_current_session.dart';
 import 'package:tulap_mobile/features/geotag_camera/data/datasources/geotag_camera_local_datasource.dart';
-import 'package:tulap_mobile/features/geotag_camera/domain/entities/geotag_photo_entity.dart';
 import 'package:tulap_mobile/features/geotag_camera/domain/usecases/get_task_photo_previews.dart';
 import 'package:tulap_mobile/features/history/presentation/pages/history_page.dart';
 import 'package:tulap_mobile/features/search_archive/presentation/widgets/search_filter_chips.dart';
@@ -30,7 +29,6 @@ import 'package:tulap_mobile/features/task_detail/domain/usecases/get_task_detai
 import 'package:tulap_mobile/features/task_detail/domain/usecases/start_task.dart';
 import 'package:tulap_mobile/features/task_detail/domain/usecases/submit_task_for_verification.dart';
 import 'package:tulap_mobile/features/task_detail/domain/usecases/toggle_checklist_item.dart';
-import 'package:tulap_mobile/features/travel_mission/domain/entities/travel_mission_entity.dart';
 import 'package:tulap_mobile/features/travel_mission/domain/repositories/travel_repository.dart';
 import 'package:tulap_mobile/features/travel_mission/domain/usecases/add_supporting_document.dart';
 import 'package:tulap_mobile/features/travel_mission/domain/usecases/get_travel_mission_detail.dart';
@@ -76,43 +74,9 @@ class _FakeTaskRepository extends Fake implements TaskRepository {
   );
 }
 
-class _FakeTravelRepository extends Fake implements TravelRepository {
-  @override
-  Future<TravelMissionEntity> getTravelMissionDetail(String id, {bool forceRefresh = false}) async => TravelMissionEntity(
-    id: id,
-    displayId: 'PD-202608-001',
-    userId: 'usr_001',
-    assignmentLetterNumber: 'ST/001/PU/2026',
-    assignmentLetterDate: DateTime(2026, 8, 15),
-    title: 'Dinas Luar Kota Mimika',
-    purpose: 'Inspeksi',
-    origin: 'Jayapura',
-    destination: 'Mimika',
-    departureDate: DateTime(2026, 8, 20),
-    returnDate: DateTime(2026, 8, 24),
-    transportMode: TravelTransportMode.pesawat,
-    status: TravelMissionStatus.planned,
-    budgetEstimate: const TravelBudgetEstimate(
-      uangHarian: 1800000,
-      penginapan: 2600000,
-      transportasi: 1500000,
-    ),
-    personnelSnapshot: const TravelPersonnelSnapshot(
-      fullName: 'Pak Darto',
-      employeeNumber: '19740101',
-      position: 'Pengawas Jalan',
-      unitName: 'Dinas PU Papua',
-    ),
-    createdAt: DateTime(2026, 8, 15),
-  );
-  @override
-  Future<void> syncTravelMissions() async {}
-}
+class _FakeTravelRepository extends Fake implements TravelRepository {}
 
-class _FakeGeotagCameraLocalDataSource extends Fake implements GeotagCameraLocalDataSource {
-  @override
-  Future<List<GeotagPhotoEntity>> getPhotosByTaskId(String taskId) async => [];
-}
+class _FakeGeotagCameraLocalDataSource extends Fake implements GeotagCameraLocalDataSource {}
 
 class _FakeSearchArchiveRepository implements SearchArchiveRepository {
   final List<SearchResultEntity> searchResults;

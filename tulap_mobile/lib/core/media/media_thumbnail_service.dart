@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import '../../features/geotag_camera/domain/entities/geotag_photo_entity.dart';
 
 /// MediaThumbnailService

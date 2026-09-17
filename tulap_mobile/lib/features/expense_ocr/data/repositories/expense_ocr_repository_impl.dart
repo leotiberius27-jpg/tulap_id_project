@@ -8,7 +8,6 @@ import '../../../task_detail/data/datasources/timeline_local_datasource.dart';
 import '../../../task_detail/data/models/timeline_event_model.dart';
 import '../../../task_detail/domain/entities/timeline_event_entity.dart';
 import '../../../sync_queue/data/datasources/sync_local_datasource.dart';
-import '../../../sync_queue/data/models/sync_record_model.dart';
 import '../../../sync_queue/domain/entities/sync_record_entity.dart';
 import '../../domain/entities/expense_note_entity.dart';
 import '../../domain/repositories/expense_ocr_repository.dart';
@@ -31,7 +30,6 @@ class ExpenseOcrRepositoryImpl implements ExpenseOcrRepository {
   final ExpenseOcrLocalDataSource _localDataSource;
   final SyncLocalDataSource? _syncQueueLocalDataSource;
   final TimelineLocalDataSource? _timelineLocalDataSource;
-  final ReceiptImageProcessor _imageProcessor = ReceiptImageProcessor();
   final Uuid _uuid = const Uuid();
   CameraController? _cameraController;
 
@@ -202,7 +200,7 @@ class ExpenseOcrRepositoryImpl implements ExpenseOcrRepository {
       // Enqueue to outbox sync queue
       if (_syncQueueLocalDataSource != null) {
         try {
-          await _syncQueueLocalDataSource!.insertRecord(
+          await _syncQueueLocalDataSource.insertRecord(
             entityType: SyncEntityType.expenseNote,
             entityLocalId: saved.id,
             taskId: taskId,
@@ -213,7 +211,7 @@ class ExpenseOcrRepositoryImpl implements ExpenseOcrRepository {
       // Record to activity timeline
       if (_timelineLocalDataSource != null) {
         try {
-          await _timelineLocalDataSource!.saveEvent(
+          await _timelineLocalDataSource.saveEvent(
             TimelineEventModel(
               id: _uuid.v4(),
               taskId: taskId,
@@ -275,7 +273,7 @@ class ExpenseOcrRepositoryImpl implements ExpenseOcrRepository {
 
       if (_syncQueueLocalDataSource != null) {
         try {
-          await _syncQueueLocalDataSource!.insertRecord(
+          await _syncQueueLocalDataSource.insertRecord(
             entityType: SyncEntityType.expenseNote,
             entityLocalId: saved.id,
             taskId: taskId,
@@ -285,7 +283,7 @@ class ExpenseOcrRepositoryImpl implements ExpenseOcrRepository {
 
       if (_timelineLocalDataSource != null) {
         try {
-          await _timelineLocalDataSource!.saveEvent(
+          await _timelineLocalDataSource.saveEvent(
             TimelineEventModel(
               id: _uuid.v4(),
               taskId: taskId,

@@ -1,5 +1,3 @@
-import 'package:geolocator/geolocator.dart' show LocationServiceDisabledException, PermissionDeniedException;
-
 /// Re-exported so callers of `checkAndRequestPermissions()` can catch
 /// these two by name from this single file, without also importing
 /// `package:geolocator/geolocator.dart` directly. NOT redefined here -

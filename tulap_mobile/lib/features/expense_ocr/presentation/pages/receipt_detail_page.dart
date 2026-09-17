@@ -30,7 +30,6 @@ class ReceiptDetailPage extends StatefulWidget {
 
 class _ReceiptDetailPageState extends State<ReceiptDetailPage> {
   late ExpenseNoteEntity _currentExpense;
-  bool _showRawOcr = false;
   bool _isDeleting = false;
 
   final NumberFormat _currencyFormat = NumberFormat.currency(

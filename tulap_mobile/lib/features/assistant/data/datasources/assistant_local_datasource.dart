@@ -1,4 +1,3 @@
-import '../../../../core/database/local_database.dart';
 import '../../../search_archive/domain/entities/search_filter_state.dart';
 import '../../../search_archive/domain/entities/search_result_entity.dart';
 import '../../../search_archive/domain/repositories/search_archive_repository.dart';
