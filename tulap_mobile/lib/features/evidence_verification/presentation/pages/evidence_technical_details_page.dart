@@ -129,15 +129,14 @@ class EvidenceTechnicalDetailsPage extends StatelessWidget {
     required List<Widget> children,
   }) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(AppRadius.cardLarge),
         border: Border.all(
-          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          color: const Color(0xFFE2E8F0),
         ),
       ),
       child: Column(

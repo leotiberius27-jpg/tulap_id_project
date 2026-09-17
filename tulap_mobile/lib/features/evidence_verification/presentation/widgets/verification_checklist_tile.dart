@@ -47,15 +47,14 @@ class VerificationChecklistTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          color: const Color(0xFFE2E8F0),
           width: 1,
         ),
       ),
@@ -89,8 +88,8 @@ class VerificationChecklistTile extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: TextStyle(
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        style: const TextStyle(
+                          color: Color(0xFF0F172A),
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
@@ -98,8 +97,8 @@ class VerificationChecklistTile extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         subtitle,
-                        style: TextStyle(
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
                           fontSize: 12.5,
                           height: 1.35,
                         ),

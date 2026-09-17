@@ -56,12 +56,11 @@ class _CameraAddTextSheetState extends State<CameraAddTextSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: const [
           BoxShadow(
@@ -108,19 +107,19 @@ class _CameraAddTextSheetState extends State<CameraAddTextSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Tambahkan Keterangan',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        color: Color(0xFF0F172A),
                       ),
                     ),
-                    Text(
+                    const Text(
                       'Keterangan singkat akan dicantumkan pada stamp bukti',
                       style: TextStyle(
                         fontSize: 11.5,
-                        color: isDark ? Colors.white60 : Colors.black54,
+                        color: Colors.black54,
                       ),
                     ),
                   ],
@@ -137,20 +136,18 @@ class _CameraAddTextSheetState extends State<CameraAddTextSheet> {
             maxLines: 3,
             minLines: 2,
             autofocus: true,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
-              color: isDark ? Colors.white : Colors.black87,
+              color: Colors.black87,
             ),
             decoration: InputDecoration(
               hintText: 'Contoh: Pemeriksaan fisik kendaraan dinas roda empat...',
-              hintStyle: TextStyle(
+              hintStyle: const TextStyle(
                 fontSize: 13,
-                color: isDark ? Colors.white38 : Colors.black38,
+                color: Colors.black38,
               ),
               filled: true,
-              fillColor: isDark
-                  ? const Color(0xFF1E293B)
-                  : const Color(0xFFF1F5F9),
+              fillColor: const Color(0xFFF1F5F9),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,
@@ -180,16 +177,16 @@ class _CameraAddTextSheetState extends State<CameraAddTextSheet> {
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     side: BorderSide(
-                      color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      color: Colors.grey.shade300,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: Text(
+                  child: const Text(
                     'Batal',
                     style: TextStyle(
-                      color: isDark ? Colors.white70 : Colors.black87,
+                      color: Colors.black87,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

@@ -24,7 +24,7 @@ class AdvancedCameraSettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const isDark = false; // Dark mode dihapus dari aplikasi - selalu Light.
 
     return AnimatedBuilder(
       animation: controller,
@@ -34,14 +34,14 @@ class AdvancedCameraSettingsPage extends StatelessWidget {
         final template = TemplateCatalog.getById(state.stampConfig.templateId);
 
         return Scaffold(
-          backgroundColor: isDark ? const Color(0xFF0A1120) : AppColors.background,
+          backgroundColor: AppColors.background,
           appBar: AppBar(
             title: const Text(
               'Pengaturan Kamera',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             centerTitle: true,
-            backgroundColor: isDark ? const Color(0xFF0F172A) : AppColors.surface,
+            backgroundColor: AppColors.surface,
             elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_rounded),
@@ -209,7 +209,7 @@ class AdvancedCameraSettingsPage extends StatelessWidget {
 
                 // 6. TOMBOL RESET PENGATURAN KAMERA
                 Material(
-                  color: isDark ? const Color(0xFF0F172A) : AppColors.surface,
+                  color: AppColors.surface,
                   clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppRadius.cardLarge),

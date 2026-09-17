@@ -15,8 +15,6 @@ class DashboardPeriodSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -40,7 +38,7 @@ class DashboardPeriodSelector extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : AppColors.surface,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: AppColors.primary.withValues(alpha: 0.3),

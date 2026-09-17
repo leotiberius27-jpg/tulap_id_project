@@ -24,7 +24,6 @@ class _ActivityTrendChartState extends State<ActivityTrendChart> {
   Widget build(BuildContext context) {
     if (widget.trendPoints.isEmpty) return const SizedBox.shrink();
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final maxCount = widget.trendPoints.fold<int>(
       1,
       (max, p) => math.max(max, p.count),
@@ -45,16 +44,14 @@ class _ActivityTrendChartState extends State<ActivityTrendChart> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : AppColors.surface,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isDark
-                ? const Color(0xFF334155)
-                : AppColors.primary.withValues(alpha: 0.08),
+            color: AppColors.primary.withValues(alpha: 0.08),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -147,7 +144,6 @@ class _ActivityTrendChartState extends State<ActivityTrendChart> {
                         points: widget.trendPoints,
                         maxCount: maxCount,
                         selectedIndex: _selectedIndex,
-                        isDark: isDark,
                         primaryColor: AppColors.primary,
                       ),
                     ),
@@ -166,14 +162,12 @@ class _TrendChartPainter extends CustomPainter {
   final List<ActivityTrendPoint> points;
   final int maxCount;
   final int? selectedIndex;
-  final bool isDark;
   final Color primaryColor;
 
   _TrendChartPainter({
     required this.points,
     required this.maxCount,
     required this.selectedIndex,
-    required this.isDark,
     required this.primaryColor,
   });
 
@@ -187,7 +181,7 @@ class _TrendChartPainter extends CustomPainter {
 
     // Draw background guide lines
     final gridPaint = Paint()
-      ..color = (isDark ? Colors.white : Colors.black).withValues(alpha: 0.06)
+      ..color = Colors.black.withValues(alpha: 0.06)
       ..strokeWidth = 1;
 
     canvas.drawLine(Offset.zero, Offset(size.width, 0), gridPaint);
@@ -226,7 +220,7 @@ class _TrendChartPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          primaryColor.withValues(alpha: isDark ? 0.35 : 0.2),
+          primaryColor.withValues(alpha: 0.2),
           primaryColor.withValues(alpha: 0.0),
         ],
       );
@@ -252,7 +246,7 @@ class _TrendChartPainter extends CustomPainter {
             ..color = isSelected ? AppColors.warning : primaryColor
             ..style = PaintingStyle.fill;
           final borderPaint = Paint()
-            ..color = isDark ? const Color(0xFF1E293B) : Colors.white
+            ..color = Colors.white
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2;
 
@@ -268,9 +262,9 @@ class _TrendChartPainter extends CustomPainter {
       final x = count > 1 ? i * step : size.width / 2;
       final textSpan = TextSpan(
         text: points[i].label,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 9,
-          color: isDark ? const Color(0xFF94A3B8) : AppColors.textMuted,
+          color: AppColors.textMuted,
         ),
       );
       final tp = TextPainter(
@@ -284,7 +278,6 @@ class _TrendChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _TrendChartPainter oldDelegate) {
     return oldDelegate.points != points ||
-        oldDelegate.selectedIndex != selectedIndex ||
-        oldDelegate.isDark != isDark;
+        oldDelegate.selectedIndex != selectedIndex;
   }
 }

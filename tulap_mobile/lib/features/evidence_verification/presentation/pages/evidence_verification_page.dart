@@ -55,7 +55,6 @@ class _EvidenceVerificationPageState extends State<EvidenceVerificationPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -82,12 +81,12 @@ class _EvidenceVerificationPageState extends State<EvidenceVerificationPage> {
                     strokeWidth: 3,
                   ),
                   const SizedBox(height: 18),
-                  Text(
+                  const Text(
                     'Menghitung Checksum & Mengaudit Bukti…',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white70 : const Color(0xFF475569),
+                      color: Color(0xFF475569),
                     ),
                   ),
                 ],
@@ -384,13 +383,11 @@ class _EvidenceVerificationPageState extends State<EvidenceVerificationPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        final isDark = Theme.of(ctx).brightness == Brightness.dark;
-
         return Container(
           padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -399,7 +396,7 @@ class _EvidenceVerificationPageState extends State<EvidenceVerificationPage> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white24 : Colors.black12,
+                  color: Colors.black12,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -409,12 +406,12 @@ class _EvidenceVerificationPageState extends State<EvidenceVerificationPage> {
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
-              Text(
+              const Text(
                 'Pindai untuk memverifikasi keaslian bukti via portal Tulap.id',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12.5,
-                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                  color: Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 20),

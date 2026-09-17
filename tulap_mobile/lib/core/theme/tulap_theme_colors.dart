@@ -71,58 +71,28 @@ class TulapThemeColors extends ThemeExtension<TulapThemeColors> {
     border: Color(0xFFE2E8F0),
     textPrimary: Color(0xFF0F172A),
     textSecondary: Color(0xFF64748B),
-    primary: Color(0xFF0066FE),
-    primaryHover: Color(0xFF0052CC),
-    action: Color(0xFF0066FE),
-    success: Color(0xFF00C263),
-    warning: Color(0xFFFF9F0A),
-    danger: Color(0xFFFF3B30),
-    successSoft: Color(0xFFECFDF5),
-    warningSoft: Color(0xFFFFFBEB),
+    primary: Color(0xFF0057B8),
+    primaryHover: Color(0xFF00478F),
+    action: Color(0xFF0057B8),
+    success: Color(0xFF29C763),
+    warning: Color(0xFFF59E0B),
+    danger: Color(0xFFDC2626),
+    successSoft: Color(0xFFF0FDF4),
+    warningSoft: Color(0xFFFFF7ED),
     dangerSoft: Color(0xFFFEF2F2),
-    iconSoftBlue: Color(0xFFEBF3FF),
+    iconSoftBlue: Color(0xFFEFF6FF),
     iconSoftCyan: Color(0xFFE6FFFA),
-    iconSoftTeal: Color(0xFFE6F9EE),
-    iconSoftIndigo: Color(0xFFF3E8FF),
-    heroGradientStart: Color(0xFF0052D4),
-    heroGradientEnd: Color(0xFF0066FE),
+    iconSoftTeal: Color(0xFFF0FDF4),
+    iconSoftIndigo: Color(0xFFE9D5FF),
+    heroGradientStart: Color(0xFF003D82),
+    heroGradientEnd: Color(0xFF0057B8),
     shadowSoft: Color(0x0F101828),
     inputFill: Color(0xFFFFFFFF),
     unreadCardBg: Color(0xFFEFF6FF),
   );
 
-  /// Dark Mode Palette (Google Drive Dark Theme Exact Matching)
-  static const dark = TulapThemeColors(
-    background: Color(0xFF131314), // Google Drive Surface / Canvas
-    surface: Color(0xFF1E1F20), // Google Drive Card / Container Surface
-    surfaceElevated: Color(0xFF282A2C), // Google Drive Elevated Sheet / Search Pill / Dialog
-    cardBackground: Color(0xFF1E1F20),
-    border: Color(0xFF444746), // Google M3 Outline Variant
-    textPrimary: Color(0xFFE3E3E3), // Google M3 On-Surface
-    textSecondary: Color(0xFFC4C7C5), // Google M3 On-Surface-Variant
-    primary: Color(0xFFA8C7FA), // Google Drive M3 Light Blue Accent
-    primaryHover: Color(0xFF8AB4F8), // Google Blue 200
-    action: Color(0xFFA8C7FA), // Interactive Google Blue Accent
-    success: Color(0xFF81C995), // Google Green 300
-    warning: Color(0xFFFDD663), // Google Yellow/Amber 300
-    danger: Color(0xFFF28B82), // Google Red 300
-    successSoft: Color(0xFF0E3B24), // Google Green Soft Container
-    warningSoft: Color(0xFF3E2E08), // Google Amber Soft Container
-    dangerSoft: Color(0xFF3C1414), // Google Red Soft Container
-    iconSoftBlue: Color(0xFF1A273D),
-    iconSoftCyan: Color(0xFF13353D),
-    iconSoftTeal: Color(0xFF12382E),
-    iconSoftIndigo: Color(0xFF2B234B),
-    heroGradientStart: Color(0xFF131314),
-    heroGradientEnd: Color(0xFF1F2E47),
-    shadowSoft: Color(0x66000000),
-    inputFill: Color(0xFF282A2C),
-    unreadCardBg: Color(0xFF1A2A44),
-  );
-
   static TulapThemeColors of(BuildContext context) {
-    return Theme.of(context).extension<TulapThemeColors>() ??
-        (Theme.of(context).brightness == Brightness.dark ? dark : light);
+    return Theme.of(context).extension<TulapThemeColors>() ?? light;
   }
 
   @override
@@ -218,5 +188,4 @@ class TulapThemeColors extends ThemeExtension<TulapThemeColors> {
 /// Extension helper on BuildContext
 extension TulapThemeContextExtension on BuildContext {
   TulapThemeColors get tulapColors => TulapThemeColors.of(this);
-  bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
 }

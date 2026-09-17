@@ -456,7 +456,6 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.tulapColors;
-    final isDark = context.isDarkMode;
 
     return InkWell(
       onTap: onTap,
@@ -465,9 +464,7 @@ class _FilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: isSelected
-              ? colors.primary
-              : (isDark ? colors.surfaceElevated : const Color(0xFFF1F5F9)),
+          color: isSelected ? colors.primary : const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
@@ -502,7 +499,6 @@ class _NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.tulapColors;
-    final isDark = context.isDarkMode;
     final config = _iconFor(context, notification);
     final isUnread = !notification.isRead;
 
@@ -595,7 +591,7 @@ class _NotificationCard extends StatelessWidget {
                           fontFamily: AppTypography.fontFamily,
                           fontSize: 13,
                           fontWeight: FontWeight.w400,
-                          color: isDark ? colors.textSecondary : const Color(0xFF475569),
+                          color: const Color(0xFF475569),
                           height: 1.35,
                         ),
                       ),

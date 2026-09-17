@@ -37,8 +37,6 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return AnimatedBuilder(
       animation: widget.controller,
       builder: (context, _) {
@@ -47,7 +45,7 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
         return Container(
           height: MediaQuery.of(context).size.height * 0.78,
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            color: Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             boxShadow: const [
               BoxShadow(
@@ -66,7 +64,7 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
                   width: 40,
                   height: 4.5,
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                    color: const Color(0xFFCBD5E1),
                     borderRadius: BorderRadius.circular(99),
                   ),
                 ),
@@ -82,19 +80,19 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Pilih Template Stamp',
                           style: TextStyle(
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color: Color(0xFF0F172A),
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
+                        const Text(
                           'Pilih gaya visual watermark bukti kegiatan',
                           style: TextStyle(
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: Color(0xFF64748B),
                             fontSize: 12.5,
                           ),
                         ),
@@ -102,7 +100,7 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded),
-                      color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                      color: const Color(0xFF64748B),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
@@ -135,7 +133,6 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
                           context: context,
                           template: template,
                           isSelected: isSelected,
-                          isDark: isDark,
                           onTap: () {
                             HapticFeedback.selectionClick();
                             widget.controller.setTemplate(template.id);
@@ -149,10 +146,10 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
                     // Accordion: Sesuaikan Elemen Tampilan
                     Container(
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                        color: const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          color: const Color(0xFFE2E8F0),
                         ),
                       ),
                       child: Column(
@@ -177,11 +174,11 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
                                     size: 20,
                                   ),
                                   const SizedBox(width: 10),
-                                  Expanded(
+                                  const Expanded(
                                     child: Text(
                                       'Sesuaikan Elemen Visual',
                                       style: TextStyle(
-                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        color: Color(0xFF0F172A),
                                         fontSize: 14,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -191,7 +188,7 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
                                     _showCustomization
                                         ? Icons.expand_less_rounded
                                         : Icons.expand_more_rounded,
-                                    color: isDark ? Colors.white54 : Colors.black45,
+                                    color: Colors.black45,
                                   ),
                                 ],
                               ),
@@ -225,10 +222,8 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
                                         Expanded(
                                           child: Text(
                                             'Pemberitahuan: Mematikan elemen visual hanya menyembunyikannya dari foto. Seluruh metadata forensik tetap tersimpan lengkap di Evidence Record.',
-                                            style: TextStyle(
-                                              color: isDark
-                                                  ? const Color(0xFF93C5FD)
-                                                  : const Color(0xFF1E40AF),
+                                            style: const TextStyle(
+                                              color: Color(0xFF1E40AF),
                                               fontSize: 11.5,
                                               height: 1.35,
                                             ),
@@ -241,31 +236,31 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
 
                                   _buildSwitchTile('Nama Kegiatan', config.showTaskName, (val) {
                                     widget.controller.updateStampConfig(config.copyWith(showTaskName: val));
-                                  }, isDark),
+                                  }),
                                   _buildSwitchTile('Lokasi / Alamat', config.showLocation, (val) {
                                     widget.controller.updateStampConfig(config.copyWith(showLocation: val));
-                                  }, isDark),
+                                  }),
                                   _buildSwitchTile('Tanggal & Jam', config.showDate, (val) {
                                     widget.controller.updateStampConfig(config.copyWith(showDate: val, showTime: val));
-                                  }, isDark),
+                                  }),
                                   _buildSwitchTile('Koordinat GPS', config.showCoordinates, (val) {
                                     widget.controller.updateStampConfig(config.copyWith(showCoordinates: val));
-                                  }, isDark),
+                                  }),
                                   _buildSwitchTile('Akurasi GPS (±m)', config.showGpsAccuracy, (val) {
                                     widget.controller.updateStampConfig(config.copyWith(showGpsAccuracy: val));
-                                  }, isDark),
+                                  }),
                                   _buildSwitchTile('ID Bukti (Short ID)', config.showEvidenceId, (val) {
                                     widget.controller.updateStampConfig(config.copyWith(showEvidenceId: val));
-                                  }, isDark),
+                                  }),
                                   _buildSwitchTile('Nama Petugas & Instansi', config.showOfficerName, (val) {
                                     widget.controller.updateStampConfig(config.copyWith(showOfficerName: val));
-                                  }, isDark),
+                                  }),
                                   _buildSwitchTile('Mini Map Kontekstual', config.showMiniMap, (val) {
                                     widget.controller.updateStampConfig(config.copyWith(showMiniMap: val));
-                                  }, isDark),
+                                  }),
                                   _buildSwitchTile('QR Google Maps', config.showQrMaps, (val) {
                                     widget.controller.updateStampConfig(config.copyWith(showQrMaps: val));
-                                  }, isDark),
+                                  }),
                                 ],
                               ),
                             ),
@@ -287,7 +282,6 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
     required BuildContext context,
     required WatermarkTemplateDefinition template,
     required bool isSelected,
-    required bool isDark,
     required VoidCallback onTap,
   }) {
     return Semantics(
@@ -299,14 +293,10 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isSelected
-                ? (isDark ? const Color(0x33006EE6) : const Color(0xFFEFF6FF))
-                : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+            color: isSelected ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isSelected
-                  ? const Color(0xFF006EE6)
-                  : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              color: isSelected ? const Color(0xFF006EE6) : const Color(0xFFE2E8F0),
               width: isSelected ? 2.0 : 1.0,
             ),
           ),
@@ -320,17 +310,13 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFF006EE6)
-                          : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      color: isSelected ? const Color(0xFF006EE6) : const Color(0xFFE2E8F0),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       template.icon,
                       size: 18,
-                      color: isSelected
-                          ? Colors.white
-                          : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                      color: isSelected ? Colors.white : const Color(0xFF475569),
                     ),
                   ),
                   if (isSelected)
@@ -353,8 +339,8 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
                 children: [
                   Text(
                     template.name,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    style: const TextStyle(
+                      color: Color(0xFF0F172A),
                       fontSize: 13.5,
                       fontWeight: FontWeight.w800,
                     ),
@@ -363,9 +349,7 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
                   Text(
                     template.subtitle,
                     style: TextStyle(
-                      color: isSelected
-                          ? const Color(0xFF006EE6)
-                          : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      color: isSelected ? const Color(0xFF006EE6) : const Color(0xFF64748B),
                       fontSize: 11.0,
                       fontWeight: FontWeight.w600,
                     ),
@@ -383,7 +367,6 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
     String label,
     bool value,
     ValueChanged<bool> onChanged,
-    bool isDark,
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -392,8 +375,8 @@ class _TemplateSelectorSheetState extends State<TemplateSelectorSheet> {
         children: [
           Text(
             label,
-            style: TextStyle(
-              color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155),
+            style: const TextStyle(
+              color: Color(0xFF334155),
               fontSize: 13.0,
               fontWeight: FontWeight.w500,
             ),

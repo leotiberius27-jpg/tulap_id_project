@@ -26,7 +26,6 @@ class TravelLpjIntelligenceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (travelTotal == 0) return const SizedBox.shrink();
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final lpjCompletionRate = travelTotal > 0
         ? ((lpjComplete / travelTotal) * 100).toInt()
         : 0;
@@ -36,16 +35,14 @@ class TravelLpjIntelligenceCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : AppColors.surface,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isDark
-                ? const Color(0xFF334155)
-                : AppColors.primary.withValues(alpha: 0.08),
+            color: AppColors.primary.withValues(alpha: 0.08),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -103,9 +100,7 @@ class TravelLpjIntelligenceCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF1E293B)
-                          : const Color(0xFFF1F5F9),
+                      color: const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Column(
@@ -140,12 +135,8 @@ class TravelLpjIntelligenceCard extends StatelessWidget {
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: lpjIncomplete > 0
-                            ? (isDark
-                                ? const Color(0xFF332314)
-                                : const Color(0xFFFEF3C7))
-                            : (isDark
-                                ? const Color(0xFF142E1F)
-                                : const Color(0xFFECFDF5)),
+                            ? const Color(0xFFFEF3C7)
+                            : const Color(0xFFECFDF5),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Column(
@@ -180,7 +171,7 @@ class TravelLpjIntelligenceCard extends StatelessWidget {
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                               color: lpjIncomplete > 0
-                                  ? (isDark ? const Color(0xFFFDE68A) : const Color(0xFFB45309))
+                                  ? const Color(0xFFB45309)
                                   : AppColors.success,
                             ),
                           ),
@@ -210,9 +201,7 @@ class TravelLpjIntelligenceCard extends StatelessWidget {
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFF1F5F9),
+                      color: const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(

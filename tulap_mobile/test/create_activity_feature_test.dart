@@ -29,14 +29,10 @@ class _FakeAuthRepo implements AuthRepository {
 Widget _buildLocalizedApp({
   required Widget home,
   ThemeData? theme,
-  ThemeData? darkTheme,
-  ThemeMode themeMode = ThemeMode.system,
 }) {
   return MaterialApp(
     title: 'Tulap.id Test',
     theme: theme ?? AppTheme.light,
-    darkTheme: darkTheme ?? AppTheme.dark,
-    themeMode: themeMode,
     locale: const Locale('id', 'ID'),
     supportedLocales: const [
       Locale('id', 'ID'),
@@ -153,7 +149,7 @@ void main() {
   });
 
   testWidgets(
-    'DatePicker opens normally without MaterialLocalizations crash in Light Mode',
+    'DatePicker opens normally without MaterialLocalizations crash',
     (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
@@ -161,7 +157,6 @@ void main() {
 
       await tester.pumpWidget(
         _buildLocalizedApp(
-          themeMode: ThemeMode.light,
           home: const CreateActivityPage(),
         ),
       );
@@ -184,42 +179,6 @@ void main() {
       );
       expect(dialogButtons, findsAtLeastNWidgets(2));
       await tester.tap(dialogButtons.first);
-      await tester.pumpAndSettle();
-
-      expect(find.byType(DatePickerDialog), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'DatePicker opens normally without MaterialLocalizations crash in Dark Mode',
-    (tester) async {
-      tester.view.physicalSize = const Size(800, 1600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
-
-      await tester.pumpWidget(
-        _buildLocalizedApp(
-          themeMode: ThemeMode.dark,
-          home: const CreateActivityPage(),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final datePickerFinder = find.widgetWithText(InputDecorator, 'Tanggal Kegiatan *');
-      expect(datePickerFinder, findsOneWidget);
-
-      await tester.tap(datePickerFinder);
-      await tester.pumpAndSettle();
-
-      expect(find.byType(DatePickerDialog), findsOneWidget);
-
-      // Select OK (last button in DatePickerDialog actions)
-      final dialogButtons = find.descendant(
-        of: find.byType(DatePickerDialog),
-        matching: find.byType(TextButton),
-      );
-      expect(dialogButtons, findsAtLeastNWidgets(2));
-      await tester.tap(dialogButtons.last);
       await tester.pumpAndSettle();
 
       expect(find.byType(DatePickerDialog), findsNothing);

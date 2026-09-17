@@ -30,7 +30,6 @@ import '../../core/security/security_event_local_datasource.dart';
 import '../../core/security/oauth_sign_in_service.dart';
 import '../../core/session/auth_session_manager.dart';
 import '../../core/sync/background_sync_service.dart';
-import '../../core/theme/theme_controller.dart';
 import '../../core/localization/language_controller.dart';
 
 import '../../features/assistant/presentation/widgets/tula_overlay.dart';
@@ -556,9 +555,6 @@ Future<void> initDependencies({Database? database}) async {
   // ============================================================
   sl.registerLazySingleton<AccountLocalDataSource>(
     () => AccountLocalDataSourceImpl(database: sl()),
-  );
-  sl.registerLazySingleton<ThemeController>(
-    () => ThemeController(localDataSource: sl()),
   );
   sl.registerLazySingleton<LanguageController>(
     () => LanguageController(localDataSource: sl()),

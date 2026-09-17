@@ -49,7 +49,6 @@ class EvidenceDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     String formattedDate;
     try {
@@ -63,7 +62,7 @@ class EvidenceDetailPage extends StatelessWidget {
     final hasLocalFile = file.existsSync();
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text('Detail Bukti'),
         actions: [
@@ -246,8 +245,8 @@ class EvidenceDetailPage extends StatelessWidget {
                 children: [
                   Text(
                     photo.caption!,
-                    style: TextStyle(
-                      color: isDark ? Colors.white70 : Colors.black87,
+                    style: const TextStyle(
+                      color: Colors.black87,
                       fontSize: 13,
                     ),
                   ),
@@ -259,12 +258,12 @@ class EvidenceDetailPage extends StatelessWidget {
 
             // 6. INFORMASI TEKNIS (Collapsed)
             Card(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              color: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
                 side: BorderSide(
-                  color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                  color: Colors.black.withValues(alpha: 0.06),
                 ),
               ),
               child: ExpansionTile(
@@ -352,14 +351,13 @@ class EvidenceDetailPage extends StatelessWidget {
     required IconData icon,
     required List<Widget> children,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
-      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+      color: Colors.white,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+          color: Colors.black.withValues(alpha: 0.06),
         ),
       ),
       child: Padding(
@@ -373,11 +371,11 @@ class EvidenceDetailPage extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.6,
-                    color: isDark ? Colors.white60 : Colors.black54,
+                    color: Colors.black54,
                   ),
                 ),
               ],

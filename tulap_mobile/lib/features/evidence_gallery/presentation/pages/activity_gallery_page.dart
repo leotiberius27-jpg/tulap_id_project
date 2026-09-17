@@ -107,11 +107,10 @@ class _ActivityGalleryPageState extends State<ActivityGalleryPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final filtered = _filteredEvidence;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.grey[50],
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,9 +121,9 @@ class _ActivityGalleryPageState extends State<ActivityGalleryPage> {
             ),
             Text(
               widget.taskName ?? widget.task?.taskName ?? 'Kegiatan Lapangan',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
-                color: isDark ? Colors.white60 : Colors.black54,
+                color: Colors.black54,
               ),
             ),
           ],
@@ -135,25 +134,22 @@ class _ActivityGalleryPageState extends State<ActivityGalleryPage> {
           // 1. Filter Chips & Counter Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            color: Colors.white,
             child: Row(
               children: [
                 _buildFilterChip(
                   label: 'Semua (${_allEvidence.length})',
                   filter: GalleryMediaTypeFilter.all,
-                  isDark: isDark,
                 ),
                 const SizedBox(width: 8),
                 _buildFilterChip(
                   label: 'Foto (${_allEvidence.where((e) => e.isPhoto).length})',
                   filter: GalleryMediaTypeFilter.photo,
-                  isDark: isDark,
                 ),
                 const SizedBox(width: 8),
                 _buildFilterChip(
                   label: 'Video (${_allEvidence.where((e) => e.isVideo).length})',
                   filter: GalleryMediaTypeFilter.video,
-                  isDark: isDark,
                 ),
               ],
             ),
@@ -171,13 +167,13 @@ class _ActivityGalleryPageState extends State<ActivityGalleryPage> {
                     ? Center(
                         child: Text(
                           _errorMessage!,
-                          style: TextStyle(
-                            color: isDark ? Colors.white70 : Colors.black87,
+                          style: const TextStyle(
+                            color: Colors.black87,
                           ),
                         ),
                       )
                     : filtered.isEmpty
-                        ? _buildEmptyGalleryState(isDark)
+                        ? _buildEmptyGalleryState()
                         : RefreshIndicator(
                             onRefresh: _loadEvidence,
                             child: GridView.builder(
@@ -194,7 +190,6 @@ class _ActivityGalleryPageState extends State<ActivityGalleryPage> {
                                 return _buildGalleryGridItem(
                                   filtered[index],
                                   index,
-                                  isDark,
                                 );
                               },
                             ),
@@ -208,7 +203,6 @@ class _ActivityGalleryPageState extends State<ActivityGalleryPage> {
   Widget _buildFilterChip({
     required String label,
     required GalleryMediaTypeFilter filter,
-    required bool isDark,
   }) {
     final isSelected = _selectedFilter == filter;
     return GestureDetector(
@@ -217,17 +211,13 @@ class _ActivityGalleryPageState extends State<ActivityGalleryPage> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF006EE6)
-              : (isDark ? Colors.white10 : Colors.grey[200]),
+          color: isSelected ? const Color(0xFF006EE6) : Colors.grey[200],
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected
-                ? Colors.white
-                : (isDark ? Colors.white70 : Colors.black87),
+            color: isSelected ? Colors.white : Colors.black87,
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
@@ -239,14 +229,13 @@ class _ActivityGalleryPageState extends State<ActivityGalleryPage> {
   Widget _buildGalleryGridItem(
     GeotagPhotoEntity evidence,
     int index,
-    bool isDark,
   ) {
     return GestureDetector(
       onTap: () => _openViewer(index),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: Container(
-          color: isDark ? const Color(0xFF1E293B) : Colors.grey[300],
+          color: Colors.grey[300],
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -336,33 +325,33 @@ class _ActivityGalleryPageState extends State<ActivityGalleryPage> {
     );
   }
 
-  Widget _buildEmptyGalleryState(bool isDark) {
+  Widget _buildEmptyGalleryState() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.photo_library_outlined,
               size: 56,
-              color: isDark ? Colors.white38 : Colors.black26,
+              color: Colors.black26,
             ),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               'Belum ada bukti',
               style: TextStyle(
-                color: isDark ? Colors.white : Colors.black87,
+                color: Colors.black87,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 6),
-            Text(
+            const Text(
               'Foto dan video kegiatan lapangan akan terkumpul di sini.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: isDark ? Colors.white60 : Colors.black54,
+                color: Colors.black54,
                 fontSize: 13,
               ),
             ),

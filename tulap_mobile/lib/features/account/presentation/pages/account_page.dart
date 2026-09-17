@@ -24,7 +24,6 @@ import '../../../../core/localization/language_controller.dart';
 import 'about_tulap_page.dart';
 import 'camera_settings_page.dart';
 import 'device_storage_page.dart';
-import 'display_settings_page.dart';
 import 'edit_profile_page.dart';
 import 'help_support_page.dart';
 import 'language_settings_page.dart';
@@ -41,7 +40,7 @@ import 'terms_page.dart';
 /// 1. ProfileHeader (Avatar Dinamis, Nama, Email, Instansi, Edit Profil)
 /// 2. Section 1: Akun & Keamanan (Info Profil, Keamanan & Login)
 /// 3. Section 2: Data & Sinkronisasi (Status Outbox, Storage, Cache Aman)
-/// 4. Section 3: Pengaturan (Notifikasi, Kamera Geotag, Lokasi GPS, Tampilan)
+/// 4. Section 3: Pengaturan (Notifikasi, Kamera Geotag, Lokasi GPS, Bahasa)
 /// 5. Section 4: Bantuan & Informasi (Panduan Lapangan, Privasi, Syarat, Tentang)
 /// 6. Logout Section (Dengan proteksi antrian data outbox belum tersinkron)
 /// ----------------------------------------------------------------------
@@ -338,17 +337,6 @@ class _AccountView extends StatelessWidget {
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const LocationSettingsPage(),
-                          ),
-                        ),
-                      ),
-                      AccountMenuRow(
-                        icon: Icons.palette_outlined,
-                        iconBgColor: AppColors.iconSoftCyan,
-                        title: 'Tampilan',
-                        subtitle: 'Mode terang, gelap, & sistem',
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const DisplaySettingsPage(),
                           ),
                         ),
                       ),

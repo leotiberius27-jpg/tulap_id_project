@@ -6,24 +6,13 @@ import 'package:tulap_mobile/core/localization/app_language.dart';
 import 'package:tulap_mobile/core/localization/app_localizations.dart';
 import 'package:tulap_mobile/core/localization/language_controller.dart';
 import 'package:tulap_mobile/core/theme/app_theme.dart';
-import 'package:tulap_mobile/core/theme/app_theme_mode.dart';
-import 'package:tulap_mobile/core/theme/theme_controller.dart';
 import 'package:tulap_mobile/features/account/data/datasources/account_local_datasource.dart';
 import 'package:tulap_mobile/features/account/domain/entities/account_settings_entity.dart';
 import 'package:tulap_mobile/features/account/domain/entities/storage_breakdown_entity.dart';
 import 'package:tulap_mobile/features/account/presentation/pages/language_settings_page.dart';
 
 class FakeAccountLocalDataSource implements AccountLocalDataSource {
-  AppThemeMode savedThemeMode = AppThemeMode.light;
   AppLanguage savedLanguage = AppLanguage.id;
-
-  @override
-  Future<AppThemeMode> getThemeMode() async => savedThemeMode;
-
-  @override
-  Future<void> saveThemeMode(AppThemeMode mode) async {
-    savedThemeMode = mode;
-  }
 
   @override
   Future<AppLanguage> getLanguage() async => savedLanguage;
@@ -67,30 +56,20 @@ void main() {
 
   late FakeAccountLocalDataSource fakeDataSource;
   late LanguageController languageController;
-  late ThemeController themeController;
 
   setUp(() {
     fakeDataSource = FakeAccountLocalDataSource();
     languageController = LanguageController(localDataSource: fakeDataSource);
-    themeController = ThemeController(localDataSource: fakeDataSource);
 
     if (sl.isRegistered<LanguageController>()) {
       sl.unregister<LanguageController>();
     }
     sl.registerSingleton<LanguageController>(languageController);
-
-    if (sl.isRegistered<ThemeController>()) {
-      sl.unregister<ThemeController>();
-    }
-    sl.registerSingleton<ThemeController>(themeController);
   });
 
   tearDown(() {
     if (sl.isRegistered<LanguageController>()) {
       sl.unregister<LanguageController>();
-    }
-    if (sl.isRegistered<ThemeController>()) {
-      sl.unregister<ThemeController>();
     }
   });
 
@@ -197,7 +176,6 @@ void main() {
         builder: (context, _) {
           return MaterialApp(
             theme: AppTheme.light,
-            darkTheme: AppTheme.dark,
             locale: languageController.currentLocale,
             supportedLocales: const [
               Locale('id', 'ID'),

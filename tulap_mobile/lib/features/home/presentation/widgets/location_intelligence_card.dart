@@ -17,7 +17,6 @@ class LocationIntelligenceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (topLocations.isEmpty) return const SizedBox.shrink();
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final totalLocationCounts = topLocations.fold<int>(0, (sum, l) => sum + l.count);
 
     return Padding(
@@ -25,16 +24,14 @@ class LocationIntelligenceCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : AppColors.surface,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isDark
-                ? const Color(0xFF334155)
-                : AppColors.primary.withValues(alpha: 0.08),
+            color: AppColors.primary.withValues(alpha: 0.08),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -89,7 +86,7 @@ class LocationIntelligenceCard extends StatelessWidget {
               onTap: () => _openFullMap(context),
               child: Stack(
                 children: [
-                  _buildVisualMapBox(context, isDark),
+                  _buildVisualMapBox(context),
                   Positioned(
                     right: 8,
                     bottom: 8,
@@ -184,9 +181,7 @@ class LocationIntelligenceCard extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: pct,
                             minHeight: 6,
-                            backgroundColor: isDark
-                                ? const Color(0xFF334155)
-                                : const Color(0xFFF1F5F9),
+                            backgroundColor: const Color(0xFFF1F5F9),
                             valueColor: const AlwaysStoppedAnimation<Color>(
                               AppColors.primary,
                             ),
@@ -212,7 +207,7 @@ class LocationIntelligenceCard extends StatelessWidget {
     );
   }
 
-  Widget _buildVisualMapBox(BuildContext context, bool isDark) {
+  Widget _buildVisualMapBox(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final boxWidth = constraints.maxWidth;
@@ -222,7 +217,7 @@ class LocationIntelligenceCard extends StatelessWidget {
           width: double.infinity,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF162232) : const Color(0xFFE8F1FC),
+            color: const Color(0xFFE8F1FC),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: AppColors.primary.withValues(alpha: 0.15),
@@ -235,7 +230,7 @@ class LocationIntelligenceCard extends StatelessWidget {
                 child: Opacity(
                   opacity: 0.15,
                   child: CustomPaint(
-                    painter: _MapGridPainter(isDark: isDark),
+                    painter: _MapGridPainter(),
                   ),
                 ),
               ),
@@ -293,14 +288,12 @@ class LocationIntelligenceCard extends StatelessWidget {
 }
 
 class _MapGridPainter extends CustomPainter {
-  final bool isDark;
-
-  _MapGridPainter({required this.isDark});
+  _MapGridPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = isDark ? Colors.white : AppColors.primary
+      ..color = AppColors.primary
       ..strokeWidth = 0.8;
 
     for (double x = 0; x < size.width; x += 25) {

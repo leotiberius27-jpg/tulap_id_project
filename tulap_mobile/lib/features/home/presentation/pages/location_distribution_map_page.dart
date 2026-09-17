@@ -177,20 +177,19 @@ class _LocationDistributionMapPageState
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final plotted = _plotted;
     final unplotted = _unplotted;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Peta Sebaran Lokasi'),
-        backgroundColor: isDark ? const Color(0xFF1E293B) : AppColors.surface,
+        backgroundColor: AppColors.surface,
       ),
       body: Column(
         children: [
           Expanded(
             child: plotted.isEmpty
-                ? _buildEmptyCoordinatesState(isDark)
+                ? _buildEmptyCoordinatesState()
                 : Stack(
                     children: [
                       GoogleMap(
@@ -226,33 +225,33 @@ class _LocationDistributionMapPageState
                     ],
                   ),
           ),
-          if (unplotted.isNotEmpty) _buildUnplottedList(unplotted, isDark),
+          if (unplotted.isNotEmpty) _buildUnplottedList(unplotted),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyCoordinatesState(bool isDark) {
+  Widget _buildEmptyCoordinatesState() {
     return Container(
-      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      color: const Color(0xFFF8FAFC),
       alignment: Alignment.center,
       padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
+          const Icon(
             Icons.location_off_outlined,
             size: 40,
-            color: isDark ? Colors.white38 : AppColors.textMuted,
+            color: AppColors.textMuted,
           ),
           const SizedBox(height: 12),
-          Text(
+          const Text(
             'Belum ada kegiatan dengan foto geotag pada periode ini,\n'
             'jadi belum ada koordinat GPS untuk diplot di peta.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
-              color: isDark ? Colors.white70 : AppColors.textSecondary,
+              color: AppColors.textSecondary,
             ),
           ),
         ],
@@ -260,15 +259,13 @@ class _LocationDistributionMapPageState
     );
   }
 
-  Widget _buildUnplottedList(List<TopLocationStat> unplotted, bool isDark) {
+  Widget _buildUnplottedList(List<TopLocationStat> unplotted) {
     return Container(
       constraints: const BoxConstraints(maxHeight: 160),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : AppColors.surface,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
         border: Border(
-          top: BorderSide(
-            color: isDark ? const Color(0xFF334155) : AppColors.border,
-          ),
+          top: BorderSide(color: AppColors.border),
         ),
       ),
       child: Column(
@@ -279,10 +276,10 @@ class _LocationDistributionMapPageState
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Text(
               'Lokasi tanpa koordinat GPS (${unplotted.length})',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white70 : AppColors.textSecondary,
+                color: AppColors.textSecondary,
               ),
             ),
           ),
@@ -295,16 +292,16 @@ class _LocationDistributionMapPageState
                 final loc = unplotted[index];
                 return ListTile(
                   dense: true,
-                  leading: Icon(
+                  leading: const Icon(
                     Icons.place_outlined,
                     size: 18,
-                    color: isDark ? Colors.white54 : AppColors.textMuted,
+                    color: AppColors.textMuted,
                   ),
                   title: Text(
                     loc.location,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
-                      color: isDark ? Colors.white : AppColors.textPrimary,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   trailing: Text(
@@ -332,12 +329,10 @@ class _SelectedLocationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Material(
       elevation: 6,
       borderRadius: BorderRadius.circular(14),
-      color: isDark ? const Color(0xFF1E293B) : AppColors.surface,
+      color: AppColors.surface,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Row(
@@ -357,9 +352,9 @@ class _SelectedLocationCard extends StatelessWidget {
                 children: [
                   Text(
                     location.location,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : AppColors.textPrimary,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   Text(

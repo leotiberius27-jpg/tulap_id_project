@@ -7,7 +7,6 @@ import 'package:tulap_mobile/core/error/failures.dart';
 import 'package:tulap_mobile/core/sync/background_sync_service.dart';
 import 'package:tulap_mobile/core/localization/app_language.dart';
 import 'package:tulap_mobile/core/localization/language_controller.dart';
-import 'package:tulap_mobile/core/theme/app_theme_mode.dart';
 import 'package:tulap_mobile/features/account/data/datasources/account_local_datasource.dart';
 import 'package:tulap_mobile/features/account/data/repositories/account_repository_impl.dart';
 import 'package:tulap_mobile/features/account/domain/entities/account_settings_entity.dart';
@@ -203,16 +202,6 @@ class _MockAccountLocalDataSource implements AccountLocalDataSource {
     NotificationSettingsEntity settings,
   ) async {
     notificationSettings = settings;
-  }
-
-  AppThemeMode themeMode = AppThemeMode.system;
-
-  @override
-  Future<AppThemeMode> getThemeMode() async => themeMode;
-
-  @override
-  Future<void> saveThemeMode(AppThemeMode mode) async {
-    themeMode = mode;
   }
 
   AppLanguage language = AppLanguage.id;
@@ -450,7 +439,7 @@ void main() {
       expect(find.text('Notifikasi'), findsOneWidget);
       expect(find.text('Kamera & Dokumentasi'), findsOneWidget);
       expect(find.text('Lokasi & GPS'), findsOneWidget);
-      expect(find.text('Tampilan'), findsOneWidget);
+      expect(find.text('Bahasa / Language'), findsOneWidget);
       expect(find.text('Bantuan & Dukungan'), findsOneWidget);
       expect(find.text('Kebijakan Privasi'), findsOneWidget);
       expect(find.text('Syarat Penggunaan'), findsOneWidget);
@@ -528,7 +517,7 @@ void main() {
     testWidgets('DisplaySettingsPage renders properly', (tester) async {
       await tester.pumpWidget(const MaterialApp(home: DisplaySettingsPage()));
       await tester.pumpAndSettle();
-      expect(find.text('Tampilan'), findsOneWidget);
+      expect(find.text('Bahasa'), findsOneWidget);
     });
 
     testWidgets('HelpSupportPage renders properly', (tester) async {

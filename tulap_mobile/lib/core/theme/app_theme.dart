@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_radius.dart';
 import 'app_spacing.dart';
-import 'app_theme_mode.dart';
 import 'app_typography.dart';
 import 'tulap_theme_colors.dart';
 
@@ -10,14 +9,12 @@ export 'app_colors.dart';
 export 'app_motion.dart';
 export 'app_radius.dart';
 export 'app_spacing.dart';
-export 'app_theme_mode.dart';
 export 'app_typography.dart';
 export 'tulap_theme_colors.dart';
 
 /// AppTheme
 /// ----------------------------------------------------------------------
 /// Titik pemasangan seluruh token desain ke dalam ThemeData Flutter.
-/// Mendukung Light Theme dan Dark Theme (Dark Navy Tulap.id).
 /// ----------------------------------------------------------------------
 class AppTheme {
   AppTheme._();
@@ -215,198 +212,6 @@ class AppTheme {
     );
   }
 
-  /// Dark Theme (Dark Navy Kontras Tinggi Tulap.id)
-  static ThemeData get dark {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
-      primary: AppDarkColors.primary,
-      secondary: AppDarkColors.action,
-      error: AppDarkColors.danger,
-      surface: AppDarkColors.surface,
-      brightness: Brightness.dark,
-    );
-
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      colorScheme: colorScheme,
-      scaffoldBackgroundColor: AppDarkColors.background,
-      fontFamily: AppTypography.fontFamily,
-      extensions: const [TulapThemeColors.dark],
-
-      textTheme: AppTypography.darkTextTheme,
-
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppDarkColors.surface,
-        foregroundColor: AppDarkColors.textPrimary,
-        elevation: 0,
-        centerTitle: false,
-        titleTextStyle: AppTypography.sectionTitleDark,
-      ),
-
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppDarkColors.primary,
-          foregroundColor: AppDarkColors.onPrimary,
-          minimumSize: const Size.fromHeight(52),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.button),
-          ),
-          textStyle: AppTypography.bodyDark.copyWith(fontWeight: FontWeight.w700),
-          elevation: 0,
-        ),
-      ),
-
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppDarkColors.primary,
-          minimumSize: const Size.fromHeight(52),
-          side: const BorderSide(color: AppDarkColors.border),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.button),
-          ),
-          textStyle: AppTypography.bodyDark.copyWith(fontWeight: FontWeight.w600),
-        ),
-      ),
-
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: AppDarkColors.primary,
-          minimumSize: const Size(44, 44),
-          textStyle: AppTypography.bodyDark.copyWith(fontWeight: FontWeight.w600),
-        ),
-      ),
-
-      cardTheme: CardThemeData(
-        color: AppDarkColors.surface,
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          side: const BorderSide(color: AppDarkColors.border),
-        ),
-      ),
-
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: AppDarkColors.surfaceElevated,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.base,
-          vertical: AppSpacing.md,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.button),
-          borderSide: const BorderSide(color: AppDarkColors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.button),
-          borderSide: const BorderSide(color: AppDarkColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.button),
-          borderSide: const BorderSide(color: AppDarkColors.primary, width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.button),
-          borderSide: const BorderSide(color: AppDarkColors.danger),
-        ),
-        hintStyle: AppTypography.bodySecondaryDark,
-        labelStyle: AppTypography.bodySecondaryDark,
-      ),
-
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: AppDarkColors.surfaceElevated,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppRadius.bottomSheetTop),
-          ),
-        ),
-      ),
-
-      dialogTheme: const DialogThemeData(
-        backgroundColor: AppDarkColors.surfaceElevated,
-        surfaceTintColor: Colors.transparent,
-      ),
-
-      chipTheme: ChipThemeData(
-        backgroundColor: AppDarkColors.surfaceElevated,
-        labelStyle: AppTypography.smallDark,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.small),
-        ),
-        side: const BorderSide(color: AppDarkColors.border),
-      ),
-
-      dividerTheme: const DividerThemeData(
-        color: AppDarkColors.border,
-        thickness: 1,
-        space: 1,
-      ),
-
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppDarkColors.surface,
-        selectedItemColor: AppDarkColors.primary,
-        unselectedItemColor: AppDarkColors.textSecondary,
-        selectedLabelStyle: AppTypography.smallDark,
-        unselectedLabelStyle: AppTypography.smallDark,
-        type: BottomNavigationBarType.fixed,
-        elevation: 8,
-      ),
-
-      datePickerTheme: DatePickerThemeData(
-        backgroundColor: AppDarkColors.surfaceElevated,
-        surfaceTintColor: Colors.transparent,
-        headerBackgroundColor: AppDarkColors.surface,
-        headerForegroundColor: AppDarkColors.textPrimary,
-        headerHeadlineStyle: AppTypography.pageTitleDark.copyWith(color: AppDarkColors.textPrimary),
-        headerHelpStyle: AppTypography.smallDark.copyWith(color: AppDarkColors.textSecondary),
-        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return AppDarkColors.onPrimary;
-          }
-          if (states.contains(WidgetState.disabled)) {
-            return AppDarkColors.textSecondary.withValues(alpha: 0.4);
-          }
-          return AppDarkColors.textPrimary;
-        }),
-        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return AppDarkColors.primary;
-          }
-          return Colors.transparent;
-        }),
-        todayForegroundColor: WidgetStateProperty.all(AppDarkColors.primary),
-        todayBorder: const BorderSide(color: AppDarkColors.primary, width: 1.5),
-        yearForegroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return AppDarkColors.onPrimary;
-          }
-          return AppDarkColors.textPrimary;
-        }),
-        yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return AppDarkColors.primary;
-          }
-          return Colors.transparent;
-        }),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
-        cancelButtonStyle: TextButton.styleFrom(
-          foregroundColor: AppDarkColors.textSecondary,
-          textStyle: AppTypography.bodyDark.copyWith(fontWeight: FontWeight.w600),
-        ),
-        confirmButtonStyle: TextButton.styleFrom(
-          foregroundColor: AppDarkColors.primary,
-          textStyle: AppTypography.bodyDark.copyWith(fontWeight: FontWeight.w700),
-        ),
-      ),
-    );
-  }
 }
 
 /// StatusColor

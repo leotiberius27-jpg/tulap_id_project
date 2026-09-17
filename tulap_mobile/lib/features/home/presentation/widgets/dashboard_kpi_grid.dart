@@ -33,8 +33,6 @@ class DashboardKpiGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: LayoutBuilder(
@@ -58,7 +56,6 @@ class DashboardKpiGrid extends StatelessWidget {
                       : '0 selesai',
                   icon: Icons.assignment_outlined,
                   iconColor: AppColors.primary,
-                  isDark: isDark,
                   isNarrow: isNarrow,
                   onTap: onActivityTap,
                 ),
@@ -74,7 +71,6 @@ class DashboardKpiGrid extends StatelessWidget {
                   subtitle: '${summary.travelDays} hari total',
                   icon: Icons.flight_takeoff_rounded,
                   iconColor: AppColors.primary,
-                  isDark: isDark,
                   isNarrow: isNarrow,
                   onTap: onTravelTap,
                 ),
@@ -92,7 +88,6 @@ class DashboardKpiGrid extends StatelessWidget {
                       : '${summary.photoCount} foto ber-GPS',
                   icon: Icons.camera_alt_outlined,
                   iconColor: AppColors.success,
-                  isDark: isDark,
                   isNarrow: isNarrow,
                   onTap: onEvidenceTap,
                 ),
@@ -108,7 +103,6 @@ class DashboardKpiGrid extends StatelessWidget {
                   subtitle: 'Terkonfirmasi',
                   icon: Icons.receipt_long_outlined,
                   iconColor: const Color(0xFFF59E0B),
-                  isDark: isDark,
                   isNarrow: isNarrow,
                   onTap: onExpenseTap,
                 ),
@@ -127,7 +121,6 @@ class DashboardKpiGrid extends StatelessWidget {
     required String subtitle,
     required IconData icon,
     required Color iconColor,
-    required bool isDark,
     required bool isNarrow,
     VoidCallback? onTap,
   }) {
@@ -137,16 +130,14 @@ class DashboardKpiGrid extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(isNarrow ? 12 : 14),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : AppColors.surface,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isDark
-                ? const Color(0xFF334155)
-                : AppColors.primary.withValues(alpha: 0.08),
+            color: AppColors.primary.withValues(alpha: 0.08),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -182,17 +173,17 @@ class DashboardKpiGrid extends StatelessWidget {
               style: TextStyle(
                 fontSize: isNarrow ? 18 : 20,
                 fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : AppColors.textPrimary,
+                color: AppColors.textPrimary,
                 letterSpacing: -0.5,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               title,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: isDark ? const Color(0xFFCBD5E1) : AppColors.textSecondary,
+                color: AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: 4),
@@ -200,9 +191,9 @@ class DashboardKpiGrid extends StatelessWidget {
               subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 10,
-                color: isDark ? const Color(0xFF94A3B8) : AppColors.textMuted,
+                color: AppColors.textMuted,
               ),
             ),
           ],

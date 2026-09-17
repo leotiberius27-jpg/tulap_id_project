@@ -11,8 +11,6 @@ import 'package:tulap_mobile/core/localization/app_language.dart';
 import 'package:tulap_mobile/core/localization/language_controller.dart';
 import 'package:tulap_mobile/core/network/network_info.dart';
 import 'package:tulap_mobile/core/session/auth_session_manager.dart';
-import 'package:tulap_mobile/core/theme/app_theme_mode.dart';
-import 'package:tulap_mobile/core/theme/theme_controller.dart';
 import 'package:tulap_mobile/features/account/data/datasources/account_local_datasource.dart';
 import 'package:tulap_mobile/features/assistant/presentation/controllers/tula_position_store.dart';
 import 'package:tulap_mobile/features/assistant/presentation/controllers/tula_visibility_controller.dart';
@@ -136,12 +134,6 @@ class _NoSessionAuthRepository implements AuthRepository {
 
 class _FakeAccountLocalDataSource implements AccountLocalDataSource {
   @override
-  Future<AppThemeMode> getThemeMode() async => AppThemeMode.system;
-
-  @override
-  Future<void> saveThemeMode(AppThemeMode mode) async {}
-
-  @override
   Future<AppLanguage> getLanguage() async => AppLanguage.id;
 
   @override
@@ -178,9 +170,6 @@ void main() {
     final fakeRepository = _NoSessionAuthRepository();
     final fakeAccountLocalDataSource = _FakeAccountLocalDataSource();
     sl.registerLazySingleton<AccountLocalDataSource>(() => fakeAccountLocalDataSource);
-    sl.registerLazySingleton<ThemeController>(
-      () => ThemeController(localDataSource: fakeAccountLocalDataSource),
-    );
     sl.registerLazySingleton<LanguageController>(
       () => LanguageController(localDataSource: fakeAccountLocalDataSource),
     );

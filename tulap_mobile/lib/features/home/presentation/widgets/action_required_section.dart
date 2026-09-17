@@ -16,8 +16,6 @@ class ActionRequiredSection extends StatelessWidget {
   Widget build(BuildContext context) {
     if (actionItems.isEmpty) return const SizedBox.shrink();
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -58,7 +56,7 @@ class ActionRequiredSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          ...actionItems.map((item) => _buildActionCard(context, item, isDark)),
+          ...actionItems.map((item) => _buildActionCard(context, item)),
         ],
       ),
     );
@@ -67,7 +65,6 @@ class ActionRequiredSection extends StatelessWidget {
   Widget _buildActionCard(
     BuildContext context,
     ActionRequiredEntity item,
-    bool isDark,
   ) {
     Color cardColor;
     Color borderColor;
@@ -76,26 +73,20 @@ class ActionRequiredSection extends StatelessWidget {
 
     switch (item.severity) {
       case ActionRequiredSeverity.danger:
-        cardColor = isDark
-            ? const Color(0xFF331515)
-            : const Color(0xFFFEF2F2);
+        cardColor = const Color(0xFFFEF2F2);
         borderColor = AppColors.danger.withValues(alpha: 0.3);
         iconColor = AppColors.danger;
         icon = Icons.error_outline_rounded;
         break;
       case ActionRequiredSeverity.info:
-        cardColor = isDark
-            ? const Color(0xFF132338)
-            : const Color(0xFFF0F9FF);
+        cardColor = const Color(0xFFF0F9FF);
         borderColor = AppColors.primary.withValues(alpha: 0.3);
         iconColor = AppColors.primary;
         icon = Icons.info_outline_rounded;
         break;
       case ActionRequiredSeverity.warning:
       default:
-        cardColor = isDark
-            ? const Color(0xFF302511)
-            : const Color(0xFFFFFBEB);
+        cardColor = const Color(0xFFFFFBEB);
         borderColor = AppColors.warning.withValues(alpha: 0.3);
         iconColor = AppColors.warning;
         icon = Icons.warning_amber_rounded;
@@ -124,18 +115,18 @@ class ActionRequiredSection extends StatelessWidget {
                   children: [
                     Text(
                       item.title,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : AppColors.textPrimary,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       item.subtitle,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 11,
-                        color: isDark ? const Color(0xFFCBD5E1) : AppColors.textSecondary,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],

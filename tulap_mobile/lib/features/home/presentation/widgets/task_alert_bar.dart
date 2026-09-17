@@ -20,8 +20,7 @@ class TaskAlertBar extends StatelessWidget {
   Widget build(BuildContext context) {
     if (urgentCount <= 0) return const SizedBox.shrink();
     final colors = context.tulapColors;
-    final isDark = context.isDarkMode;
-    final alertTextColor = isDark ? const Color(0xFFFDE68A) : const Color(0xFF9A3412);
+    const alertTextColor = Color(0xFF9A3412);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),

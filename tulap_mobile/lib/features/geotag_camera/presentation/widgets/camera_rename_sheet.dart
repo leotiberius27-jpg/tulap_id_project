@@ -84,13 +84,12 @@ class _CameraRenameSheetState extends State<CameraRenameSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final previewName = _computePreview();
 
     return Container(
       padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: const [
           BoxShadow(
@@ -138,19 +137,19 @@ class _CameraRenameSheetState extends State<CameraRenameSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Pola Nama Berkas',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color: Color(0xFF0F172A),
                         ),
                       ),
-                      Text(
+                      const Text(
                         'Mengatur format penamaan bukti untuk pengambilan berikutnya',
                         style: TextStyle(
                           fontSize: 11.5,
-                          color: isDark ? Colors.white60 : Colors.black54,
+                          color: Colors.black54,
                         ),
                       ),
                     ],
@@ -165,12 +164,10 @@ class _CameraRenameSheetState extends State<CameraRenameSheet> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF1E293B)
-                    : const Color(0xFFF1F5F9),
+                color: const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isDark ? Colors.white12 : Colors.black12,
+                  color: Colors.black12,
                 ),
               ),
               child: Column(
@@ -188,10 +185,10 @@ class _CameraRenameSheetState extends State<CameraRenameSheet> {
                   const SizedBox(height: 4),
                   Text(
                     previewName,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      color: Color(0xFF0F172A),
                     ),
                   ),
                 ],
@@ -204,7 +201,6 @@ class _CameraRenameSheetState extends State<CameraRenameSheet> {
               mode: FileNamingMode.automatic,
               title: 'Format Otomatis Berbasis Tugas',
               subtitle: '[Nama_Kegiatan]_[YYYYMMDD]_[HHMMSS]_[Urutan]',
-              isDark: isDark,
             ),
             const SizedBox(height: 8),
 
@@ -213,24 +209,21 @@ class _CameraRenameSheetState extends State<CameraRenameSheet> {
               mode: FileNamingMode.custom,
               title: 'Format Kustom',
               subtitle: 'Gunakan awalan nama khusus yang Anda tentukan',
-              isDark: isDark,
             ),
 
             if (_selectedMode == FileNamingMode.custom) ...[
               const SizedBox(height: 12),
               TextField(
                 controller: _prefixController,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 13.5,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: Colors.black87,
                 ),
                 decoration: InputDecoration(
                   labelText: 'Awalan Nama Berkas',
                   hintText: 'Contoh: Pemeriksaan_Kendaraan',
                   filled: true,
-                  fillColor: isDark
-                      ? const Color(0xFF1E293B)
-                      : const Color(0xFFF8FAFC),
+                  fillColor: const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -265,16 +258,16 @@ class _CameraRenameSheetState extends State<CameraRenameSheet> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       side: BorderSide(
-                        color: isDark ? Colors.white24 : Colors.grey.shade300,
+                        color: Colors.grey.shade300,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Text(
+                    child: const Text(
                       'Batal',
                       style: TextStyle(
-                        color: isDark ? Colors.white70 : Colors.black87,
+                        color: Colors.black87,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -321,7 +314,6 @@ class _CameraRenameSheetState extends State<CameraRenameSheet> {
     required FileNamingMode mode,
     required String title,
     required String subtitle,
-    required bool isDark,
   }) {
     final isSelected = _selectedMode == mode;
     final activeBlue = const Color(0xFF006EE6);
@@ -336,12 +328,10 @@ class _CameraRenameSheetState extends State<CameraRenameSheet> {
         decoration: BoxDecoration(
           color: isSelected
               ? activeBlue.withValues(alpha: 0.12)
-              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+              : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected
-                ? activeBlue
-                : (isDark ? Colors.white12 : Colors.black12),
+            color: isSelected ? activeBlue : Colors.black12,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -361,17 +351,17 @@ class _CameraRenameSheetState extends State<CameraRenameSheet> {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : Colors.black87,
+                      color: Colors.black87,
                     ),
                   ),
                   Text(
                     subtitle,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 11,
-                      color: isDark ? Colors.white60 : Colors.black54,
+                      color: Colors.black54,
                     ),
                   ),
                 ],

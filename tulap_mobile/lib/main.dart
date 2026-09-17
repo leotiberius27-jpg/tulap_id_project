@@ -14,7 +14,6 @@ import 'core/notifications/push_notification_service.dart';
 import 'core/session/auth_session_manager.dart';
 import 'core/sync/background_sync_service.dart';
 import 'core/theme/app_theme.dart';
-import 'core/theme/theme_controller.dart';
 import 'features/assistant/presentation/widgets/tula_overlay.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'firebase_options.dart';
@@ -27,7 +26,7 @@ import 'firebase_options.dart';
 ///   2. Firebase.initializeApp() - sebelum service lain yang mungkin
 ///      bergantung padanya (mis. push notification di masa depan).
 ///   3. initDependencies() - merangkai seluruh service locator.
-///   4. Preload theme mode & language dari local secure storage (mencegah flash).
+///   4. Preload preferensi bahasa dari local secure storage (mencegah flash).
 ///   5. Mulai BackgroundSyncService, FastLocationService warm-up, &
 ///      PushNotificationService (FCM) - listener sesinya dipasang SEBELUM
 ///      runApp() supaya sesi lama yang dipulihkan AuthGate (setelah
@@ -54,8 +53,7 @@ Future<void> main() async {
 
       await initDependencies();
 
-      // Memuat preferensi tema & bahasa sebelum runApp untuk mencegah flash
-      await sl<ThemeController>().loadTheme();
+      // Memuat preferensi bahasa sebelum runApp untuk mencegah flash
       await sl<LanguageController>().loadLanguage();
 
       sl<BackgroundSyncService>().start();
@@ -93,19 +91,16 @@ class TulapApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeController = sl<ThemeController>();
     final languageController = sl<LanguageController>();
 
     return ListenableBuilder(
-      listenable: Listenable.merge([themeController, languageController]),
+      listenable: languageController,
       builder: (context, _) {
         return MaterialApp(
           navigatorKey: TulaOverlay.navigatorKey,
           title: 'Tulap.id',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-          themeMode: themeController.themeMode,
           locale: languageController.currentLocale,
           supportedLocales: const [
             Locale('id', 'ID'),

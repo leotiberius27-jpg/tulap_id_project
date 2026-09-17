@@ -21,14 +21,12 @@ class ActiveWorkBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+          color: const Color(0xFFEFF6FF),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: AppColors.primary.withValues(alpha: 0.25),
@@ -76,10 +74,10 @@ class ActiveWorkBanner extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -87,9 +85,9 @@ class ActiveWorkBanner extends StatelessWidget {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 11,
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],

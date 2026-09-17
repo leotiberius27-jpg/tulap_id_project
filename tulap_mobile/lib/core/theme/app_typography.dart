@@ -6,8 +6,6 @@ import 'app_colors.dart';
 /// Skala tipografi sesuai Bagian 21 dokumen spesifikasi. Font utama
 /// Plus Jakarta Sans, dengan Inter sebagai fallback jika font family
 /// belum termuat.
-///
-/// Mendukung Light dan Dark themes dengan kontras yang teruji.
 /// ----------------------------------------------------------------------
 class AppTypography {
   AppTypography._();
@@ -89,80 +87,6 @@ class AppTypography {
     height: 1.3,
   );
 
-  // --- DARK STYLES ---
-  static const TextStyle displayDark = TextStyle(
-    fontFamily: fontFamily,
-    fontFamilyFallback: [fontFamilyFallback],
-    fontSize: 32,
-    fontWeight: FontWeight.bold,
-    color: AppDarkColors.textPrimary,
-    height: 1.25,
-  );
-
-  static const TextStyle pageTitleDark = TextStyle(
-    fontFamily: fontFamily,
-    fontFamilyFallback: [fontFamilyFallback],
-    fontSize: 24,
-    fontWeight: FontWeight.bold,
-    color: AppDarkColors.textPrimary,
-    height: 1.3,
-  );
-
-  static const TextStyle sectionTitleDark = TextStyle(
-    fontFamily: fontFamily,
-    fontFamilyFallback: [fontFamilyFallback],
-    fontSize: 18,
-    fontWeight: FontWeight.w600,
-    color: AppDarkColors.textPrimary,
-    height: 1.4,
-  );
-
-  static const TextStyle bodyDark = TextStyle(
-    fontFamily: fontFamily,
-    fontFamilyFallback: [fontFamilyFallback],
-    fontSize: 16,
-    fontWeight: FontWeight.normal,
-    color: AppDarkColors.textPrimary,
-    height: 1.5,
-  );
-
-  static const TextStyle bodySecondaryDark = TextStyle(
-    fontFamily: fontFamily,
-    fontFamilyFallback: [fontFamilyFallback],
-    fontSize: 16,
-    fontWeight: FontWeight.normal,
-    color: AppDarkColors.textSecondary,
-    height: 1.5,
-  );
-
-  static const TextStyle smallDark = TextStyle(
-    fontFamily: fontFamily,
-    fontFamilyFallback: [fontFamilyFallback],
-    fontSize: 14,
-    fontWeight: FontWeight.w500,
-    color: AppDarkColors.textSecondary,
-    height: 1.4,
-  );
-
-  static const TextStyle nominalDisplayDark = TextStyle(
-    fontFamily: fontFamily,
-    fontFamilyFallback: [fontFamilyFallback],
-    fontSize: 28,
-    fontWeight: FontWeight.bold,
-    color: AppDarkColors.textPrimary,
-    height: 1.2,
-  );
-
-  static const TextStyle sectionLabelDark = TextStyle(
-    fontFamily: fontFamily,
-    fontFamilyFallback: [fontFamilyFallback],
-    fontSize: 13,
-    fontWeight: FontWeight.w700,
-    color: AppDarkColors.textSecondary,
-    letterSpacing: 0.2,
-    height: 1.3,
-  );
-
   // --- BRAND & HERO STYLES (Fixed on Blue/Dark Gradient) ---
   static const TextStyle brandTitle = TextStyle(
     fontFamily: fontFamily,
@@ -208,14 +132,5 @@ class AppTypography {
     bodyLarge: body,
     bodyMedium: bodySecondary,
     labelMedium: small,
-  );
-
-  static TextTheme darkTextTheme = const TextTheme(
-    displayLarge: displayDark,
-    headlineMedium: pageTitleDark,
-    titleMedium: sectionTitleDark,
-    bodyLarge: bodyDark,
-    bodyMedium: bodySecondaryDark,
-    labelMedium: smallDark,
   );
 }
