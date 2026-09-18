@@ -56,14 +56,17 @@ class CameraStampPreview extends StatelessWidget {
       final qrData = (lat != null && lng != null)
           ? 'https://www.google.com/maps/search/?api=1&query=${lat.toStringAsFixed(6)},${lng.toStringAsFixed(6)}'
           : 'https://www.google.com/maps';
-      return GeotagWatermarkOverlay(
-        data: GeotagWatermarkData(
-          latitude: lat ?? 0.0,
-          longitude: lng ?? 0.0,
-          addressLine1: GpsMapCameraFormat.headline(address, ''),
-          addressLine2: GpsMapCameraFormat.fullAddress(address, ''),
-          timestamp: currentTime,
-          qrData: qrData,
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: GeotagWatermarkOverlay(
+          data: GeotagWatermarkData(
+            latitude: lat ?? 0.0,
+            longitude: lng ?? 0.0,
+            addressLine1: GpsMapCameraFormat.headline(address, ''),
+            addressLine2: GpsMapCameraFormat.fullAddress(address, ''),
+            timestamp: currentTime,
+            qrData: qrData,
+          ),
         ),
       );
     }

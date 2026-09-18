@@ -71,15 +71,23 @@ class GeotagWatermarkData {
 /// ----------------------------------------------------------------------
 class GeotagWatermarkOverlay extends StatelessWidget {
   final GeotagWatermarkData data;
-  final double mapSize;
-  final double qrSize;
+
+  /// Override manual opsional - biarkan null (default) supaya ukuran
+  /// dihitung otomatis secara proporsional dari lebar kartu yang benar-benar
+  /// tersedia (lihat [_buildCard]), sesuai rasio pada referensi
+  /// Referensi/Mobile/Camera/02.jpeg (peta ~20% lebar kartu, QR ~28% -
+  /// QR SEDIKIT LEBIH BESAR dari peta, bukan lebih kecil) - supaya kolom
+  /// teks di tengah selalu kebagian ruang cukup dan alamat tidak pernah
+  /// terpotong/terlalu sempit di layar sekecil apa pun.
+  final double? mapSize;
+  final double? qrSize;
   final VoidCallback? onQrTap;
 
   const GeotagWatermarkOverlay({
     super.key,
     required this.data,
-    this.mapSize = 76,
-    this.qrSize = 76,
+    this.mapSize,
+    this.qrSize,
     this.onQrTap,
   });
 
@@ -118,20 +126,32 @@ class GeotagWatermarkOverlay extends StatelessWidget {
         color: Colors.black.withValues(alpha: 0.65),
         borderRadius: BorderRadius.circular(_cardRadius),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          RealMiniMapPreview(
-            latitude: data.latitude,
-            longitude: data.longitude,
-            size: mapSize,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: _buildTextColumn()),
-          const SizedBox(width: 10),
-          _buildQrBox(),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cardContentWidth = constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : MediaQuery.of(context).size.width - 48;
+          final resolvedMapSize =
+              mapSize ?? (cardContentWidth * 0.20).clamp(58.0, 130.0);
+          final resolvedQrSize =
+              qrSize ?? (cardContentWidth * 0.28).clamp(66.0, 150.0);
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              RealMiniMapPreview(
+                latitude: data.latitude,
+                longitude: data.longitude,
+                size: resolvedMapSize,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: _buildTextColumn()),
+              const SizedBox(width: 10),
+              _buildQrBox(resolvedQrSize),
+            ],
+          );
+        },
       ),
     );
   }
@@ -146,7 +166,7 @@ class GeotagWatermarkOverlay extends StatelessWidget {
           data.addressLine1,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 13.0,
+            fontSize: 15.0,
             fontWeight: FontWeight.w700,
             height: 1.15,
           ),
@@ -160,7 +180,7 @@ class GeotagWatermarkOverlay extends StatelessWidget {
           data.addressLine2,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 10.0,
+            fontSize: 11.5,
             fontWeight: FontWeight.w500,
             height: 1.25,
           ),
@@ -171,7 +191,7 @@ class GeotagWatermarkOverlay extends StatelessWidget {
           'Lat ${data.latitude.toStringAsFixed(6)}°  Long ${data.longitude.toStringAsFixed(6)}°',
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 10.5,
+            fontSize: 12.0,
             fontWeight: FontWeight.w600,
             fontFamily: 'monospace',
           ),
@@ -184,7 +204,7 @@ class GeotagWatermarkOverlay extends StatelessWidget {
           _formatDayDateTime(data.timestamp),
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 10.5,
+            fontSize: 12.0,
             fontWeight: FontWeight.w600,
           ),
           maxLines: 1,
@@ -194,10 +214,10 @@ class GeotagWatermarkOverlay extends StatelessWidget {
     );
   }
 
-  Widget _buildQrBox() {
+  Widget _buildQrBox(double resolvedQrSize) {
     final box = Container(
-      width: qrSize,
-      height: qrSize,
+      width: resolvedQrSize,
+      height: resolvedQrSize,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -330,8 +350,13 @@ class GeotagWatermarkCompositor {
     final cardWidth = width - (marginH * 2);
     final columnGap = 10.0 * scale;
 
-    final mapSize = (cardWidth * 0.22).clamp(90.0 * scale, 230.0 * scale);
-    final qrSize = (mapSize * 0.62).clamp(64.0 * scale, 130.0 * scale);
+    // Rasio PERSIS mengikuti referensi Referensi/Mobile/Camera/02.jpeg: QR
+    // SEDIKIT LEBIH BESAR dari peta (bukan lebih kecil) - dihitung sebagai
+    // proporsi independen dari lebar kartu, IDENTIK dengan
+    // GeotagWatermarkOverlay._buildCard() di atas supaya live preview &
+    // hasil bakar foto benar-benar sama.
+    final mapSize = (cardWidth * 0.20).clamp(90.0 * scale, 230.0 * scale);
+    final qrSize = (cardWidth * 0.28).clamp(100.0 * scale, 260.0 * scale);
     final textWidth = cardWidth - mapSize - qrSize - (columnGap * 2) - (cardPadding * 2);
 
     // --- Ukur seluruh baris teks LEBIH DULU (alamat lengkap tanpa batas
@@ -342,7 +367,7 @@ class GeotagWatermarkCompositor {
         text: data.addressLine1,
         style: TextStyle(
           color: Colors.white,
-          fontSize: (13.0 * scale).clamp(9.5, 18.0),
+          fontSize: (15.0 * scale).clamp(10.5, 21.0),
           fontWeight: FontWeight.w700,
           height: 1.15,
         ),
@@ -357,7 +382,7 @@ class GeotagWatermarkCompositor {
         text: data.addressLine2,
         style: TextStyle(
           color: Colors.white,
-          fontSize: (10.0 * scale).clamp(7.5, 15.0),
+          fontSize: (11.5 * scale).clamp(8.5, 17.0),
           fontWeight: FontWeight.w500,
           height: 1.25,
         ),
@@ -370,7 +395,7 @@ class GeotagWatermarkCompositor {
         text: 'Lat ${data.latitude.toStringAsFixed(6)}°  Long ${data.longitude.toStringAsFixed(6)}°',
         style: TextStyle(
           color: Colors.white,
-          fontSize: (10.5 * scale).clamp(8.0, 15.5),
+          fontSize: (12.0 * scale).clamp(9.0, 17.0),
           fontWeight: FontWeight.w600,
           fontFamily: 'monospace',
         ),
@@ -385,7 +410,7 @@ class GeotagWatermarkCompositor {
         text: _formatDayDateTime(data.timestamp),
         style: TextStyle(
           color: Colors.white,
-          fontSize: (10.5 * scale).clamp(8.0, 15.5),
+          fontSize: (12.0 * scale).clamp(9.0, 17.0),
           fontWeight: FontWeight.w600,
         ),
       ),
