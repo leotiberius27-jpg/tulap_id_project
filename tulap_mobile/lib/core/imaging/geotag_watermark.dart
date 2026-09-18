@@ -91,9 +91,9 @@ class GeotagWatermarkOverlay extends StatelessWidget {
     this.onQrTap,
   });
 
-  static const double _cardRadius = 14;
-  static const double _cardPadding = 12;
-  static const double _badgeOverhang = 14;
+  static const double _cardRadius = 12;
+  static const double _cardPadding = 10;
+  static const double _badgeOverhang = 12;
 
   @override
   Widget build(BuildContext context) {
@@ -132,9 +132,9 @@ class GeotagWatermarkOverlay extends StatelessWidget {
               ? constraints.maxWidth
               : MediaQuery.of(context).size.width - 48;
           final resolvedMapSize =
-              mapSize ?? (cardContentWidth * 0.20).clamp(58.0, 130.0);
+              mapSize ?? (cardContentWidth * 0.15).clamp(44.0, 84.0);
           final resolvedQrSize =
-              qrSize ?? (cardContentWidth * 0.28).clamp(66.0, 150.0);
+              qrSize ?? (cardContentWidth * 0.19).clamp(50.0, 96.0);
 
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,7 +166,7 @@ class GeotagWatermarkOverlay extends StatelessWidget {
           data.addressLine1,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 15.0,
+            fontSize: 11.5,
             fontWeight: FontWeight.w700,
             height: 1.15,
           ),
@@ -180,7 +180,7 @@ class GeotagWatermarkOverlay extends StatelessWidget {
           data.addressLine2,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 11.5,
+            fontSize: 8.5,
             fontWeight: FontWeight.w500,
             height: 1.25,
           ),
@@ -191,7 +191,7 @@ class GeotagWatermarkOverlay extends StatelessWidget {
           'Lat ${data.latitude.toStringAsFixed(6)}°  Long ${data.longitude.toStringAsFixed(6)}°',
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 12.0,
+            fontSize: 9.0,
             fontWeight: FontWeight.w600,
             fontFamily: 'monospace',
           ),
@@ -204,7 +204,7 @@ class GeotagWatermarkOverlay extends StatelessWidget {
           _formatDayDateTime(data.timestamp),
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 12.0,
+            fontSize: 9.0,
             fontWeight: FontWeight.w600,
           ),
           maxLines: 1,
@@ -236,7 +236,7 @@ class GeotagWatermarkOverlay extends StatelessWidget {
 
   Widget _buildFloatingBadge() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(999),
@@ -249,17 +249,17 @@ class GeotagWatermarkOverlay extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             child: Image.asset(
               data.logoAssetPath,
-              width: 16,
-              height: 16,
+              width: 12,
+              height: 12,
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           Text(
             data.appName,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 11.0,
+              fontSize: 8.5,
               fontWeight: FontWeight.w800,
             ),
             maxLines: 1,
@@ -345,8 +345,8 @@ class GeotagWatermarkCompositor {
     // --- Dimensi kartu mengambang (margin dari tepi foto di semua sisi) ---
     final marginH = 14.0 * scale;
     final marginBottom = 18.0 * scale;
-    final cardPadding = 12.0 * scale;
-    final cardRadius = Radius.circular(14.0 * scale);
+    final cardPadding = 10.0 * scale;
+    final cardRadius = Radius.circular(12.0 * scale);
     final cardWidth = width - (marginH * 2);
     final columnGap = 10.0 * scale;
 
@@ -355,8 +355,8 @@ class GeotagWatermarkCompositor {
     // proporsi independen dari lebar kartu, IDENTIK dengan
     // GeotagWatermarkOverlay._buildCard() di atas supaya live preview &
     // hasil bakar foto benar-benar sama.
-    final mapSize = (cardWidth * 0.20).clamp(90.0 * scale, 230.0 * scale);
-    final qrSize = (cardWidth * 0.28).clamp(100.0 * scale, 260.0 * scale);
+    final mapSize = (cardWidth * 0.15).clamp(70.0 * scale, 170.0 * scale);
+    final qrSize = (cardWidth * 0.19).clamp(80.0 * scale, 190.0 * scale);
     final textWidth = cardWidth - mapSize - qrSize - (columnGap * 2) - (cardPadding * 2);
 
     // --- Ukur seluruh baris teks LEBIH DULU (alamat lengkap tanpa batas
@@ -367,7 +367,7 @@ class GeotagWatermarkCompositor {
         text: data.addressLine1,
         style: TextStyle(
           color: Colors.white,
-          fontSize: (15.0 * scale).clamp(10.5, 21.0),
+          fontSize: (11.5 * scale).clamp(8.5, 16.0),
           fontWeight: FontWeight.w700,
           height: 1.15,
         ),
@@ -382,7 +382,7 @@ class GeotagWatermarkCompositor {
         text: data.addressLine2,
         style: TextStyle(
           color: Colors.white,
-          fontSize: (11.5 * scale).clamp(8.5, 17.0),
+          fontSize: (8.5 * scale).clamp(6.5, 12.5),
           fontWeight: FontWeight.w500,
           height: 1.25,
         ),
@@ -395,7 +395,7 @@ class GeotagWatermarkCompositor {
         text: 'Lat ${data.latitude.toStringAsFixed(6)}°  Long ${data.longitude.toStringAsFixed(6)}°',
         style: TextStyle(
           color: Colors.white,
-          fontSize: (12.0 * scale).clamp(9.0, 17.0),
+          fontSize: (9.0 * scale).clamp(7.0, 13.0),
           fontWeight: FontWeight.w600,
           fontFamily: 'monospace',
         ),
@@ -410,7 +410,7 @@ class GeotagWatermarkCompositor {
         text: _formatDayDateTime(data.timestamp),
         style: TextStyle(
           color: Colors.white,
-          fontSize: (12.0 * scale).clamp(9.0, 17.0),
+          fontSize: (9.0 * scale).clamp(7.0, 13.0),
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -499,17 +499,17 @@ class GeotagWatermarkCompositor {
     required double cardRight,
   }) async {
     final logoImage = await _loadLogoImage(data.logoAssetPath);
-    final badgePaddingH = 10.0 * scale;
-    final badgePaddingV = 6.0 * scale;
-    final logoSize = (16.0 * scale).clamp(12.0, 24.0);
-    final logoGap = 6.0 * scale;
+    final badgePaddingH = 8.0 * scale;
+    final badgePaddingV = 4.0 * scale;
+    final logoSize = (12.0 * scale).clamp(9.0, 18.0);
+    final logoGap = 4.0 * scale;
 
     final textPainter = TextPainter(
       text: TextSpan(
         text: data.appName,
         style: TextStyle(
           color: Colors.white,
-          fontSize: (11.0 * scale).clamp(8.5, 16.0),
+          fontSize: (8.5 * scale).clamp(6.5, 12.5),
           fontWeight: FontWeight.w800,
         ),
       ),
