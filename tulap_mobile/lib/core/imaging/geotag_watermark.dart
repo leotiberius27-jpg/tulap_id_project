@@ -60,11 +60,10 @@ class GeotagWatermarkData {
 /// GeotagWatermarkOverlay
 /// ----------------------------------------------------------------------
 /// Komponen widget overlay geotag watermark gaya "GPS Map Camera":
-/// - Kartu rounded translucent (hitam ~65% opacity, radius 14) 3-kolom:
+/// - Kartu rounded translucent (hitam ~65% opacity, radius 12) 3-kolom:
 ///   peta persegi (kiri) - hirarki teks alamat/koordinat/waktu (tengah) -
 ///   kotak QR putih persegi (kanan).
-/// - Badge aplikasi berbentuk kapsul MENGAMBANG di pojok kanan-atas kartu,
-///   menonjol sedikit ke luar/atas tepi kartu (bukan di dalam panel).
+/// - Logo + nama aplikasi (badge kapsul kecil) TEPAT DI BAWAH kotak QR.
 ///
 /// Dipakai live di atas CameraPreview (viewfinder) MAUPUN di layar review
 /// foto/video - satu komponen, satu sumber kebenaran visual.
@@ -93,33 +92,9 @@ class GeotagWatermarkOverlay extends StatelessWidget {
 
   static const double _cardRadius = 12;
   static const double _cardPadding = 10;
-  static const double _badgeOverhang = 12;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      // Ruang ekstra di atas supaya badge mengambang tidak terpotong Stack.
-      padding: const EdgeInsets.only(top: _badgeOverhang),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          _buildCard(),
-          // Badge mengambang - top NEGATIF supaya badge benar-benar berada
-          // DI ATAS/LUAR tepi kartu (menonjol keluar), separuh tumpang
-          // tindih ke dalam kartu, BUKAN duduk rata di y=0 kartu (yang
-          // sebelumnya bikin badge bertabrakan/menimpa kotak QR di
-          // bawahnya - keduanya sama-sama di pojok kanan-atas kartu).
-          Positioned(
-            top: -_badgeOverhang,
-            right: 16,
-            child: _buildFloatingBadge(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCard() {
     return Container(
       padding: const EdgeInsets.all(_cardPadding),
       decoration: BoxDecoration(
@@ -148,7 +123,17 @@ class GeotagWatermarkOverlay extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(child: _buildTextColumn()),
               const SizedBox(width: 10),
-              _buildQrBox(resolvedQrSize),
+              // Sisi Kanan: Kotak QR, dengan Logo + Nama Aplikasi TEPAT DI
+              // BAWAHNYA (bukan mengambang di atas kartu lagi).
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildQrBox(resolvedQrSize),
+                  const SizedBox(height: 4),
+                  _buildAppBadge(),
+                ],
+              ),
             ],
           );
         },
@@ -234,7 +219,9 @@ class GeotagWatermarkOverlay extends StatelessWidget {
     return GestureDetector(onTap: onQrTap, child: box);
   }
 
-  Widget _buildFloatingBadge() {
+  // Logo + Nama Aplikasi, ditempatkan TEPAT DI BAWAH kotak QR (bukan
+  // mengambang di atas kartu).
+  Widget _buildAppBadge() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -427,7 +414,14 @@ class GeotagWatermarkCompositor {
         (2.0 * scale) +
         line4Painter.height;
 
-    final contentHeight = math.max(mapSize, math.max(qrSize, textColumnHeight));
+    // Badge (logo + nama aplikasi) sekarang duduk TEPAT DI BAWAH kotak QR -
+    // diukur LEBIH DULU (tanpa digambar) supaya tinggi kartu memperhitungkan
+    // ruang untuknya, bukan cuma tinggi peta/teks/QR saja.
+    final badgeMetrics = await _measureBadge(data, scale);
+    final badgeGap = 4.0 * scale;
+    final rightColumnHeight = qrSize + badgeGap + badgeMetrics.height;
+
+    final contentHeight = math.max(mapSize, math.max(rightColumnHeight, textColumnHeight));
     final cardHeight = contentHeight + (cardPadding * 2);
 
     final cardTop = (height - marginBottom - cardHeight).clamp(0.0, height);
@@ -477,27 +471,24 @@ class GeotagWatermarkCompositor {
     final qrInner = (qrSize - (qrSize * 0.82)) / 2;
     canvas.drawImage(qrImage, Offset(qrLeft + qrInner, qrTop + qrInner), Paint());
 
-    // --- 5. Badge Mengambang: Logo + Nama Aplikasi (pojok kanan-atas kartu,
-    // menonjol keluar/atas tepi kartu - digambar TERAKHIR supaya di atas) ---
-    await _drawFloatingBadge(
+    // --- 5. Logo + Nama Aplikasi, TEPAT DI BAWAH kotak QR (dipusatkan
+    // secara horizontal terhadap lebar QR) ---
+    _drawBadge(
       canvas: canvas,
-      data: data,
-      scale: scale,
-      cardTop: cardTop,
-      cardRight: cardLeft + cardWidth,
+      metrics: badgeMetrics,
+      centerX: qrLeft + (qrSize / 2),
+      top: qrTop + qrSize + badgeGap,
     );
 
     final picture = recorder.endRecording();
     return picture.toImage(sourceImage.width, sourceImage.height);
   }
 
-  Future<void> _drawFloatingBadge({
-    required Canvas canvas,
-    required GeotagWatermarkData data,
-    required double scale,
-    required double cardTop,
-    required double cardRight,
-  }) async {
+  /// Mengukur dimensi badge (logo + nama aplikasi) TANPA menggambar apa
+  /// pun - dipakai [burn] untuk menghitung tinggi kartu yang benar SEBELUM
+  /// latar kartu digambar, supaya badge (yang sekarang duduk tepat di
+  /// bawah kotak QR, bukan mengambang lagi) selalu muat di dalam kartu.
+  Future<_BadgeMetrics> _measureBadge(GeotagWatermarkData data, double scale) async {
     final logoImage = await _loadLogoImage(data.logoAssetPath);
     final badgePaddingH = 8.0 * scale;
     final badgePaddingV = 4.0 * scale;
@@ -519,41 +510,60 @@ class GeotagWatermarkCompositor {
 
     final contentWidth = (logoImage != null ? logoSize + logoGap : 0.0) + textPainter.width;
     final contentHeight = math.max(logoImage != null ? logoSize : 0.0, textPainter.height);
-    final badgeWidth = contentWidth + (badgePaddingH * 2);
-    final badgeHeight = contentHeight + (badgePaddingV * 2);
 
-    final badgeRightInset = 16.0 * scale;
-    final badgeLeft = cardRight - badgeRightInset - badgeWidth;
-    // Mengambang: separuh tinggi badge menonjol di ATAS tepi kartu, sisanya
-    // sedikit tumpang tindih ke dalam kartu - sesuai spesifikasi "offset
-    // sedikit ke atas luar kartu".
-    final badgeTop = cardTop - (badgeHeight * 0.55);
-    final badgeRect = Rect.fromLTWH(badgeLeft, badgeTop, badgeWidth, badgeHeight);
-    final badgeRRect = RRect.fromRectAndRadius(badgeRect, Radius.circular(badgeHeight / 2));
+    return _BadgeMetrics(
+      logoImage: logoImage,
+      textPainter: textPainter,
+      logoSize: logoSize,
+      logoGap: logoGap,
+      paddingH: badgePaddingH,
+      paddingV: badgePaddingV,
+      width: contentWidth + (badgePaddingH * 2),
+      height: contentHeight + (badgePaddingV * 2),
+      contentHeight: contentHeight,
+    );
+  }
+
+  /// Menggambar badge (logo + nama aplikasi) TEPAT DI BAWAH kotak QR,
+  /// dipusatkan secara horizontal terhadap lebar kotak QR.
+  void _drawBadge({
+    required Canvas canvas,
+    required _BadgeMetrics metrics,
+    required double centerX,
+    required double top,
+  }) {
+    final badgeLeft = centerX - (metrics.width / 2);
+    final badgeRect = Rect.fromLTWH(badgeLeft, top, metrics.width, metrics.height);
+    final badgeRRect = RRect.fromRectAndRadius(badgeRect, Radius.circular(metrics.height / 2));
 
     canvas.drawRRect(badgeRRect, Paint()..color = const Color.fromRGBO(0, 0, 0, 0.55));
     canvas.drawRRect(
       badgeRRect,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0 * scale
+        ..strokeWidth = 1.0
         ..color = Colors.white.withValues(alpha: 0.25),
     );
 
-    var contentLeft = badgeLeft + badgePaddingH;
-    final contentTop = badgeTop + badgePaddingV;
-    if (logoImage != null) {
-      final logoTop = contentTop + (contentHeight - logoSize) / 2;
+    var contentLeft = badgeLeft + metrics.paddingH;
+    final contentTop = top + metrics.paddingV;
+    if (metrics.logoImage != null) {
+      final logoTop = contentTop + (metrics.contentHeight - metrics.logoSize) / 2;
       canvas.drawImageRect(
-        logoImage,
-        Rect.fromLTWH(0, 0, logoImage.width.toDouble(), logoImage.height.toDouble()),
-        Rect.fromLTWH(contentLeft, logoTop, logoSize, logoSize),
+        metrics.logoImage!,
+        Rect.fromLTWH(
+          0,
+          0,
+          metrics.logoImage!.width.toDouble(),
+          metrics.logoImage!.height.toDouble(),
+        ),
+        Rect.fromLTWH(contentLeft, logoTop, metrics.logoSize, metrics.logoSize),
         Paint()..filterQuality = FilterQuality.high,
       );
-      contentLeft += logoSize + logoGap;
+      contentLeft += metrics.logoSize + metrics.logoGap;
     }
-    final textTop = contentTop + (contentHeight - textPainter.height) / 2;
-    textPainter.paint(canvas, Offset(contentLeft, textTop));
+    final textTop = contentTop + (metrics.contentHeight - metrics.textPainter.height) / 2;
+    metrics.textPainter.paint(canvas, Offset(contentLeft, textTop));
   }
 
   /// Memuat & men-decode asset logo sebagai [ui.Image] untuk digambar
@@ -593,4 +603,32 @@ class GeotagWatermarkCompositor {
     final ampm = d.hour >= 12 ? 'PM' : 'AM';
     return '$day, $dd/$mm/${d.year} $hh:$min $ampm';
   }
+}
+
+/// Hasil pengukuran badge logo+nama aplikasi (lihat
+/// [GeotagWatermarkCompositor._measureBadge]/[_drawBadge]) - dipisah dari
+/// proses gambar supaya tinggi kartu bisa dihitung dulu SEBELUM latar
+/// kartu digambar.
+class _BadgeMetrics {
+  final ui.Image? logoImage;
+  final TextPainter textPainter;
+  final double logoSize;
+  final double logoGap;
+  final double paddingH;
+  final double paddingV;
+  final double width;
+  final double height;
+  final double contentHeight;
+
+  const _BadgeMetrics({
+    required this.logoImage,
+    required this.textPainter,
+    required this.logoSize,
+    required this.logoGap,
+    required this.paddingH,
+    required this.paddingV,
+    required this.width,
+    required this.height,
+    required this.contentHeight,
+  });
 }
