@@ -96,8 +96,13 @@ class GeotagWatermarkOverlay extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           _buildCard(),
+          // Badge mengambang - top NEGATIF supaya badge benar-benar berada
+          // DI ATAS/LUAR tepi kartu (menonjol keluar), separuh tumpang
+          // tindih ke dalam kartu, BUKAN duduk rata di y=0 kartu (yang
+          // sebelumnya bikin badge bertabrakan/menimpa kotak QR di
+          // bawahnya - keduanya sama-sama di pojok kanan-atas kartu).
           Positioned(
-            top: 0,
+            top: -_badgeOverhang,
             right: 16,
             child: _buildFloatingBadge(),
           ),
