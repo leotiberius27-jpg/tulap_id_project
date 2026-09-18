@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/painting.dart';
@@ -6,6 +5,7 @@ import '../../features/geotag_camera/domain/entities/watermark_template_entity.d
 import '../geo/gps_map_camera_format.dart';
 import '../geo/mini_map_renderer.dart';
 import '../qr/qr_location_generator.dart';
+import 'geotag_watermark.dart';
 
 /// WatermarkData
 /// ----------------------------------------------------------------------
@@ -76,12 +76,16 @@ class WatermarkData {
 class WatermarkCompositor {
   final QrLocationGenerator _qrGenerator;
   final MiniMapRenderer _miniMapRenderer;
+  final GeotagWatermarkCompositor _geotagWatermarkCompositor;
 
   WatermarkCompositor({
     QrLocationGenerator? qrGenerator,
     MiniMapRenderer? miniMapRenderer,
+    GeotagWatermarkCompositor? geotagWatermarkCompositor,
   })  : _qrGenerator = qrGenerator ?? QrLocationGenerator(),
-        _miniMapRenderer = miniMapRenderer ?? MiniMapRenderer();
+        _miniMapRenderer = miniMapRenderer ?? MiniMapRenderer(),
+        _geotagWatermarkCompositor =
+            geotagWatermarkCompositor ?? GeotagWatermarkCompositor();
 
   // Palet Warna Resmi Tulap.id
   // PENTING - kedua warna di bawah ini SEBELUMNYA biru ("Deep Navy" &
@@ -124,6 +128,31 @@ class WatermarkCompositor {
       } catch (_) {
         resolvedStaticMapBytes = null;
       }
+    }
+
+    // Template default (GPS Map Camera) memakai komponen terpisah &
+    // terparameterisasi - lihat core/imaging/geotag_watermark.dart - yang
+    // juga dipakai identik oleh live preview kamera & kartu review, supaya
+    // ketiganya PERSIS sama secara visual. Delegasikan sepenuhnya di sini,
+    // di luar alur panel generik 6 template lama di bawah.
+    if (template.id == 'gps_map_camera') {
+      final geotagData = GeotagWatermarkData(
+        latitude: data.latitude,
+        longitude: data.longitude,
+        addressLine1: GpsMapCameraFormat.headline(data.address, data.plusCode),
+        addressLine2: GpsMapCameraFormat.fullAddress(data.address, data.plusCode),
+        timestamp: data.timestamp,
+        qrData: data.auditQrPayload ??
+            _qrGenerator.buildGoogleMapsUrl(
+              latitude: data.latitude,
+              longitude: data.longitude,
+            ),
+        mapImageBytes: resolvedStaticMapBytes,
+      );
+      return _geotagWatermarkCompositor.burnToBytes(
+        sourceImageBytes: sourceImageBytes,
+        data: geotagData,
+      );
     }
 
     // Salinan data dengan byte peta yang sudah final (Future dibuang -
@@ -173,6 +202,11 @@ class WatermarkCompositor {
       template.isMinimal ? 150.0 * scale : 210.0 * scale,
       template.isMinimal ? 340.0 * scale : 520.0 * scale,
     );
+
+    final panelPaddingH = 26.0 * scale;
+    final panelPaddingV = 16.0 * scale;
+    final contentWidth = width - (panelPaddingH * 2);
+
     final panelTop = height - targetPanelHeight;
 
     // 3. Render Background Panel (Charcoal semi-transparan)
@@ -183,34 +217,20 @@ class WatermarkCompositor {
     final panelRect = Rect.fromLTWH(0, panelTop, width, targetPanelHeight);
     canvas.drawRect(panelRect, Paint()..color = _panelBgColor);
 
-    final panelPaddingH = 26.0 * scale;
-    final panelPaddingV = 16.0 * scale;
-    final contentWidth = width - (panelPaddingH * 2);
-
     // 4. Render Layout sesuai Template yang Dipilih
     await _renderTemplateLayout(
       canvas: canvas,
       left: panelPaddingH,
       top: panelTop + panelPaddingV,
       width: contentWidth,
-      height: targetPanelHeight - (panelPaddingV * 2) - (24.0 * scale),
+      height: targetPanelHeight - (panelPaddingV * 2),
       scale: scale,
       data: effectiveData,
       config: config,
       template: template,
     );
 
-    // 5. Render Bottom Trust Bar Ringkas
-    final trustBarY = height - (22.0 * scale);
-    _renderTrustBar(
-      canvas: canvas,
-      top: trustBarY,
-      width: width,
-      scale: scale,
-      paddingH: panelPaddingH,
-    );
-
-    // 6. Ekspor hasil komposisi ke PNG
+    // 5. Ekspor hasil komposisi ke PNG
     final picture = recorder.endRecording();
     final finalImage = await picture.toImage(
       sourceImage.width,
@@ -234,19 +254,6 @@ class WatermarkCompositor {
     required WatermarkTemplateDefinition template,
   }) async {
     switch (template.id) {
-      case 'gps_map_camera':
-        await _renderGpsMapCameraTemplate(
-          canvas: canvas,
-          left: left,
-          top: top,
-          width: width,
-          height: height,
-          scale: scale,
-          data: data,
-          config: config,
-        );
-        break;
-
       case 'pelaporan':
         await _renderPelaporanTemplate(
           canvas: canvas,
@@ -325,175 +332,6 @@ class WatermarkCompositor {
           config: config,
         );
         break;
-    }
-  }
-
-  // ====================================================================
-  // 0. TEMPLATE GPS MAP CAMERA (Default - Identik Referensi Aplikasi Acuan)
-  // Layout: [Peta Nyata] [Judul Wilayah + 🇮🇩, Alamat Lengkap, Lat/Long,
-  //          Tanggal & Jam] [Badge "GPS Map Camera" + Kotak QR Putih Polos]
-  // Sesuai Referensi/Mobile/Camera/02.jpeg - bidang teks & urutannya
-  // sengaja dijaga PERSIS sama, tanpa elemen tambahan (nama tugas/akurasi
-  // GPS tidak ditampilkan di sini walau tetap direkam penuh di database).
-  // ====================================================================
-  Future<void> _renderGpsMapCameraTemplate({
-    required Canvas canvas,
-    required double left,
-    required double top,
-    required double width,
-    required double height,
-    required double scale,
-    required WatermarkData data,
-    required StampConfiguration config,
-  }) async {
-    final shouldShowMap = config.showMiniMap;
-    final shouldShowQr = config.showQrMaps;
-
-    final mapSize = height.clamp(130.0 * scale, 280.0 * scale);
-    final qrSize = (mapSize * 0.56).clamp(60.0 * scale, 120.0 * scale);
-    final gap = 14.0 * scale;
-
-    // Badge "GPS Map Camera" - dirender lebih dulu (belum di-paint) hanya
-    // untuk mengukur lebarnya, dipakai menghitung reservasi kolom kanan.
-    final brandPainter = TextPainter(
-      text: TextSpan(
-        children: [
-          TextSpan(
-            text: '🛰 ',
-            style: TextStyle(fontSize: (12.5 * scale).clamp(9.0, 18.0)),
-          ),
-          TextSpan(
-            text: 'GPS Map Camera',
-            style: TextStyle(
-              color: _textWhite,
-              fontSize: (12.5 * scale).clamp(9.0, 18.0),
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-    )..layout(maxWidth: width);
-
-    final rightReserve =
-        (shouldShowQr ? math.max(qrSize, brandPainter.width) : brandPainter.width) +
-            gap;
-    final mapReserve = shouldShowMap ? mapSize + gap : 0.0;
-    final textLeft = left + mapReserve;
-    final textWidth = (width - mapReserve - rightReserve).clamp(60.0 * scale, width);
-
-    // 1. Badge Merek Kanan-Atas: "GPS Map Camera"
-    brandPainter.paint(canvas, Offset(left + width - brandPainter.width, top));
-
-    // 2. Peta Kiri: Google Maps nyata jika tersedia, prosedural jika offline
-    if (shouldShowMap) {
-      final mapImage = await _miniMapRenderer.renderMiniMap(
-        latitude: data.latitude,
-        longitude: data.longitude,
-        pixelSize: mapSize.toInt(),
-        staticMapBytes: data.staticMapImageBytes,
-      );
-      canvas.drawImage(mapImage, Offset(left, top), Paint());
-    }
-
-    // 3. QR Kanan: kotak putih polos tanpa label (sesuai referensi asli)
-    if (shouldShowQr) {
-      final mapsUrl = _qrGenerator.buildGoogleMapsUrl(
-        latitude: data.latitude,
-        longitude: data.longitude,
-      );
-      final qrImage = await _qrGenerator.generateQrImage(
-        data: mapsUrl,
-        pixelSize: (qrSize * 0.86).toInt(),
-      );
-
-      final qrLeft = left + width - qrSize;
-      final qrTop = top + brandPainter.height + (8.0 * scale);
-      final qrRect = Rect.fromLTWH(qrLeft, qrTop, qrSize, qrSize);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(qrRect, Radius.circular(6.0 * scale)),
-        Paint()..color = const ui.Color(0xFFFFFFFF),
-      );
-
-      final qrInner = (qrSize - (qrSize * 0.86)) / 2;
-      canvas.drawImage(qrImage, Offset(qrLeft + qrInner, qrTop + qrInner), Paint());
-    }
-
-    // 4. Kolom Teks Tengah: Judul Wilayah, Alamat, Koordinat, Tanggal & Jam
-    double currentY = top;
-
-    final headlineText = GpsMapCameraFormat.headline(data.address, data.plusCode);
-    final headlinePainter = TextPainter(
-      text: TextSpan(
-        text: headlineText,
-        style: TextStyle(
-          color: _textWhite,
-          fontSize: (15.5 * scale).clamp(11.0, 22.0),
-          fontWeight: FontWeight.w600,
-          height: 1.2,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-      maxLines: 2,
-      ellipsis: '…',
-    )..layout(maxWidth: textWidth);
-    headlinePainter.paint(canvas, Offset(textLeft, currentY));
-    currentY += headlinePainter.height + (4.0 * scale);
-
-    if (config.showLocation) {
-      final fullAddress = GpsMapCameraFormat.fullAddress(data.address, data.plusCode);
-      final addressPainter = TextPainter(
-        text: TextSpan(
-          text: fullAddress,
-          style: TextStyle(
-            color: _textWhite,
-            fontSize: (11.5 * scale).clamp(8.5, 16.0),
-            fontWeight: FontWeight.w700,
-            height: 1.3,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-        maxLines: 4,
-        ellipsis: '…',
-      )..layout(maxWidth: textWidth);
-      addressPainter.paint(canvas, Offset(textLeft, currentY));
-      currentY += addressPainter.height + (6.0 * scale);
-    }
-
-    if (config.showCoordinates) {
-      final latLongPainter = TextPainter(
-        text: TextSpan(
-          text: GpsMapCameraFormat.latLong(data.latitude, data.longitude),
-          style: TextStyle(
-            color: _textWhite,
-            fontSize: (12.5 * scale).clamp(9.0, 17.0),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-        maxLines: 1,
-        ellipsis: '…',
-      )..layout(maxWidth: textWidth);
-      latLongPainter.paint(canvas, Offset(textLeft, currentY));
-      currentY += latLongPainter.height + (4.0 * scale);
-    }
-
-    if (config.showDate || config.showTime) {
-      final dateTimePainter = TextPainter(
-        text: TextSpan(
-          text: GpsMapCameraFormat.dayDateTime(data.timestamp),
-          style: TextStyle(
-            color: _textWhite,
-            fontSize: (12.5 * scale).clamp(9.0, 17.0),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-        maxLines: 1,
-        ellipsis: '…',
-      )..layout(maxWidth: textWidth);
-      dateTimePainter.paint(canvas, Offset(textLeft, currentY));
     }
   }
 
@@ -1226,37 +1064,6 @@ class WatermarkCompositor {
 
     painter.paint(canvas, Offset(left, top));
     return top + painter.height + (4.0 * scale);
-  }
-
-  void _renderTrustBar({
-    required Canvas canvas,
-    required double top,
-    required double width,
-    required double scale,
-    required double paddingH,
-  }) {
-    canvas.drawLine(
-      Offset(paddingH, top),
-      Offset(width - paddingH, top),
-      Paint()
-        ..color = const ui.Color(0x33FFFFFF)
-        ..strokeWidth = 0.8 * scale,
-    );
-
-    final trustPainter = TextPainter(
-      text: TextSpan(
-        text: '🛡 Bukti Digital Resmi Tulap.id  •  Integritas Terverifikasi SHA-256',
-        style: TextStyle(
-          color: _textMuted,
-          fontSize: (9.5 * scale).clamp(7.0, 13.5),
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.3 * scale,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: width - (paddingH * 2));
-
-    trustPainter.paint(canvas, Offset(paddingH, top + (4.0 * scale)));
   }
 
   ui.Color _getGpsStatusColor(double accuracyMeters) {

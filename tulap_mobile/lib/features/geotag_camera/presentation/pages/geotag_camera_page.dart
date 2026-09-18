@@ -582,7 +582,6 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                   GeotagPhotoLocationCard(
                     latitude: photo.latitude,
                     longitude: photo.longitude,
-                    accuracyMeters: photo.gpsAccuracyMeters,
                     address: photo.address,
                     timestamp: photo.serverTimestamp,
                   ),
@@ -694,7 +693,6 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                 GeotagPhotoLocationCard(
                   latitude: state.latitude!,
                   longitude: state.longitude!,
-                  accuracyMeters: state.accuracyMeters ?? 15.0,
                   address: state.address,
                   timestamp: state.currentTime,
                 ),

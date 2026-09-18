@@ -36,7 +36,7 @@ class StaticMapThumbnail {
           '?center=$latitude,$longitude'
           '&zoom=$zoom'
           '&size=${width}x$height'
-          '&markers=color:0x00529C%7C$latitude,$longitude'
+          '&markers=color:red%7C$latitude,$longitude'
           '&key=$_kGoogleStaticMapsApiKey';
     }
 

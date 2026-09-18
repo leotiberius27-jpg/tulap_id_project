@@ -386,7 +386,6 @@ class _EvidenceViewerPageState extends State<EvidenceViewerPage> {
                 GeotagPhotoLocationCard(
                   latitude: currentEvidence.latitude,
                   longitude: currentEvidence.longitude,
-                  accuracyMeters: currentEvidence.gpsAccuracyMeters,
                   address: currentEvidence.address,
                   timestamp: currentEvidence.serverTimestamp,
                   onQrTap: () => _openGoogleMaps(currentEvidence),
