@@ -1,6 +1,7 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../../../../core/geo/gps_map_camera_format.dart';
+import '../../../../core/widgets/real_mini_map_preview.dart';
 import '../../domain/entities/watermark_template_entity.dart';
 
 /// CameraStampPreview
@@ -76,6 +77,8 @@ class CameraStampPreview extends StatelessWidget {
     WatermarkTemplateDefinition template,
   ) {
     switch (template.id) {
+      case 'gps_map_camera':
+        return _buildGpsMapCameraLayout();
       case 'pelaporan':
         return _buildPelaporanLayout();
       case 'tanggal_waktu':
@@ -166,6 +169,102 @@ class CameraStampPreview extends StatelessWidget {
         if (shouldShowQr) ...[
           const SizedBox(width: 8),
           _buildQrPreviewWidget(size: 68),
+        ],
+      ],
+    );
+  }
+
+  // 0. GPS MAP CAMERA: Layout Default Identik Referensi (02.jpeg)
+  // [Peta Nyata] [Judul Wilayah + 🇮🇩, Alamat Lengkap, Lat/Long, Tanggal & Jam] [Badge + QR Polos]
+  Widget _buildGpsMapCameraLayout() {
+    final shouldShowMap = stampConfig.showMiniMap;
+    final shouldShowQr = stampConfig.showQrMaps;
+    final lat = latitude;
+    final lng = longitude;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (shouldShowMap) ...[
+          RealMiniMapPreview(latitude: lat, longitude: lng, size: 72),
+          const SizedBox(width: 10),
+        ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                GpsMapCameraFormat.headline(address, ''),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.15,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                GpsMapCameraFormat.fullAddress(address, ''),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                  height: 1.25,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 3),
+              if (stampConfig.showCoordinates && lat != null && lng != null)
+                Text(
+                  GpsMapCameraFormat.latLong(lat, lng),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10.0,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              if (stampConfig.showDate || stampConfig.showTime) ...[
+                const SizedBox(height: 2),
+                Text(
+                  GpsMapCameraFormat.dayDateTime(currentTime),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10.0,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (shouldShowQr) ...[
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '🛰 GPS Map Camera',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w800,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              _buildPlainQrBox(size: 60),
+            ],
+          ),
         ],
       ],
     );
@@ -650,6 +749,33 @@ class CameraStampPreview extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Kotak QR Putih Polos Tanpa Label - badge "GPS Map Camera" sudah
+  // terpisah DI ATAS kotak ini (lihat _buildGpsMapCameraLayout), persis
+  // seperti referensi 02.jpeg yang tidak punya header "Google Maps" di
+  // dalam kotak QR-nya sendiri.
+  Widget _buildPlainQrBox({required double size}) {
+    final lat = latitude ?? -4.5572;
+    final lng = longitude ?? 136.8837;
+    final url =
+        'https://www.google.com/maps/search/?api=1&query=${lat.toStringAsFixed(6)},${lng.toStringAsFixed(6)}';
+
+    return Container(
+      width: size,
+      height: size,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: QrImageView(
+        data: url,
+        version: QrVersions.auto,
+        backgroundColor: Colors.white,
+        padding: EdgeInsets.zero,
       ),
     );
   }

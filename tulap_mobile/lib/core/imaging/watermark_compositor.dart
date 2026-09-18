@@ -1,7 +1,9 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/painting.dart';
 import '../../features/geotag_camera/domain/entities/watermark_template_entity.dart';
+import '../geo/gps_map_camera_format.dart';
 import '../geo/mini_map_renderer.dart';
 import '../qr/qr_location_generator.dart';
 
@@ -26,6 +28,13 @@ class WatermarkData {
   final String? address;
   final String? auditQrPayload;
   final Uint8List? staticMapImageBytes;
+
+  /// Future byte peta statis yang SUDAH DIMULAI (non-awaited) sebelum
+  /// `controller.takePicture()` dipanggil di datasource - lihat
+  /// StaticMapFetcher & GeotagCameraRepositoryImpl. Ditunggu (dengan
+  /// timeout) HANYA di dalam `compose()` di bawah, setelah jepretan kamera
+  /// selesai, supaya kecepatan shutter tidak pernah tersandera jaringan.
+  final Future<Uint8List?>? staticMapImageBytesFuture;
   final bool isOffline;
   final bool isVerified;
   final StampConfiguration? configuration;
@@ -47,6 +56,7 @@ class WatermarkData {
     this.address,
     this.auditQrPayload,
     this.staticMapImageBytes,
+    this.staticMapImageBytesFuture,
     this.isOffline = false,
     this.isVerified = false,
     this.configuration,
@@ -102,6 +112,44 @@ class WatermarkCompositor {
     final config = configuration ?? data.configuration ?? const StampConfiguration();
     final template = TemplateCatalog.getById(config.templateId);
 
+    // Tunggu byte peta statis (jika ada Future yang sudah dimulai lebih
+    // awal) di sini - SETELAH shutter kamera sudah menjepret (lihat catatan
+    // di WatermarkData.staticMapImageBytesFuture) - dibatasi timeout ketat
+    // agar kompositor tidak pernah tersandera jaringan lambat/mati.
+    Uint8List? resolvedStaticMapBytes = data.staticMapImageBytes;
+    if (resolvedStaticMapBytes == null && data.staticMapImageBytesFuture != null) {
+      try {
+        resolvedStaticMapBytes = await data.staticMapImageBytesFuture!
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {
+        resolvedStaticMapBytes = null;
+      }
+    }
+
+    // Salinan data dengan byte peta yang sudah final (Future dibuang -
+    // tidak dibutuhkan lagi oleh renderer template di bawah).
+    final effectiveData = WatermarkData(
+      officerName: data.officerName,
+      nip: data.nip,
+      agencyName: data.agencyName,
+      taskId: data.taskId,
+      taskName: data.taskName,
+      shortEvidenceId: data.shortEvidenceId,
+      timestamp: data.timestamp,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      gpsAccuracyMeters: data.gpsAccuracyMeters,
+      altitude: data.altitude,
+      heading: data.heading,
+      plusCode: data.plusCode,
+      address: data.address,
+      auditQrPayload: data.auditQrPayload,
+      staticMapImageBytes: resolvedStaticMapBytes,
+      isOffline: data.isOffline,
+      isVerified: data.isVerified,
+      configuration: data.configuration,
+    );
+
     final sourceImage = await _decodeImage(sourceImageBytes);
     final width = sourceImage.width.toDouble();
     final height = sourceImage.height.toDouble();
@@ -147,7 +195,7 @@ class WatermarkCompositor {
       width: contentWidth,
       height: targetPanelHeight - (panelPaddingV * 2) - (24.0 * scale),
       scale: scale,
-      data: data,
+      data: effectiveData,
       config: config,
       template: template,
     );
@@ -186,6 +234,19 @@ class WatermarkCompositor {
     required WatermarkTemplateDefinition template,
   }) async {
     switch (template.id) {
+      case 'gps_map_camera':
+        await _renderGpsMapCameraTemplate(
+          canvas: canvas,
+          left: left,
+          top: top,
+          width: width,
+          height: height,
+          scale: scale,
+          data: data,
+          config: config,
+        );
+        break;
+
       case 'pelaporan':
         await _renderPelaporanTemplate(
           canvas: canvas,
@@ -264,6 +325,175 @@ class WatermarkCompositor {
           config: config,
         );
         break;
+    }
+  }
+
+  // ====================================================================
+  // 0. TEMPLATE GPS MAP CAMERA (Default - Identik Referensi Aplikasi Acuan)
+  // Layout: [Peta Nyata] [Judul Wilayah + 🇮🇩, Alamat Lengkap, Lat/Long,
+  //          Tanggal & Jam] [Badge "GPS Map Camera" + Kotak QR Putih Polos]
+  // Sesuai Referensi/Mobile/Camera/02.jpeg - bidang teks & urutannya
+  // sengaja dijaga PERSIS sama, tanpa elemen tambahan (nama tugas/akurasi
+  // GPS tidak ditampilkan di sini walau tetap direkam penuh di database).
+  // ====================================================================
+  Future<void> _renderGpsMapCameraTemplate({
+    required Canvas canvas,
+    required double left,
+    required double top,
+    required double width,
+    required double height,
+    required double scale,
+    required WatermarkData data,
+    required StampConfiguration config,
+  }) async {
+    final shouldShowMap = config.showMiniMap;
+    final shouldShowQr = config.showQrMaps;
+
+    final mapSize = height.clamp(130.0 * scale, 280.0 * scale);
+    final qrSize = (mapSize * 0.56).clamp(60.0 * scale, 120.0 * scale);
+    final gap = 14.0 * scale;
+
+    // Badge "GPS Map Camera" - dirender lebih dulu (belum di-paint) hanya
+    // untuk mengukur lebarnya, dipakai menghitung reservasi kolom kanan.
+    final brandPainter = TextPainter(
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: '🛰 ',
+            style: TextStyle(fontSize: (12.5 * scale).clamp(9.0, 18.0)),
+          ),
+          TextSpan(
+            text: 'GPS Map Camera',
+            style: TextStyle(
+              color: _textWhite,
+              fontSize: (12.5 * scale).clamp(9.0, 18.0),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout(maxWidth: width);
+
+    final rightReserve =
+        (shouldShowQr ? math.max(qrSize, brandPainter.width) : brandPainter.width) +
+            gap;
+    final mapReserve = shouldShowMap ? mapSize + gap : 0.0;
+    final textLeft = left + mapReserve;
+    final textWidth = (width - mapReserve - rightReserve).clamp(60.0 * scale, width);
+
+    // 1. Badge Merek Kanan-Atas: "GPS Map Camera"
+    brandPainter.paint(canvas, Offset(left + width - brandPainter.width, top));
+
+    // 2. Peta Kiri: Google Maps nyata jika tersedia, prosedural jika offline
+    if (shouldShowMap) {
+      final mapImage = await _miniMapRenderer.renderMiniMap(
+        latitude: data.latitude,
+        longitude: data.longitude,
+        pixelSize: mapSize.toInt(),
+        staticMapBytes: data.staticMapImageBytes,
+      );
+      canvas.drawImage(mapImage, Offset(left, top), Paint());
+    }
+
+    // 3. QR Kanan: kotak putih polos tanpa label (sesuai referensi asli)
+    if (shouldShowQr) {
+      final mapsUrl = _qrGenerator.buildGoogleMapsUrl(
+        latitude: data.latitude,
+        longitude: data.longitude,
+      );
+      final qrImage = await _qrGenerator.generateQrImage(
+        data: mapsUrl,
+        pixelSize: (qrSize * 0.86).toInt(),
+      );
+
+      final qrLeft = left + width - qrSize;
+      final qrTop = top + brandPainter.height + (8.0 * scale);
+      final qrRect = Rect.fromLTWH(qrLeft, qrTop, qrSize, qrSize);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(qrRect, Radius.circular(6.0 * scale)),
+        Paint()..color = const ui.Color(0xFFFFFFFF),
+      );
+
+      final qrInner = (qrSize - (qrSize * 0.86)) / 2;
+      canvas.drawImage(qrImage, Offset(qrLeft + qrInner, qrTop + qrInner), Paint());
+    }
+
+    // 4. Kolom Teks Tengah: Judul Wilayah, Alamat, Koordinat, Tanggal & Jam
+    double currentY = top;
+
+    final headlineText = GpsMapCameraFormat.headline(data.address, data.plusCode);
+    final headlinePainter = TextPainter(
+      text: TextSpan(
+        text: headlineText,
+        style: TextStyle(
+          color: _textWhite,
+          fontSize: (15.5 * scale).clamp(11.0, 22.0),
+          fontWeight: FontWeight.w600,
+          height: 1.2,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 2,
+      ellipsis: '…',
+    )..layout(maxWidth: textWidth);
+    headlinePainter.paint(canvas, Offset(textLeft, currentY));
+    currentY += headlinePainter.height + (4.0 * scale);
+
+    if (config.showLocation) {
+      final fullAddress = GpsMapCameraFormat.fullAddress(data.address, data.plusCode);
+      final addressPainter = TextPainter(
+        text: TextSpan(
+          text: fullAddress,
+          style: TextStyle(
+            color: _textWhite,
+            fontSize: (11.5 * scale).clamp(8.5, 16.0),
+            fontWeight: FontWeight.w700,
+            height: 1.3,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        maxLines: 4,
+        ellipsis: '…',
+      )..layout(maxWidth: textWidth);
+      addressPainter.paint(canvas, Offset(textLeft, currentY));
+      currentY += addressPainter.height + (6.0 * scale);
+    }
+
+    if (config.showCoordinates) {
+      final latLongPainter = TextPainter(
+        text: TextSpan(
+          text: GpsMapCameraFormat.latLong(data.latitude, data.longitude),
+          style: TextStyle(
+            color: _textWhite,
+            fontSize: (12.5 * scale).clamp(9.0, 17.0),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+        ellipsis: '…',
+      )..layout(maxWidth: textWidth);
+      latLongPainter.paint(canvas, Offset(textLeft, currentY));
+      currentY += latLongPainter.height + (4.0 * scale);
+    }
+
+    if (config.showDate || config.showTime) {
+      final dateTimePainter = TextPainter(
+        text: TextSpan(
+          text: GpsMapCameraFormat.dayDateTime(data.timestamp),
+          style: TextStyle(
+            color: _textWhite,
+            fontSize: (12.5 * scale).clamp(9.0, 17.0),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+        ellipsis: '…',
+      )..layout(maxWidth: textWidth);
+      dateTimePainter.paint(canvas, Offset(textLeft, currentY));
     }
   }
 

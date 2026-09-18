@@ -585,7 +585,6 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                     accuracyMeters: photo.gpsAccuracyMeters,
                     address: photo.address,
                     timestamp: photo.serverTimestamp,
-                    tag: 'NAVIGASI LAPANGAN',
                   ),
                   const SizedBox(height: 10),
 
@@ -698,7 +697,6 @@ class _GeotagCameraPageState extends State<GeotagCameraPage> {
                   accuracyMeters: state.accuracyMeters ?? 15.0,
                   address: state.address,
                   timestamp: state.currentTime,
-                  tag: 'NAVIGASI LAPANGAN',
                 ),
 
               const SizedBox(height: 24),

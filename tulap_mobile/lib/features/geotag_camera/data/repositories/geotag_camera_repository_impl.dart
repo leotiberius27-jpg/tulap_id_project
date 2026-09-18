@@ -6,6 +6,7 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/geo/fast_location_service.dart';
 import '../../../../core/geo/plus_code_generator.dart';
 import '../../../../core/geo/reverse_geocoder.dart';
+import '../../../../core/geo/static_map_fetcher.dart';
 import '../../../../core/geo/static_map_thumbnail.dart';
 import '../../../../core/imaging/watermark_compositor.dart';
 import '../../../../core/security/mock_location_detector.dart';
@@ -36,6 +37,7 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
   final PlusCodeGenerator _plusCodeGenerator;
   final ReverseGeocoder _reverseGeocoder;
   final StaticMapThumbnail _staticMapThumbnail;
+  final StaticMapFetcher _staticMapFetcher;
   final TemplateRepository? _templateRepository;
   final ReportSecurityEvent? _reportSecurityEvent;
 
@@ -49,6 +51,7 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
     required PlusCodeGenerator plusCodeGenerator,
     required ReverseGeocoder reverseGeocoder,
     required StaticMapThumbnail staticMapThumbnail,
+    StaticMapFetcher? staticMapFetcher,
     TemplateRepository? templateRepository,
     ReportSecurityEvent? reportSecurityEvent,
   }) : _localDataSource = localDataSource,
@@ -60,6 +63,7 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
        _plusCodeGenerator = plusCodeGenerator,
        _reverseGeocoder = reverseGeocoder,
        _staticMapThumbnail = staticMapThumbnail,
+       _staticMapFetcher = staticMapFetcher ?? StaticMapFetcher.instance,
        _templateRepository = templateRepository,
        _reportSecurityEvent = reportSecurityEvent;
 
@@ -149,6 +153,13 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
       final lng = fastLoc.longitude!;
       final accuracy = fastLoc.accuracy ?? 10.0;
 
+      // Mulai unduh thumbnail peta nyata SEKARANG (fire-and-forget, TIDAK
+      // di-await) - shutter (`controller.takePicture()` di datasource)
+      // tidak pernah menunggu jaringan. Hasilnya baru ditunggu (dengan
+      // timeout) di dalam WatermarkCompositor.compose(), setelah foto
+      // sudah benar-benar dijepret.
+      final staticMapFuture = _staticMapFetcher.fetch(latitude: lat, longitude: lng);
+
       final plusCode = _plusCodeGenerator.generate(
         latitude: lat,
         longitude: lng,
@@ -201,6 +212,7 @@ class GeotagCameraRepositoryImpl implements GeotagCameraRepository {
           plusCode: plusCode,
           address: address,
           auditQrPayload: mapsUrl,
+          staticMapImageBytesFuture: staticMapFuture,
           isOffline: true,
           isVerified: false,
           configuration: stampConfig,

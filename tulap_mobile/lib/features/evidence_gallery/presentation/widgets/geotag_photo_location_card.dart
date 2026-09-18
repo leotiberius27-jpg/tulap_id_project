@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../../../../core/geo/gps_map_camera_format.dart';
+import '../../../../core/widgets/real_mini_map_preview.dart';
 
 /// GeotagPhotoLocationCard
 /// ----------------------------------------------------------------------
-/// Kartu informasi titik lokasi dan metadata presisi di bawah hasil foto/video
-/// Sesuai referensi visual 01.jpeg (Folder Referensi/Mobile/Hasil Foto/01.jpeg):
-/// - Header: TULAP.ID • NAVIGASI LAPANGAN (Teks emas #FFC700)
-/// - Alamat lengkap 2-baris dengan elipsis
-/// - Ikon globe biru + Koordinat presisi 6-desimal dalam warna emas (#FFC700)
-/// - Akurasi GPS (GPS ±X m dalam warna emas) + Tanggal dan jam Indonesia
-/// - Kotak QR Code Google Maps putih kontras tinggi di sisi kanan
+/// Kartu informasi titik lokasi dan metadata presisi di bawah hasil foto
+/// ATAU video, identik referensi Referensi/Mobile/Camera/02.jpeg:
+/// - Peta lokasi NYATA (Google/OSM static map) di sisi kiri
+/// - Judul wilayah singkat + bendera 🇮🇩, alamat lengkap, koordinat
+///   "Lat X° Long Y°", & tanggal/jam bergaya "Hari, dd/MM/yyyy hh:mm AM/PM"
+/// - Badge "GPS Map Camera" + kotak QR Google Maps putih polos di kanan
 /// ----------------------------------------------------------------------
 class GeotagPhotoLocationCard extends StatelessWidget {
   final double latitude;
@@ -17,7 +18,6 @@ class GeotagPhotoLocationCard extends StatelessWidget {
   final double accuracyMeters;
   final String? address;
   final DateTime timestamp;
-  final String? tag;
   final VoidCallback? onQrTap;
 
   const GeotagPhotoLocationCard({
@@ -27,7 +27,6 @@ class GeotagPhotoLocationCard extends StatelessWidget {
     required this.accuracyMeters,
     this.address,
     required this.timestamp,
-    this.tag = 'NAVIGASI LAPANGAN',
     this.onQrTap,
   });
 
@@ -35,7 +34,7 @@ class GeotagPhotoLocationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+      padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
       decoration: BoxDecoration(
         color: const Color(0xD9000000), // Rich black, 85% opacity
         borderRadius: BorderRadius.circular(14),
@@ -52,106 +51,92 @@ class GeotagPhotoLocationCard extends StatelessWidget {
         ],
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Sisi Kiri: Metadata Lengkap
+          // Sisi Kiri: Peta Lokasi Nyata
+          RealMiniMapPreview(
+            latitude: latitude,
+            longitude: longitude,
+            size: 80,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          const SizedBox(width: 10),
+
+          // Tengah: Judul Wilayah, Alamat, Koordinat, Tanggal & Jam
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Baris 1: TULAP.ID • NAVIGASI LAPANGAN
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'TULAP.ID  ',
-                      style: TextStyle(
-                        color: Color(0xFFFFC700), // Golden Yellow - judul kartu
-                        fontSize: 12.0,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    Text(
-                      '•  ${tag ?? "NAVIGASI LAPANGAN"}',
-                      style: const TextStyle(
-                        color: Color(0xFFFFC700), // Golden Yellow
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-
-                // Baris 2: Alamat Lengkap
                 Text(
-                  _getCleanAddress(),
+                  GpsMapCameraFormat.headline(address, ''),
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 11.0,
+                    fontSize: 13.0,
                     fontWeight: FontWeight.w600,
-                    height: 1.2,
+                    height: 1.15,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-
-                // Baris 3: 🌐 -4.556968,  136.896243
-                Row(
-                  children: [
-                    const Text(
-                      '🌐 ',
-                      style: TextStyle(fontSize: 11.5),
-                    ),
-                    Expanded(
-                      child: Text(
-                        '${latitude.toStringAsFixed(6)},  ${longitude.toStringAsFixed(6)}',
-                        style: const TextStyle(
-                          color: Colors.white, // Koordinat: crisp white
-                          fontSize: 11.0,
-                          fontWeight: FontWeight.w700,
-                          fontFamily: 'monospace',
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                Text(
+                  GpsMapCameraFormat.fullAddress(address, ''),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10.0,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 3),
-
-                // Baris 4: GPS ±15 m • 31 Agu 2026 • 20:34
-                Row(
-                  children: [
-                    Text(
-                      'GPS ±${accuracyMeters.round()} m',
-                      style: const TextStyle(
-                        color: Colors.white70, // Subtext abu-abu muda
-                        fontSize: 10.0,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '  •  ${_formatIndonesianDateAndTime(timestamp)}',
-                      style: const TextStyle(
-                        color: Colors.white70, // Subtext abu-abu muda
-                        fontSize: 10.0,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 5),
+                Text(
+                  GpsMapCameraFormat.latLong(latitude, longitude),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  GpsMapCameraFormat.dayDateTime(timestamp),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
 
-          // Sisi Kanan: QR Code Google Maps (01.jpeg)
-          _buildQrBox(latitude, longitude),
+          // Sisi Kanan: Badge "GPS Map Camera" + QR Google Maps
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '🛰 GPS Map Camera',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 9.0,
+                  fontWeight: FontWeight.w800,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 5),
+              _buildQrBox(latitude, longitude),
+            ],
+          ),
         ],
       ),
     );
@@ -164,12 +149,12 @@ class GeotagPhotoLocationCard extends StatelessWidget {
     return GestureDetector(
       onTap: onQrTap,
       child: Container(
-        width: 72,
-        height: 72,
+        width: 64,
+        height: 64,
+        padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white70, width: 0.8),
           boxShadow: const [
             BoxShadow(
               color: Color(0x33000000),
@@ -177,70 +162,13 @@ class GeotagPhotoLocationCard extends StatelessWidget {
             ),
           ],
         ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              color: const Color(0xFF0F172A),
-              child: const Center(
-                child: Text(
-                  'Google Maps',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 7.0,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(2.5),
-                child: QrImageView(
-                  data: url,
-                  version: QrVersions.auto,
-                  backgroundColor: Colors.white,
-                  padding: EdgeInsets.zero,
-                ),
-              ),
-            ),
-          ],
+        child: QrImageView(
+          data: url,
+          version: QrVersions.auto,
+          backgroundColor: Colors.white,
+          padding: EdgeInsets.zero,
         ),
       ),
     );
-  }
-
-  /// PENTING - jangan pernah kembalikan alamat rekaan di sini. Sebelumnya
-  /// widget ini menampilkan alamat FIKTIF yang di-hardcode ("Jalan Leo
-  /// Mamiri, No. 86, ...") setiap kali `address` null, pada kartu bukti
-  /// audit resmi - ditemukan saat menyelaraskan widget ini dengan
-  /// ReverseGeocoder.reverseGeocode() yang sekarang tidak pernah lagi
-  /// mengembalikan null (selalu alamat asli, cache, atau format
-  /// "[OFFLINE AREA] Koordinat: ..." yang jujur). Fallback di sini HANYA
-  /// untuk foto lama yang tersimpan sebelum perbaikan tersebut ada.
-  String _getCleanAddress() {
-    if (address != null && address!.trim().isNotEmpty) {
-      return address!;
-    }
-    return '[OFFLINE AREA] Koordinat: '
-        'Lat: ${latitude.toStringAsFixed(6)}, '
-        'Lon: ${longitude.toStringAsFixed(6)}';
-  }
-
-  String _formatIndonesianDateAndTime(DateTime dt) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
-    ];
-    final local = dt.toLocal();
-    final monthName = (local.month >= 1 && local.month <= 12)
-        ? months[local.month - 1]
-        : 'Agu';
-    final hh = local.hour.toString().padLeft(2, '0');
-    final mm = local.minute.toString().padLeft(2, '0');
-    return '${local.day} $monthName ${local.year} • $hh:$mm';
   }
 }

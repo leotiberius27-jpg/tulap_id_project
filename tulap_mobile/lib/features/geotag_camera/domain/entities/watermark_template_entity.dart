@@ -28,7 +28,7 @@ class StampConfiguration {
   final bool showHeading;
 
   const StampConfiguration({
-    this.templateId = 'klasik',
+    this.templateId = 'gps_map_camera',
     this.templateVersion = 1,
     this.showLocation = true,
     this.showDate = true,
@@ -93,7 +93,7 @@ class StampConfiguration {
 
   factory StampConfiguration.fromJson(Map<String, dynamic> json) {
     return StampConfiguration(
-      templateId: json['templateId'] as String? ?? 'klasik',
+      templateId: json['templateId'] as String? ?? 'gps_map_camera',
       templateVersion: json['templateVersion'] as int? ?? 1,
       showLocation: json['showLocation'] as bool? ?? true,
       showDate: json['showDate'] as bool? ?? true,
@@ -144,15 +144,31 @@ class WatermarkTemplateDefinition {
 
 /// TemplateCatalog
 /// ----------------------------------------------------------------------
-/// Katalog 6 template resmi Tulap.id:
-/// 1. KLASIK: Geotag seimbang dengan Mini Map, Lokasi, Waktu, & GPS
-/// 2. PELAPORAN: Dokumentasi formal institusi dengan ID Bukti & Data Petugas
-/// 3. TANGGAL & WAKTU: Tampilan minimalis dengan Tanggal/Waktu dominan
-/// 4. LOKASI + QR: Navigasi lapangan dengan Mini Map & QR Google Maps
-/// 5. KOMPAK: Stamp teringkas untuk menjaga visibilitas foto maksimal
-/// 6. KOMPAS / TEKNIS: Inspeksi lapangan teknis dengan Kompas & Elevasi
+/// Katalog 7 template resmi Tulap.id:
+/// 1. GPS MAP CAMERA: Tampilan default, identik aplikasi "GPS Map Camera"
+///    acuan (Referensi/Mobile/Camera/02.jpeg) - peta nyata, judul wilayah +
+///    bendera, alamat lengkap, koordinat, tanggal/jam, & QR.
+/// 2. KLASIK: Geotag seimbang dengan Mini Map, Lokasi, Waktu, & GPS
+/// 3. PELAPORAN: Dokumentasi formal institusi dengan ID Bukti & Data Petugas
+/// 4. TANGGAL & WAKTU: Tampilan minimalis dengan Tanggal/Waktu dominan
+/// 5. LOKASI + QR: Navigasi lapangan dengan Mini Map & QR Google Maps
+/// 6. KOMPAK: Stamp teringkas untuk menjaga visibilitas foto maksimal
+/// 7. KOMPAS / TEKNIS: Inspeksi lapangan teknis dengan Kompas & Elevasi
 /// ----------------------------------------------------------------------
 class TemplateCatalog {
+  static const WatermarkTemplateDefinition gpsMapCamera =
+      WatermarkTemplateDefinition(
+    id: 'gps_map_camera',
+    name: 'GPS Map Camera',
+    subtitle: 'Standar Referensi (Default)',
+    description: 'Peta lokasi nyata, judul wilayah, alamat lengkap, koordinat, tanggal/jam, & QR - identik aplikasi acuan.',
+    icon: Icons.satellite_alt_outlined,
+    hasMiniMap: true,
+    hasQrMaps: true,
+    panelHeightFractionPortrait: 0.30,
+    panelHeightFractionLandscape: 0.32,
+  );
+
   static const WatermarkTemplateDefinition klasik =
       WatermarkTemplateDefinition(
     id: 'klasik',
@@ -235,6 +251,7 @@ class TemplateCatalog {
   );
 
   static const List<WatermarkTemplateDefinition> all = [
+    gpsMapCamera,
     klasik,
     pelaporan,
     tanggalWaktu,
@@ -244,10 +261,10 @@ class TemplateCatalog {
   ];
 
   static WatermarkTemplateDefinition getById(String? id) {
-    if (id == null || id.isEmpty) return klasik;
+    if (id == null || id.isEmpty) return gpsMapCamera;
     return all.firstWhere(
       (t) => t.id == id,
-      orElse: () => klasik,
+      orElse: () => gpsMapCamera,
     );
   }
 }

@@ -47,8 +47,13 @@ void main() {
   }
 
   group('Phase 3: Template Catalog & Configuration Tests', () {
-    test('TemplateCatalog contains 6 official Indonesian templates', () {
-      expect(TemplateCatalog.all.length, equals(6));
+    test('TemplateCatalog contains 7 official Indonesian templates', () {
+      expect(TemplateCatalog.all.length, equals(7));
+
+      final gpsMapCamera = TemplateCatalog.getById('gps_map_camera');
+      expect(gpsMapCamera.name, equals('GPS Map Camera'));
+      expect(gpsMapCamera.hasMiniMap, isTrue);
+      expect(gpsMapCamera.hasQrMaps, isTrue);
 
       final klasik = TemplateCatalog.getById('klasik');
       expect(klasik.name, equals('Klasik'));
@@ -75,10 +80,10 @@ void main() {
       expect(kompasTeknis.hasHeading, isTrue);
     });
 
-    test('TemplateCatalog fallback gracefully to Klasik on unknown ID', () {
+    test('TemplateCatalog fallback gracefully to GPS Map Camera (default) on unknown ID', () {
       final template = TemplateCatalog.getById('unknown_id_999');
-      expect(template.id, equals('klasik'));
-      expect(template.name, equals('Klasik'));
+      expect(template.id, equals('gps_map_camera'));
+      expect(template.name, equals('GPS Map Camera'));
     });
 
     test('StampConfiguration serializes and deserializes cleanly with toggles', () {
@@ -111,7 +116,7 @@ void main() {
     test('TemplateRepository persists and retrieves StampConfiguration', () async {
       final repo = _MockTemplateRepository();
       final initial = await repo.getSavedConfiguration();
-      expect(initial.templateId, equals('klasik'));
+      expect(initial.templateId, equals('gps_map_camera'));
 
       await repo.saveConfiguration(
         const StampConfiguration(templateId: 'lokasi_qr', showMiniMap: true),

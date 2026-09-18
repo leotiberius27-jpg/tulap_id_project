@@ -389,7 +389,6 @@ class _EvidenceViewerPageState extends State<EvidenceViewerPage> {
                   accuracyMeters: currentEvidence.gpsAccuracyMeters,
                   address: currentEvidence.address,
                   timestamp: currentEvidence.serverTimestamp,
-                  tag: 'NAVIGASI LAPANGAN',
                   onQrTap: () => _openGoogleMaps(currentEvidence),
                 ),
 
