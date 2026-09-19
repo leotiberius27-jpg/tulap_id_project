@@ -1,6 +1,9 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/error/failures.dart';
+import '../../../firebase_live_tracking/data/live_location_repository.dart';
+import '../../../firebase_live_tracking/data/live_location_tracking_service.dart';
 import '../../domain/entities/auth_user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_local_datasource.dart';
@@ -78,8 +81,27 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> logout() {
-    return _localDataSource.clearSession();
+  Future<void> logout() async {
+    // Ambil id user SEBELUM clearSession() menghapusnya - dipakai untuk
+    // membersihkan dokumen live_locations miliknya sendiri secara
+    // eksplisit (bukan mengandalkan state internal
+    // LiveLocationTrackingService, lihat catatan bug di
+    // LiveTrackingPage._signOut untuk alasan kenapa itu tidak aman).
+    final currentUser = await _localDataSource.getStoredUser();
+    await _localDataSource.clearSession();
+
+    // Best-effort: bongkar sesi Firebase Auth + hentikan siaran lokasi
+    // yang mungkin dinyalakan otomatis oleh loginWithGoogle() di atas.
+    // Untuk login email/password biasa (tidak pernah memicu Firebase),
+    // ini semua no-op aman - signOut() ke akun yang tidak pernah login
+    // tidak melempar.
+    try {
+      await LiveLocationTrackingService.instance.stopTracking();
+      if (currentUser != null) {
+        await LiveLocationRepository().clearLocation(currentUser.id);
+      }
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
   }
 
   @override
@@ -199,6 +221,9 @@ class AuthRepositoryImpl implements AuthRepository {
         refreshToken: json['refreshToken'] as String,
         user: user,
       );
+      // Fire-and-forget SENGAJA tidak di-await - login tidak boleh
+      // menunggu GPS/Firebase, lihat dokumentasi _connectLiveTracking.
+      _connectLiveTracking(json['firebaseToken'] as String?, savedUser.id);
       return Right(savedUser);
     } catch (e) {
       if (e is DioException &&
@@ -236,6 +261,30 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       return Right(savedGoogle);
     }
+  }
+
+  /// Menghubungkan sesi Google yang baru saja berhasil login ke Firebase
+  /// Authentication + modul live location tracking SECARA OTOMATIS,
+  /// tanpa layar/dialog tambahan apa pun - permintaan eksplisit user:
+  /// tombol "Masuk dengan Google" di layar login utama harus langsung
+  /// menyalakan pelacakan lokasi real-time begitu login berhasil.
+  /// `firebaseToken` (dari backend, lihat AuthService.mintFirebaseCustomToken)
+  /// dijamin punya UID SAMA PERSIS dengan [userId] Tulap.id - jadi
+  /// dokumen `live_locations/{userId}` yang ditulis tetap bisa langsung
+  /// dikorelasikan ke akun pegawai sungguhan, bukan identitas Firebase
+  /// yang terpisah tanpa makna.
+  ///
+  /// Best-effort MURNI: `firebaseToken` null (server belum
+  /// dikonfigurasi/gagal membuatnya) atau exception apa pun di sini
+  /// (GPS mati, izin ditolak, dst) TIDAK PERNAH boleh menggagalkan login
+  /// Tulap.id yang sudah berhasil - karena itu dipanggil tanpa `await`
+  /// oleh caller.
+  Future<void> _connectLiveTracking(String? firebaseToken, String userId) async {
+    if (firebaseToken == null || firebaseToken.isEmpty) return;
+    try {
+      await FirebaseAuth.instance.signInWithCustomToken(firebaseToken);
+      await LiveLocationTrackingService.instance.startTracking(userId);
+    } catch (_) {}
   }
 
   String _extractPrettyName(String email) {

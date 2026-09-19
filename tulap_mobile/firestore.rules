@@ -1,0 +1,62 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // live_locations/{userId} - posisi GPS real-time petugas lapangan,
+    // ditulis LANGSUNG dari klien Flutter (lihat
+    // lib/features/firebase_live_tracking/data/live_location_repository.dart)
+    // memakai sesi Firebase Authentication (email/password atau Google
+    // dari FirebaseEmailAuthService) - BUKAN JWT backend Tulap.id, jadi
+    // request.auth di sini berasal dari Firebase Auth, bukan sesi
+    // NestJS. Satu dokumen per user, selalu ditimpa (merge:true) dengan
+    // posisi terbaru.
+    match /live_locations/{userId} {
+      // Siapa pun yang sudah sign-in boleh membaca SELURUH koleksi
+      // (dipakai `watchAllLocations()` untuk peta sebaran lokasi live
+      // di dashboard supervisor) - modul ini belum punya konsep role
+      // terpisah di Firestore (role sesungguhnya ada di Postgres lewat
+      // backend), jadi baseline-nya "harus login", bukan publik.
+      allow read: if isSignedIn();
+
+      // Hanya pemilik uid yang cocok dengan id dokumen yang boleh
+      // menulis/menghapus posisinya sendiri - mencegah user A menulis
+      // atau menimpa posisi user B. `create` dan `update` sama-sama
+      // dicek karena `.set(..., merge:true)` dari klien bisa jadi
+      // create (dokumen belum ada) atau update (sudah ada).
+      allow create, update: if isOwner(userId) && isValidLocationPayload();
+      allow delete: if isOwner(userId);
+    }
+
+    // Default deny untuk seluruh koleksi lain - termasuk
+    // `activity_reports` & `asset_documents` yang ditulis backend lewat
+    // Firebase Admin SDK (FirestoreSyncService), yang SELALU melewati
+    // Security Rules apa pun isinya. Jadi baris ini murni memastikan
+    // klien (mobile/web) TIDAK BISA membaca/menulis koleksi tersebut
+    // secara langsung.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidLocationPayload() {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['position', 'accuracy', 'speed', 'heading', 'updatedAt'])
+        && data.position is latlng
+        && (data.accuracy == null || data.accuracy is number)
+        && (data.speed == null || data.speed is number)
+        && (data.heading == null || data.heading is number)
+        // FieldValue.serverTimestamp() dari klien resolve menjadi
+        // request.time di sisi rules - memastikan timestamp TIDAK BISA
+        // dipalsukan klien dengan tanggal sembarang.
+        && data.updatedAt == request.time;
+    }
+  }
+}

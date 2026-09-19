@@ -6,10 +6,13 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { RoleName } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { App, cert, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { MailerService } from '../../infrastructure/mailer/mailer.service';
 import { AuditService } from '../audit/audit.service';
@@ -30,6 +33,7 @@ const RESET_CODE_TTL_MINUTES = 15;
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private firebaseAdminApp: App | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -37,7 +41,56 @@ export class AuthService {
     private readonly audit: AuditService,
     private readonly mailer: MailerService,
     private readonly oauthVerifier: OAuthVerifierService,
-  ) {}
+    private readonly config: ConfigService,
+  ) {
+    // Kredensial SAMA dengan FirestoreSyncService/PushNotificationService
+    // (FIREBASE_SERVICE_ACCOUNT_JSON) - satu service account Firebase
+    // dipakai bersama, app diberi nama sendiri ('tulap-auth') karena
+    // firebase-admin melarang initializeApp() dipanggil dua kali dengan
+    // nama yang sama dari service berbeda.
+    const raw = this.config.get<string>('FIREBASE_SERVICE_ACCOUNT_JSON');
+    if (raw) {
+      try {
+        const credentials = JSON.parse(raw);
+        this.firebaseAdminApp = initializeApp(
+          { credential: cert(credentials) },
+          'tulap-auth',
+        );
+      } catch (err) {
+        this.logger.error(
+          `FIREBASE_SERVICE_ACCOUNT_JSON tidak valid - Firebase custom token dinonaktifkan: ${err}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Menerbitkan Firebase custom auth token dengan UID SAMA PERSIS dengan
+   * `User.id` Tulap.id (Postgres) - BUKAN UID Firebase yang baru/acak.
+   * Ini membuat sisi mobile bisa `signInWithCustomToken()` ke Firebase
+   * Authentication (dibutuhkan modul live location tracking di
+   * `features/firebase_live_tracking/`, yang security rules-nya
+   * mensyaratkan `request.auth.uid`) TANPA membuat identitas kedua yang
+   * terpisah dari akun Tulap.id sesungguhnya - satu ID dipakai di
+   * Postgres, JWT Tulap.id, DAN Firestore sekaligus, sehingga dokumen
+   * `live_locations/{userId}` bisa langsung dikorelasikan ke pegawai
+   * yang sebenarnya. Best-effort: mengembalikan `undefined` (bukan
+   * melempar) jika Firebase belum dikonfigurasi/gagal - login utama
+   * TIDAK PERNAH boleh gagal gara-gara ini.
+   */
+  private async mintFirebaseCustomToken(
+    userId: string,
+  ): Promise<string | undefined> {
+    if (!this.firebaseAdminApp) return undefined;
+    try {
+      return await getAuth(this.firebaseAdminApp).createCustomToken(userId);
+    } catch (err) {
+      this.logger.warn(
+        `Gagal membuat Firebase custom token untuk user ${userId}: ${err}`,
+      );
+      return undefined;
+    }
+  }
 
   /**
    * Proses login: verifikasi kredensial lalu terbitkan Access Token
@@ -472,14 +525,18 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    const tokens = await this.generateTokens({
-      sub: user.id,
-      email: user.email,
-      role: user.role.name,
-    });
+    const [tokens, firebaseToken] = await Promise.all([
+      this.generateTokens({
+        sub: user.id,
+        email: user.email,
+        role: user.role.name,
+      }),
+      this.mintFirebaseCustomToken(user.id),
+    ]);
 
     return {
       ...tokens,
+      firebaseToken,
       user: {
         id: user.id,
         nip: user.nip,
