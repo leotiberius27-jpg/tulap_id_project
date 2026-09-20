@@ -1,2 +1,5 @@
 # Local run/debug logs from manual backend/mobile test sessions.
 *.log
+
+# Cloudflare Wrangler CLI local cache/auth state.
+.wrangler/
