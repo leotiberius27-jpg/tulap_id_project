@@ -54,7 +54,7 @@ Punya pertanyaan atau butuh bantuan? Hubungi kami di support@tulap.id.
 
 ## Catatan sebelum submit ke Play Console
 
-- **URL Kebijakan Privasi**: formulir Data Safety Play Console mewajibkan URL publik yang bisa diakses siapa saja tanpa login. `docs/legal/privacy-policy.md` di repo ini perlu di-hosting sebagai halaman web publik dulu (mis. lewat tulap_web di rute `/privacy` atau `/legal/privacy-policy`, atau GitHub Pages) sebelum linknya bisa dipakai di sini.
+- **URL Kebijakan Privasi**: sudah live dan publik, tempel langsung ke formulir Data Safety Play Console: **https://tulapweb.vercel.app/privacy**
 - **Kategori aplikasi**: sarankan "Bisnis" (Business) atau "Produktivitas" (Productivity).
 - **Target audiens**: pegawai dewasa/karyawan instansi — bukan aplikasi untuk anak-anak, isi Content Rating sesuai itu.
 - **Screenshot**: Play Console mewajibkan minimal 2 screenshot untuk ponsel (disarankan 4–8) — ambil dari alur Beranda, Dokumentasi Foto Ber-Geotag, Checklist Tugas, dan Dasbor Verifikasi.
