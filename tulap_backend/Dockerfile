@@ -58,4 +58,12 @@ EXPOSE 3000
 # registration path (self-register, Google/Apple/Facebook OAuth) fails
 # with "Role PEGAWAI belum terdaftar di master data" - confirmed for
 # real on the first fresh Railway deploy, 2026-09-20/21.
-CMD ["sh", "-c", "npx prisma migrate deploy && (npx prisma db seed || echo 'WARNING: seed failed, continuing startup anyway') && node dist/src/main"]
+# Seed dijalankan lewat file JS hasil kompilasi langsung (dist/prisma/
+# seed.js, prisma/seed.ts sudah ada di "include" tsconfig.json), BUKAN
+# `npx prisma db seed`/ts-node - ts-node (lewat CLI wrapper MAUPUN `-r
+# ts-node/register`) gagal total di image node:20-alpine dengan
+# ERR_UNKNOWN_FILE_EXTENSION untuk .ts (Node mendeteksi format modul
+# entry point lewat ESM loader sebelum hook ts-node sempat dipasang,
+# terkonfirmasi langsung di kontainer 2026-09-20/21). Plain `node` pada
+# file .js hasil kompilasi sepenuhnya menghindari masalah ini.
+CMD ["sh", "-c", "npx prisma migrate deploy && (node dist/prisma/seed.js || echo 'WARNING: seed failed, continuing startup anyway') && node dist/src/main"]
