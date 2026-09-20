@@ -50,4 +50,12 @@ EXPOSE 3000
 
 # tsconfig.json has no rootDir set, so tsc preserves the src/ prefix in
 # its output (dist/src/main.js), not dist/main.js.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]
+#
+# `prisma db seed` runs on every startup, not just the first - it's
+# idempotent (upserts the 4 roles, only creates the Super Admin account
+# if it doesn't already exist yet), and a fresh database has an EMPTY
+# Role table until this runs at least once. Without it, every single
+# registration path (self-register, Google/Apple/Facebook OAuth) fails
+# with "Role PEGAWAI belum terdaftar di master data" - confirmed for
+# real on the first fresh Railway deploy, 2026-09-20/21.
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && node dist/src/main"]
