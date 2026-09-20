@@ -97,4 +97,4 @@ Kami dapat memperbarui Kebijakan Privasi ini dari waktu ke waktu. Perubahan sign
 Jika Anda memiliki pertanyaan, keluhan, atau permintaan terkait Kebijakan Privasi ini atau data pribadi Anda, silakan hubungi:
 
 **Email**: support@tulap.id
-**Operator Layanan**: `[Nama badan hukum/perusahaan pengelola Tulap.id — lengkapi sebelum publikasi]`
+**Operator Layanan**: Nels Folk / Nels Folk Family

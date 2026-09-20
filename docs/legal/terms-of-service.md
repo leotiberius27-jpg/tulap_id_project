@@ -2,7 +2,7 @@
 
 **Terakhir diperbarui: 20 September 2026**
 
-Selamat datang di Tulap.id. Syarat Layanan ("Syarat") ini mengatur penggunaan Anda atas aplikasi mobile Tulap.id dan dasbor web Tulap.id (bersama disebut "Layanan"), yang disediakan oleh `[Nama badan hukum/perusahaan pengelola Tulap.id — lengkapi sebelum publikasi]` ("kami", "Tulap.id").
+Selamat datang di Tulap.id. Syarat Layanan ("Syarat") ini mengatur penggunaan Anda atas aplikasi mobile Tulap.id dan dasbor web Tulap.id (bersama disebut "Layanan"), yang disediakan oleh **Nels Folk / Nels Folk Family** ("kami", "Tulap.id").
 
 Dengan membuat akun atau menggunakan Layanan, Anda menyatakan telah membaca, memahami, dan menyetujui untuk terikat oleh Syarat ini serta [Kebijakan Privasi](./privacy-policy.md) kami. Jika Anda tidak setuju, mohon untuk tidak menggunakan Layanan.
 
@@ -43,7 +43,7 @@ Pelanggaran atas kewajiban ini dapat mengakibatkan penangguhan atau penghentian 
 
 - Data dan dokumentasi yang Anda unggah (foto, laporan, catatan kegiatan) tetap menjadi milik Anda dan/atau instansi Anda, sesuai ketentuan kepegawaian/kearsipan yang berlaku di instansi Anda.
 - Anda memberikan kami lisensi terbatas untuk menyimpan, memproses, menampilkan, dan mencadangkan data tersebut semata-mata untuk keperluan pengoperasian Layanan (mis. sinkronisasi, penyusunan LPJ, verifikasi atasan).
-- Seluruh perangkat lunak, desain, logo, dan merek Tulap.id adalah milik `[Nama badan hukum/perusahaan pengelola Tulap.id]` dan dilindungi hukum kekayaan intelektual yang berlaku. Anda tidak diberikan hak apa pun atas kekayaan intelektual tersebut selain hak penggunaan Layanan sesuai Syarat ini.
+- Seluruh perangkat lunak, desain, logo, dan merek Tulap.id adalah milik **Nels Folk / Nels Folk Family** dan dilindungi hukum kekayaan intelektual yang berlaku. Anda tidak diberikan hak apa pun atas kekayaan intelektual tersebut selain hak penggunaan Layanan sesuai Syarat ini.
 
 ## 5. Langganan dan Pembayaran
 
@@ -64,7 +64,7 @@ Tulap.id dirancang dengan pendekatan *offline-first*: data yang Anda buat saat t
 
 ## 8. Batasan Tanggung Jawab
 
-Sepanjang diizinkan oleh hukum yang berlaku, Tulap.id disediakan "sebagaimana adanya" (*as is*) tanpa jaminan apa pun, baik tersurat maupun tersirat. `[Nama badan hukum/perusahaan pengelola Tulap.id]` tidak bertanggung jawab atas kerugian tidak langsung, insidental, atau konsekuensial yang timbul dari penggunaan atau ketidakmampuan menggunakan Layanan, termasuk namun tidak terbatas pada kehilangan data akibat kegagalan perangkat pengguna, di luar kendali wajar kami. `[Bagian ini sebaiknya disusun/direview bersama penasihat hukum agar sesuai konteks penggunaan instansi pemerintah.]`
+Sepanjang diizinkan oleh hukum yang berlaku, Tulap.id disediakan "sebagaimana adanya" (*as is*) tanpa jaminan apa pun, baik tersurat maupun tersirat. **Nels Folk / Nels Folk Family** tidak bertanggung jawab atas kerugian tidak langsung, insidental, atau konsekuensial yang timbul dari penggunaan atau ketidakmampuan menggunakan Layanan, termasuk namun tidak terbatas pada kehilangan data akibat kegagalan perangkat pengguna, di luar kendali wajar kami. `[Bagian ini sebaiknya disusun/direview bersama penasihat hukum agar sesuai konteks penggunaan instansi pemerintah.]`
 
 ## 9. Perubahan Layanan dan Syarat
 
