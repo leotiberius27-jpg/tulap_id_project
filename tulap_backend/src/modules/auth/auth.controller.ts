@@ -11,6 +11,7 @@ import { RoleName } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { AppleAuthDto } from './dto/apple-auth.dto';
 import { FacebookAuthDto } from './dto/facebook-auth.dto';
+import { FirebaseAuthDto } from './dto/firebase-auth.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { LoginDto } from './dto/login.dto';
@@ -154,5 +155,20 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   loginWithFacebook(@Body() dto: FacebookAuthDto) {
     return this.authService.loginWithFacebook(dto);
+  }
+
+  /**
+   * POST /auth/firebase-login
+   * "Pintu depan" login Android - layar login utama memicu Firebase
+   * Client SDK (Email/Password maupun Google Sign-In), lalu Firebase ID
+   * Token yang dihasilkan diverifikasi di sini untuk menerbitkan sesi
+   * Tulap.id asli. Lihat AuthService.loginWithFirebase untuk detail.
+   */
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Public()
+  @Post('firebase-login')
+  @HttpCode(HttpStatus.OK)
+  loginWithFirebase(@Body() dto: FirebaseAuthDto) {
+    return this.authService.loginWithFirebase(dto);
   }
 }

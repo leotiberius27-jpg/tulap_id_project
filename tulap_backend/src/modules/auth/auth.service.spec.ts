@@ -11,6 +11,7 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
@@ -26,6 +27,7 @@ describe('AuthService', () => {
   let audit: any;
   let mailer: any;
   let oauthVerifier: any;
+  let config: any;
 
   beforeEach(async () => {
     prisma = {
@@ -57,6 +59,14 @@ describe('AuthService', () => {
       verifyAppleIdentityToken: jest.fn(),
     };
 
+    // FIREBASE_SERVICE_ACCOUNT_JSON sengaja undefined di unit test -
+    // AuthService tetap harus bisa dibuat tanpa kredensial Firebase asli
+    // (firebaseAdminApp jadi null, jalur-jalur best-effort di atasnya
+    // di-skip apa adanya, lihat constructor AuthService).
+    config = {
+      get: jest.fn().mockReturnValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -65,6 +75,7 @@ describe('AuthService', () => {
         { provide: AuditService, useValue: audit },
         { provide: MailerService, useValue: mailer },
         { provide: OAuthVerifierService, useValue: oauthVerifier },
+        { provide: ConfigService, useValue: config },
       ],
     }).compile();
 

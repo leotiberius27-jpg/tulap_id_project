@@ -77,10 +77,24 @@ class SyncCenterController extends ChangeNotifier {
     await loadRecords();
   }
 
+  /// "Kirim Semua Sekarang" - BEDA dari `BackgroundSyncService.
+  /// triggerManualSync()` (yang menjalankan `ProcessSyncQueue` apa
+  /// adanya dan SENGAJA melewati item yang sudah melewati
+  /// `maxAutoRetryAttempts`, lihat dokumentasi use case tsb): tombol ini
+  /// adalah permintaan retry EKSPLISIT dari user untuk SEMUA item,
+  /// termasuk yang sudah berstatus "Gagal Terkirim" - jadi setiap item
+  /// gagal di-reset & dicoba ulang satu per satu lewat `retryRecord`
+  /// (pola sama dengan tombol "Coba Lagi" per-item) SEBELUM menjalankan
+  /// sync umum untuk sisa item yang masih pending/menunggu koneksi.
+  /// Sekuensial (bukan Future.wait) - sama seperti alasan ProcessSyncQueue
+  /// sekuensial: tidak membanjiri backend dengan request bersamaan.
   Future<void> retryAll() async {
     isRetryingAll = true;
     notifyListeners();
 
+    for (final record in failedRecords) {
+      await _repository.retryRecord(record.id);
+    }
     await _backgroundSyncService.triggerManualSync();
     await loadRecords();
 

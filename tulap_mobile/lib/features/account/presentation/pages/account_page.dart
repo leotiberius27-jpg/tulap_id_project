@@ -20,7 +20,6 @@ import '../widgets/account_section_card.dart';
 import '../widgets/logout_protection_dialog.dart';
 import '../widgets/profile_header_card.dart';
 import '../../../../core/localization/language_controller.dart';
-import '../../../firebase_live_tracking/presentation/firebase_login_page.dart';
 import 'about_tulap_page.dart';
 import 'camera_settings_page.dart';
 import 'device_storage_page.dart';
@@ -398,37 +397,11 @@ class _AccountView extends StatelessWidget {
                         icon: Icons.info_outline_rounded,
                         iconBgColor: AppColors.iconSoftCyan,
                         title: 'Tentang Tulap.id',
-                        subtitle: 'Versy ${AboutTulapPage.appVersion}',
+                        subtitle: 'Versi ${AboutTulapPage.appVersion}',
                         showDivider: false,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const AboutTulapPage(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-
-                  // ============================================================
-                  // 5B. SECTION — MODUL PERCOBAAN (BETA)
-                  // Firebase Authentication + Firestore live tracking berdiri
-                  // sendiri, TERPISAH dari akun Tulap.id utama - lihat
-                  // lib/features/firebase_live_tracking/.
-                  // ============================================================
-                  AccountSectionCard(
-                    title: 'MODUL PERCOBAAN (BETA)',
-                    children: [
-                      AccountMenuRow(
-                        icon: Icons.satellite_alt_outlined,
-                        iconBgColor: AppColors.iconSoftAmber,
-                        iconColor: AppColors.warning,
-                        title: 'Live Tracking (Firebase)',
-                        subtitle: 'Login Firebase terpisah & lokasi real-time',
-                        showDivider: false,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const FirebaseLoginPage(),
                           ),
                         ),
                       ),

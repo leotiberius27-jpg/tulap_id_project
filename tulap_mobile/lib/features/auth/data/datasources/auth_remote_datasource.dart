@@ -69,6 +69,18 @@ class AuthRemoteDataSource {
     return response.data as Map<String, dynamic>;
   }
 
+  /// POST /auth/firebase-login - "pintu depan" Android: menukar Firebase
+  /// ID Token (dari Email/Password ATAU Google Sign-In lewat Firebase
+  /// Client SDK, lihat AuthRepositoryImpl.login/loginWithGoogle) dengan
+  /// sesi Tulap.id asli. Lihat AuthService.loginWithFirebase di backend.
+  Future<Map<String, dynamic>> loginWithFirebase(String firebaseIdToken) async {
+    final response = await _dioClient.dio.post(
+      '/auth/firebase-login',
+      data: {'idToken': firebaseIdToken},
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> loginWithApple({
     required String identityToken,
     String? fullName,

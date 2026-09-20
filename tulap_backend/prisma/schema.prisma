@@ -70,6 +70,15 @@ model User {
   appleId    String? @unique @map("apple_id")
   facebookId String? @unique @map("facebook_id")
 
+  // Firebase Authentication sebagai "pintu depan" login Android
+  // (lihat AuthService.loginWithFirebase) - UID dari Firebase, dipakai
+  // mencari akun yang sudah ditautkan. BEDA dari googleId/appleId di
+  // atas: ini dipakai untuk SEMUA metode sign-in Firebase (Email/
+  // Password maupun Google Sign-In via Firebase Client SDK), bukan
+  // provider tertentu - satu user Firebase = satu firebaseUid apa pun
+  // metode masuknya.
+  firebaseUid String? @unique @map("firebase_uid")
+
   // Lupa Kata Sandi (Bagian baru mobile) - kode OTP 6-digit + waktu
   // kedaluwarsa, BUKAN token panjang, karena mobile belum punya deep
   // link/app-link setup - user menyalin kode dari email lalu

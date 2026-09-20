@@ -2,12 +2,11 @@ import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/error/failures.dart';
-import '../../../firebase_live_tracking/data/live_location_repository.dart';
-import '../../../firebase_live_tracking/data/live_location_tracking_service.dart';
 import '../../domain/entities/auth_user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_local_datasource.dart';
 import '../datasources/auth_remote_datasource.dart';
+import '../firebase_auth_failure.dart';
 import '../models/auth_user_model.dart';
 
 /// AuthRepositoryImpl
@@ -26,15 +25,48 @@ class AuthRepositoryImpl implements AuthRepository {
   }) : _remoteDataSource = remoteDataSource,
        _localDataSource = localDataSource;
 
+  /// login()
+  /// ----------------------------------------------------------------------
+  /// "Pintu depan" Email/Password - SEKARANG memicu Firebase Client SDK
+  /// LEBIH DULU (bukan langsung POST /auth/login), lalu menukar Firebase
+  /// ID Token dengan sesi Tulap.id asli lewat /auth/firebase-login (lihat
+  /// AuthService.loginWithFirebase di backend). PostgreSQL/JWT Tulap.id
+  /// TETAP satu-satunya source of truth untuk data user & role - Firebase
+  /// di sini HANYA memverifikasi identitas.
+  ///
+  /// Kesalahan kredensial (password salah, akun tidak ada, dst) dari
+  /// Firebase HARUS dikembalikan sebagai `Left(AuthFailure)` yang jelas
+  /// ke UI - TIDAK BOLEH ikut jatuh ke fallback offline di bawah, karena
+  /// itu akan membuat login dengan password SALAH tetap "berhasil" lewat
+  /// sesi demo lokal. Fallback offline hanya untuk kegagalan KONEKSI
+  /// (Firebase atau backend sama-sama tidak terjangkau).
+  /// ----------------------------------------------------------------------
   @override
   Future<Either<Failure, AuthUserEntity>> login({
     required String email,
     required String password,
   }) async {
+    final UserCredential credential;
     try {
-      final json = await _remoteDataSource.login(
+      credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'network-request-failed') {
+        return Left(
+          AuthFailure(FirebaseAuthFailure.fromFirebaseException(e).message),
+        );
+      }
+      return _offlineLoginFallback(email);
+    } catch (_) {
+      return _offlineLoginFallback(email);
+    }
+
+    try {
+      final firebaseIdToken = await credential.user!.getIdToken();
+      final json = await _remoteDataSource.loginWithFirebase(
+        firebaseIdToken!,
       );
 
       final user = AuthUserModel.fromLoginJson(
@@ -55,24 +87,33 @@ class AuthRepositoryImpl implements AuthRepository {
           e.response?.data['message'] is String) {
         return Left(AuthFailure(e.response?.data['message'] as String));
       }
-      // Offline fallback: gunakan profil tersimpan atau buat profil lokal
-      final registered = await _localDataSource.getRegisteredUserProfile(email);
-      final demoUser =
-          registered ??
-          AuthUserModel(
-            id: 'usr_local_${email.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}',
-            fullName: _extractPrettyName(email),
-            email: email,
-            role: 'PEGAWAI',
-            instansiName: 'BPKAD Kabupaten Mimika',
-          );
-      final savedDemo = await _localDataSource.saveSession(
-        accessToken: 'mock-access-token-local',
-        refreshToken: 'mock-refresh-token-local',
-        user: demoUser,
-      );
-      return Right(savedDemo);
+      return _offlineLoginFallback(email);
     }
+  }
+
+  /// Sesi demo lokal dipakai HANYA saat Firebase/backend benar-benar
+  /// tidak terjangkau (bukan saat kredensial salah) - pola yang sudah
+  /// ada sejak sebelum integrasi Firebase, dipertahankan agar app tetap
+  /// bisa didemokan tanpa koneksi.
+  Future<Either<Failure, AuthUserEntity>> _offlineLoginFallback(
+    String email,
+  ) async {
+    final registered = await _localDataSource.getRegisteredUserProfile(email);
+    final demoUser =
+        registered ??
+        AuthUserModel(
+          id: 'usr_local_${email.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}',
+          fullName: _extractPrettyName(email),
+          email: email,
+          role: 'PEGAWAI',
+          instansiName: 'BPKAD Kabupaten Mimika',
+        );
+    final savedDemo = await _localDataSource.saveSession(
+      accessToken: 'mock-access-token-local',
+      refreshToken: 'mock-refresh-token-local',
+      user: demoUser,
+    );
+    return Right(savedDemo);
   }
 
   @override
@@ -82,24 +123,13 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> logout() async {
-    // Ambil id user SEBELUM clearSession() menghapusnya - dipakai untuk
-    // membersihkan dokumen live_locations miliknya sendiri secara
-    // eksplisit (bukan mengandalkan state internal
-    // LiveLocationTrackingService, lihat catatan bug di
-    // LiveTrackingPage._signOut untuk alasan kenapa itu tidak aman).
-    final currentUser = await _localDataSource.getStoredUser();
     await _localDataSource.clearSession();
 
-    // Best-effort: bongkar sesi Firebase Auth + hentikan siaran lokasi
-    // yang mungkin dinyalakan otomatis oleh loginWithGoogle() di atas.
-    // Untuk login email/password biasa (tidak pernah memicu Firebase),
-    // ini semua no-op aman - signOut() ke akun yang tidak pernah login
-    // tidak melempar.
+    // Best-effort: bongkar sesi Firebase Auth yang dipakai jalur login
+    // "pintu depan" (lihat login()/loginWithGoogle() di atas). Untuk
+    // login email/password biasa (tidak pernah memicu Firebase), ini
+    // no-op aman - signOut() ke akun yang tidak pernah login tidak melempar.
     try {
-      await LiveLocationTrackingService.instance.stopTracking();
-      if (currentUser != null) {
-        await LiveLocationRepository().clearLocation(currentUser.id);
-      }
       await FirebaseAuth.instance.signOut();
     } catch (_) {}
   }
@@ -205,14 +235,47 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  /// loginWithGoogle()
+  /// ----------------------------------------------------------------------
+  /// "Pintu depan" Google - tombol "Masuk dengan Google" tetap memakai
+  /// SDK native Google Sign-In untuk dialog pemilihan akun (via
+  /// OAuthSignInService, tidak berubah), tapi idToken hasilnya SEKARANG
+  /// dipakai untuk sign-in ke FIREBASE (`GoogleAuthProvider` + Firebase
+  /// Client SDK) alih-alih langsung dikirim ke /auth/google - lalu
+  /// Firebase ID Token yang dihasilkan ditukar ke sesi Tulap.id lewat
+  /// /auth/firebase-login, jalur YANG SAMA dengan Email/Password di
+  /// method `login()` di atas.
+  /// ----------------------------------------------------------------------
   @override
   Future<Either<Failure, AuthUserEntity>> loginWithGoogle({
     required String idToken,
     String? email,
     String? displayName,
   }) async {
+    final UserCredential credential;
     try {
-      final json = await _remoteDataSource.loginWithGoogle(idToken);
+      final googleCredential = GoogleAuthProvider.credential(
+        idToken: idToken,
+      );
+      credential = await FirebaseAuth.instance.signInWithCredential(
+        googleCredential,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'network-request-failed') {
+        return Left(
+          AuthFailure(FirebaseAuthFailure.fromFirebaseException(e).message),
+        );
+      }
+      return _offlineGoogleFallback(email, displayName);
+    } catch (_) {
+      return _offlineGoogleFallback(email, displayName);
+    }
+
+    try {
+      final firebaseIdToken = await credential.user!.getIdToken();
+      final json = await _remoteDataSource.loginWithFirebase(
+        firebaseIdToken!,
+      );
       final user = AuthUserModel.fromLoginJson(
         json['user'] as Map<String, dynamic>,
       );
@@ -221,9 +284,6 @@ class AuthRepositoryImpl implements AuthRepository {
         refreshToken: json['refreshToken'] as String,
         user: user,
       );
-      // Fire-and-forget SENGAJA tidak di-await - login tidak boleh
-      // menunggu GPS/Firebase, lihat dokumentasi _connectLiveTracking.
-      _connectLiveTracking(json['firebaseToken'] as String?, savedUser.id);
       return Right(savedUser);
     } catch (e) {
       if (e is DioException &&
@@ -232,59 +292,38 @@ class AuthRepositoryImpl implements AuthRepository {
           e.response?.data['message'] is String) {
         return Left(AuthFailure(e.response?.data['message'] as String));
       }
-      final userEmail = email ?? 'leonardo@tulap.id';
-      final cleanDisplayName = displayName
-          ?.replaceAll(
-            RegExp(
-              r'\s*\((?:Google|Google User)\)',
-              caseSensitive: false,
-            ),
-            '',
-          )
-          .replaceAll(RegExp(r'\bGoogle User\b', caseSensitive: false), '')
-          .trim();
-      final userName =
-          (cleanDisplayName != null && cleanDisplayName.isNotEmpty)
-              ? cleanDisplayName
-              : _extractPrettyName(userEmail);
-      final googleUser = AuthUserModel(
-        id: 'usr_google_${DateTime.now().millisecondsSinceEpoch}',
-        fullName: userName,
-        email: userEmail,
-        role: 'PEGAWAI',
-        instansiName: 'BPKAD Kabupaten Mimika',
-      );
-      final savedGoogle = await _localDataSource.saveSession(
-        accessToken: 'mock-google-access-token',
-        refreshToken: 'mock-google-refresh-token',
-        user: googleUser,
-      );
-      return Right(savedGoogle);
+      return _offlineGoogleFallback(email, displayName);
     }
   }
 
-  /// Menghubungkan sesi Google yang baru saja berhasil login ke Firebase
-  /// Authentication + modul live location tracking SECARA OTOMATIS,
-  /// tanpa layar/dialog tambahan apa pun - permintaan eksplisit user:
-  /// tombol "Masuk dengan Google" di layar login utama harus langsung
-  /// menyalakan pelacakan lokasi real-time begitu login berhasil.
-  /// `firebaseToken` (dari backend, lihat AuthService.mintFirebaseCustomToken)
-  /// dijamin punya UID SAMA PERSIS dengan [userId] Tulap.id - jadi
-  /// dokumen `live_locations/{userId}` yang ditulis tetap bisa langsung
-  /// dikorelasikan ke akun pegawai sungguhan, bukan identitas Firebase
-  /// yang terpisah tanpa makna.
-  ///
-  /// Best-effort MURNI: `firebaseToken` null (server belum
-  /// dikonfigurasi/gagal membuatnya) atau exception apa pun di sini
-  /// (GPS mati, izin ditolak, dst) TIDAK PERNAH boleh menggagalkan login
-  /// Tulap.id yang sudah berhasil - karena itu dipanggil tanpa `await`
-  /// oleh caller.
-  Future<void> _connectLiveTracking(String? firebaseToken, String userId) async {
-    if (firebaseToken == null || firebaseToken.isEmpty) return;
-    try {
-      await FirebaseAuth.instance.signInWithCustomToken(firebaseToken);
-      await LiveLocationTrackingService.instance.startTracking(userId);
-    } catch (_) {}
+  Future<Either<Failure, AuthUserEntity>> _offlineGoogleFallback(
+    String? email,
+    String? displayName,
+  ) async {
+    final userEmail = email ?? 'leonardo@tulap.id';
+    final cleanDisplayName = displayName
+        ?.replaceAll(
+          RegExp(r'\s*\((?:Google|Google User)\)', caseSensitive: false),
+          '',
+        )
+        .replaceAll(RegExp(r'\bGoogle User\b', caseSensitive: false), '')
+        .trim();
+    final userName = (cleanDisplayName != null && cleanDisplayName.isNotEmpty)
+        ? cleanDisplayName
+        : _extractPrettyName(userEmail);
+    final googleUser = AuthUserModel(
+      id: 'usr_google_${DateTime.now().millisecondsSinceEpoch}',
+      fullName: userName,
+      email: userEmail,
+      role: 'PEGAWAI',
+      instansiName: 'BPKAD Kabupaten Mimika',
+    );
+    final savedGoogle = await _localDataSource.saveSession(
+      accessToken: 'mock-google-access-token',
+      refreshToken: 'mock-google-refresh-token',
+      user: googleUser,
+    );
+    return Right(savedGoogle);
   }
 
   String _extractPrettyName(String email) {

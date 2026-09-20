@@ -18,6 +18,7 @@ import { MailerService } from '../../infrastructure/mailer/mailer.service';
 import { AuditService } from '../audit/audit.service';
 import { AppleAuthDto } from './dto/apple-auth.dto';
 import { FacebookAuthDto } from './dto/facebook-auth.dto';
+import { FirebaseAuthDto } from './dto/firebase-auth.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { LoginDto } from './dto/login.dto';
@@ -162,6 +163,82 @@ export class AuthService {
   }
 
   /**
+   * Membuat akun Firebase Authentication untuk user BARU yang baru saja
+   * dibuat lewat `register()`/`selfRegister()` (password/bcrypt di
+   * Postgres), dengan UID = `User.id` dan hash bcrypt yang SAMA PERSIS
+   * diimpor apa adanya (pola sama dengan `migrate-users-to-firebase.ts`
+   * satu-kali) - TANPA ini, layar login utama (yang sekarang SELALU
+   * memicu Firebase Client SDK lebih dulu, lihat AuthController
+   * `firebase-login`) akan menolak user ini dengan `auth/user-not-found`
+   * pada percobaan login PERTAMA mereka, walau akun & passwordnya benar
+   * di Tulap.id. `emailVerified: true` aman di sini karena email sudah
+   * dipastikan dimiliki pembuat akun (Admin yang membuat lewat
+   * `register()`, atau user sendiri lewat `selfRegister()`) - beda dari
+   * kasus `loginWithFirebase` yang menerima token dari klien luar.
+   * Best-effort: kegagalan di sini TIDAK BOLEH menggagalkan registrasi.
+   */
+  private async provisionFirebaseAccount(
+    userId: string,
+    email: string,
+    fullName: string,
+    passwordHash: string,
+  ): Promise<void> {
+    if (!this.firebaseAdminApp) return;
+    try {
+      const result = await getAuth(this.firebaseAdminApp).importUsers(
+        [
+          {
+            uid: userId,
+            email,
+            emailVerified: true,
+            displayName: fullName,
+            passwordHash: Buffer.from(passwordHash, 'utf8'),
+          },
+        ],
+        { hash: { algorithm: 'BCRYPT' } },
+      );
+      if (result.failureCount > 0) {
+        this.logger.warn(
+          `Gagal membuat akun Firebase untuk user baru ${email}: ${result.errors[0]?.error}`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(`Gagal membuat akun Firebase untuk user baru ${email}: ${err}`);
+    }
+  }
+
+  /**
+   * Menyinkronkan password Firebase Authentication setelah reset password
+   * (`resetPassword()`) supaya tetap konsisten dengan `User.passwordHash`
+   * Postgres - lihat `provisionFirebaseAccount` untuk alasan kenapa akun
+   * Firebase harus selalu selaras. `updateUser` menerima password MENTAH
+   * (bukan hash) karena itulah API publik Firebase Admin untuk mengubah
+   * password. Jika akun Firebase-nya ternyata belum pernah ada sama
+   * sekali, jatuhkan ke `provisionFirebaseAccount` (impor hash) alih-alih
+   * diam-diam gagal. Best-effort: tidak boleh menggagalkan reset password.
+   */
+  private async syncFirebasePassword(
+    userId: string,
+    email: string,
+    fullName: string,
+    newPlainPassword: string,
+    newPasswordHash: string,
+  ): Promise<void> {
+    if (!this.firebaseAdminApp) return;
+    try {
+      await getAuth(this.firebaseAdminApp).updateUser(userId, {
+        password: newPlainPassword,
+      });
+    } catch (err: any) {
+      if (err?.code === 'auth/user-not-found') {
+        await this.provisionFirebaseAccount(userId, email, fullName, newPasswordHash);
+        return;
+      }
+      this.logger.warn(`Gagal sinkronisasi password Firebase untuk ${email}: ${err}`);
+    }
+  }
+
+  /**
    * Registrasi user baru. Endpoint pemanggil WAJIB dibatasi hanya untuk
    * ADMIN/SUPER_ADMIN via @Roles() di controller — service ini tidak
    * melakukan pengecekan role pemanggil, itu tanggung jawab RolesGuard.
@@ -221,6 +298,13 @@ export class AuthService {
       entityId: newUser.id,
       metadata: { email: newUser.email, role: newUser.role.name },
     });
+
+    await this.provisionFirebaseAccount(
+      newUser.id,
+      newUser.email,
+      newUser.fullName,
+      passwordHash,
+    );
 
     // Tidak mengembalikan passwordHash ke response demi keamanan.
     const { passwordHash: _omit, ...safeUser } = newUser;
@@ -328,6 +412,13 @@ export class AuthService {
       metadata: { email: newUser.email },
     });
 
+    await this.provisionFirebaseAccount(
+      newUser.id,
+      newUser.email,
+      newUser.fullName,
+      passwordHash,
+    );
+
     const tokens = await this.generateTokens({
       sub: newUser.id,
       email: newUser.email,
@@ -416,6 +507,14 @@ export class AuthService {
       },
     });
 
+    // Password Postgres berubah - akun Firebase (dipakai layar login
+    // utama, lihat AuthService.loginWithFirebase) HARUS ikut disinkronkan,
+    // kalau tidak login berikutnya akan gagal dengan password yang BENAR
+    // (Firebase masih menyimpan hash lama). Best-effort: kalau akun
+    // Firebase-nya belum pernah ada sama sekali (mis. gagal saat
+    // registrasi), buat baru alih-alih diam-diam gagal.
+    await this.syncFirebasePassword(user.id, user.email, user.fullName, dto.newPassword, passwordHash);
+
     await this.audit.log({
       actorId: user.id,
       action: 'PASSWORD_RESET',
@@ -450,7 +549,93 @@ export class AuthService {
   }
 
   /**
-   * Dipakai bersama oleh Google & Apple Sign-In: cari akun via id
+   * POST /auth/firebase-login - "pintu depan" autentikasi Android:
+   * layar login utama (Email/Password DAN tombol "Masuk dengan Google")
+   * memicu Firebase Client SDK di HP, lalu mengirim Firebase ID Token
+   * yang dihasilkan ke sini untuk ditukar dengan sesi Tulap.id asli.
+   *
+   * Firebase HANYA berperan sebagai verifikator identitas di jalur ini -
+   * PostgreSQL/JWT Tulap.id TETAP satu-satunya "source of truth" untuk
+   * data user, role, dan RBAC (bagian 3 instruksi arsitektur): user
+   * baru otomatis dibuat ber-role PEGAWAI persis seperti alur Google/
+   * Apple/Facebook yang sudah ada (`loginOrCreateFromOAuth`), BUKAN
+   * jalur baru yang terpisah.
+   *
+   * Setelah user ditemukan/dibuat, custom claim `tulapUserId` dipasang
+   * ke akun Firebase-nya (`setCustomUserClaims`) supaya Firestore
+   * Security Rules (modul live location tracking) bisa memverifikasi
+   * kepemilikan dokumen `live_locations/{userId}` lewat
+   * `request.auth.token.tulapUserId`, TANPA mengharuskan UID Firebase
+   * sama persis dengan `User.id` Postgres - penting karena UID Firebase
+   * untuk akun Email/Password atau Google-lewat-Firebase-SDK dibuat
+   * OTOMATIS oleh Firebase sendiri (beda dari jalur
+   * `mintFirebaseCustomToken` di atas yang MEMAKSA UID = User.id).
+   */
+  async loginWithFirebase(dto: FirebaseAuthDto) {
+    if (!this.firebaseAdminApp) {
+      throw new UnauthorizedException(
+        'Login Firebase belum dikonfigurasi di server. Hubungi Admin.',
+      );
+    }
+
+    let decoded;
+    try {
+      decoded = await getAuth(this.firebaseAdminApp).verifyIdToken(
+        dto.idToken,
+      );
+    } catch (err) {
+      throw new UnauthorizedException(
+        'Firebase ID Token tidak valid atau telah kedaluwarsa.',
+      );
+    }
+
+    if (!decoded.email) {
+      throw new UnauthorizedException(
+        'Akun Firebase ini tidak memiliki email - tidak dapat dipakai untuk masuk ke Tulap.id.',
+      );
+    }
+
+    // WAJIB: tanpa cek ini, siapa pun bisa membuat akun Firebase
+    // Email/Password BARU dengan email MILIK ORANG LAIN (Firebase tidak
+    // memverifikasi kepemilikan email saat createUserWithEmailAndPassword)
+    // lalu memakai endpoint publik ini untuk menautkan diri ke akun
+    // Tulap.id korban lewat fallback pencarian by-email di
+    // `loginOrCreateFromOAuth` - account takeover penuh. Login Google
+    // lewat Firebase SELALU punya email_verified=true (dijamin Google),
+    // begitu juga akun hasil `migrate-users-to-firebase.ts` (di-set
+    // eksplisit true di skrip migrasi) - jadi baris ini tidak memutus
+    // jalur sah mana pun, hanya menolak akun Email/Password Firebase
+    // yang belum diverifikasi.
+    if (!decoded.email_verified) {
+      throw new UnauthorizedException(
+        'Email Firebase ini belum terverifikasi. Tidak dapat dipakai untuk masuk ke Tulap.id.',
+      );
+    }
+
+    const profile: VerifiedOAuthProfile = {
+      providerId: decoded.uid,
+      email: decoded.email,
+      fullName: (decoded.name as string | undefined) ?? decoded.email.split('@')[0],
+    };
+
+    const result = await this.loginOrCreateFromOAuth(profile, 'firebaseUid');
+
+    try {
+      await getAuth(this.firebaseAdminApp).setCustomUserClaims(decoded.uid, {
+        tulapUserId: result.user.id,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Gagal memasang custom claim tulapUserId untuk Firebase UID ${decoded.uid}: ${err}`,
+      );
+    }
+
+    return result;
+  }
+
+  /**
+   * Dipakai bersama oleh Google, Apple, Facebook, DAN Firebase (Email/
+   * Password + Google-lewat-Firebase-SDK) Sign-In: cari akun via id
    * provider dulu (sumber kebenaran utama - email bisa berubah/kosong
    * di login Apple berikutnya), baru fallback ke email untuk MENAUTKAN
    * akun password yang sudah ada, baru terakhir membuat akun PEGAWAI
@@ -458,7 +643,7 @@ export class AuthService {
    */
   private async loginOrCreateFromOAuth(
     profile: VerifiedOAuthProfile,
-    providerIdField: 'googleId' | 'appleId' | 'facebookId',
+    providerIdField: 'googleId' | 'appleId' | 'facebookId' | 'firebaseUid',
   ) {
     let user = await this.prisma.user.findFirst({
       where: { [providerIdField]: profile.providerId },
