@@ -103,6 +103,8 @@ class SyncStatusRow extends StatelessWidget {
         return 'Foto Kegiatan';
       case SyncEntityType.expenseNote:
         return 'Nota Pengeluaran';
+      case SyncEntityType.task:
+        return 'Kegiatan Baru';
       case SyncEntityType.taskChecklist:
         return 'Checklist Tugas';
       case SyncEntityType.activityReport:

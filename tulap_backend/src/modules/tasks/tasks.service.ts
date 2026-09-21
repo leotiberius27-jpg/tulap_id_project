@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { RoleName, TaskStatus } from '@prisma/client';
+import { Prisma, RoleName, TaskStatus } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { ChecklistService } from '../checklist/checklist.service';
@@ -13,6 +13,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { FirestoreSyncService } from '../../infrastructure/firestore/firestore-sync.service';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { CreateSelfTaskDto } from './dto/create-self-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { RevisionNoteDto } from './dto/revision-note.dto';
@@ -111,7 +112,99 @@ export class TasksService {
       relatedTaskId: task.id,
     });
 
-    return task;
+    return this._withSelfCreatedFlag(task);
+  }
+
+  /// createSelf
+  /// ----------------------------------------------------------------------
+  /// Dipakai PEGAWAI membuat kegiatan lapangan MANDIRI langsung dari
+  /// mobile (fitur "Buat Kegiatan Lapangan"), tanpa menunggu penugasan
+  /// Admin - berbeda dari `create()` di atas yang khusus Admin/Super
+  /// Admin menugaskan orang lain. Task langsung berstatus ONGOING karena
+  /// mobile membuka Activity Workspace seketika setelah disimpan.
+  ///
+  /// Idempoten lewat `dto.id`: mobile menyimpan kegiatan ke SQLite lokal
+  /// dulu (offline-first) lalu mengantre item ini ke outbox sinkronisasi;
+  /// jika percobaan sinkronisasi sebelumnya sebenarnya sukses namun
+  /// responsnya tak sempat diterima device (mis. koneksi putus di tengah
+  /// jalan), retry otomatis TIDAK boleh membuat tugas duplikat.
+  /// ----------------------------------------------------------------------
+  async createSelf(dto: CreateSelfTaskDto, actor: AuthenticatedUser) {
+    if (dto.id) {
+      const existing = await this.prisma.task_SPPD.findUnique({
+        where: { id: dto.id },
+        include: this._defaultInclude(),
+      });
+      if (existing) {
+        if (existing.assigneeId !== actor.id) {
+          throw new ForbiddenException('Kegiatan ini bukan milik Anda.');
+        }
+        return this._withSelfCreatedFlag(existing);
+      }
+    }
+
+    await this.subscriptions.assertActivityQuotaAvailable(actor.id);
+
+    if (new Date(dto.endDate) < new Date(dto.startDate)) {
+      throw new BadRequestException(
+        'Tanggal selesai tidak boleh sebelum tanggal mulai.',
+      );
+    }
+
+    const checklistData = dto.checklistItems.map((item, index) => ({
+      ...(item.id ? { id: item.id } : {}),
+      label: item.label,
+      order: item.order ?? index + 1,
+      isMandatory: item.isMandatory ?? false,
+      isCompleted: item.isCompleted ?? false,
+      completedAt: item.isCompleted ? new Date() : null,
+    }));
+
+    const createData = (taskCode: string): Prisma.Task_SPPDCreateInput => ({
+      ...(dto.id ? { id: dto.id } : {}),
+      taskCode,
+      taskName: dto.taskName,
+      destination: dto.destination,
+      description: dto.description,
+      startDate: new Date(dto.startDate),
+      endDate: new Date(dto.endDate),
+      budgetAmount: dto.budgetAmount,
+      status: 'ONGOING',
+      assignee: { connect: { id: actor.id } },
+      creator: { connect: { id: actor.id } },
+      checklistItems: { createMany: { data: checklistData } },
+    });
+
+    let task;
+    try {
+      const taskCode = dto.taskCode ?? (await this._generateTaskCode());
+      task = await this.prisma.task_SPPD.create({
+        data: createData(taskCode),
+        include: this._defaultInclude(),
+      });
+    } catch (e) {
+      // Benturan taskCode client (jarang - hash lokal kolisi) - buat
+      // ulang dengan kode server yang pasti unik, sekali percobaan.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        const fallbackCode = await this._generateTaskCode();
+        task = await this.prisma.task_SPPD.create({
+          data: createData(fallbackCode),
+          include: this._defaultInclude(),
+        });
+      } else {
+        throw e;
+      }
+    }
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: 'TASK_SELF_CREATED',
+      entity: 'Task_SPPD',
+      entityId: task.id,
+      metadata: { taskCode: task.taskCode },
+    });
+
+    return this._withSelfCreatedFlag(task);
   }
 
   async findAll(query: QueryTasksDto, actor: AuthenticatedUser) {
@@ -176,7 +269,7 @@ export class TasksService {
     ]);
 
     return {
-      items,
+      items: items.map((item) => this._withSelfCreatedFlag(item)),
       meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
     };
   }
@@ -195,7 +288,7 @@ export class TasksService {
       throw new ForbiddenException('Anda tidak memiliki akses ke tugas ini.');
     }
 
-    return task;
+    return this._withSelfCreatedFlag(task);
   }
 
   /// GET /tasks/:id/evidence - dipakai Verification Workspace Web
@@ -468,6 +561,17 @@ export class TasksService {
 
     const sequence = String(count + 1).padStart(4, '0');
     return `TL-${yearMonth}-${sequence}`;
+  }
+
+  /// isSelfCreated bukan kolom database - dihitung dari relasi
+  /// creatorId === assigneeId (kegiatan yang dibuat mandiri oleh
+  /// pegawai lewat createSelf(), bukan ditugaskan Admin). Mobile
+  /// TaskModel.fromApiJson membaca field ini untuk membedakan tampilan
+  /// & fallback status transisi (lihat task_repository_impl.dart).
+  private _withSelfCreatedFlag<T extends { creatorId: string; assigneeId: string }>(
+    task: T,
+  ): T & { isSelfCreated: boolean } {
+    return { ...task, isSelfCreated: task.creatorId === task.assigneeId };
   }
 
   /// Salinan realtime tambahan ke Cloud Firestore setiap kali PEGAWAI

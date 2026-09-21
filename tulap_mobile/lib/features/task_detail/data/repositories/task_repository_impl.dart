@@ -209,7 +209,17 @@ class TaskRepositoryImpl implements TaskRepository {
                 .toList(),
           );
         }
-        return Right(tasks);
+        // Gabungkan dengan kegiatan yang dibuat MANDIRI di perangkat ini
+        // tapi belum (atau gagal) tersinkron ke server - TANPA ini,
+        // kegiatan yang baru dibuat lewat "Buat Kegiatan Lapangan" akan
+        // hilang dari daftar begitu online (daftar remote jelas belum
+        // memuatnya) sebelum antrean sinkronisasi sempat memprosesnya.
+        final remoteIds = tasks.map((t) => t.id).toSet();
+        final cached = await _localDataSource.getAllCachedTasks();
+        final localOnly = cached.where(
+          (t) => t.syncStatus != 'SYNCED' && !remoteIds.contains(t.id),
+        );
+        return Right([...localOnly, ...tasks]);
       } catch (_) {
         final cached = await _localDataSource.getAllCachedTasks();
         return Right(cached);

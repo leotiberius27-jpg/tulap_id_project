@@ -4,6 +4,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { CreateSelfTaskDto } from './dto/create-self-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { RevisionNoteDto } from './dto/revision-note.dto';
@@ -19,6 +20,20 @@ export class TasksController {
   @Post()
   create(@Body() dto: CreateTaskDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.create(dto, actor);
+  }
+
+  /// POST /tasks/self - PEGAWAI membuat kegiatan lapangan MANDIRI dari
+  /// mobile, tanpa menunggu penugasan Admin (fitur "Buat Kegiatan
+  /// Lapangan"). Berbeda dari POST /tasks di atas: tidak butuh
+  /// `assigneeId` (otomatis diri sendiri) dan tidak dibatasi ke role
+  /// ADMIN/SUPER_ADMIN.
+  @Roles(RoleName.PEGAWAI)
+  @Post('self')
+  createSelf(
+    @Body() dto: CreateSelfTaskDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.tasksService.createSelf(dto, actor);
   }
 
   /// GET /tasks - TIDAK dibatasi @Roles() tambahan (semua role login

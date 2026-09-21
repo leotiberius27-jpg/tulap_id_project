@@ -133,10 +133,12 @@ class CreateActivity {
         ),
       );
 
-      // 3. Masukkan ke outbox antrean sinkronisasi
+      // 3. Masukkan ke outbox antrean sinkronisasi - tipe `task` (BUKAN
+      // `taskChecklist`) karena yang dikirim adalah kegiatan itu sendiri
+      // ke POST /tasks/self, bukan status centang satu item checklist.
       try {
         await _enqueueSyncItem(
-          entityType: SyncEntityType.taskChecklist,
+          entityType: SyncEntityType.task,
           entityLocalId: taskId,
           taskId: taskId,
         );

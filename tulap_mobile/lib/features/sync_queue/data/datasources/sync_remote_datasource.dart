@@ -44,6 +44,9 @@ class SyncRemoteDataSource {
       case SyncEntityType.expenseNote:
         await _uploadExpenseNote(record);
         break;
+      case SyncEntityType.task:
+        await _uploadTask(record);
+        break;
       case SyncEntityType.taskChecklist:
         await _uploadTaskChecklist(record);
         break;
@@ -156,6 +159,73 @@ class SyncRemoteDataSource {
       },
       where: 'id = ?',
       whereArgs: [note.id],
+    );
+  }
+
+  /// _uploadTask
+  /// ----------------------------------------------------------------------
+  /// Mengirim kegiatan lapangan yang dibuat MANDIRI oleh pegawai (fitur
+  /// "Buat Kegiatan Lapangan") ke `POST /tasks/self`. Sebelum handler ini
+  /// ada, CreateActivity hanya menyimpan kegiatan ke SQLite lokal dan
+  /// TIDAK PERNAH benar-benar mengirimkannya ke server - akibatnya
+  /// kegiatan tsb hilang dari daftar Beranda begitu app dibuka ulang
+  /// (getActiveTasks() mengambil daftar dari server, yang tidak pernah
+  /// menerima kegiatan ini). `id`/`taskCode` lokal dikirim apa adanya
+  /// supaya retry sinkronisasi bersifat idempoten di sisi server.
+  Future<void> _uploadTask(SyncRecordEntity record) async {
+    final rows = await _database.query(
+      'tasks',
+      where: 'id = ?',
+      whereArgs: [record.entityLocalId],
+    );
+    if (rows.isEmpty) {
+      throw Exception('Data kegiatan lokal tidak ditemukan untuk sinkronisasi.');
+    }
+    final task = rows.first;
+
+    final checklistRows = await _database.query(
+      'task_checklist_items',
+      where: 'taskId = ?',
+      whereArgs: [record.entityLocalId],
+      orderBy: '"order" ASC',
+    );
+
+    final response = await _dioClient.dio.post(
+      '/tasks/self',
+      data: {
+        'id': task['id'],
+        'taskCode': task['taskCode'],
+        'taskName': task['taskName'],
+        'destination': task['destination'],
+        'description': task['description'],
+        'startDate': DateTime.parse(task['startDate'] as String).toIso8601String(),
+        'endDate': DateTime.parse(task['endDate'] as String).toIso8601String(),
+        'budgetAmount': task['budgetAmount'],
+        'checklistItems': checklistRows
+            .map(
+              (item) => {
+                'id': item['id'],
+                'label': item['label'],
+                'order': item['order'],
+                'isMandatory': item['isMandatory'] == 1,
+                'isCompleted': item['isCompleted'] == 1,
+              },
+            )
+            .toList(),
+      },
+      options: Options(headers: {'X-Idempotency-Key': record.id}),
+    );
+
+    final serverTaskCode = response.data['taskCode'] as String?;
+    await _database.update(
+      'tasks',
+      {
+        'syncStatus': 'SYNCED',
+        if (serverTaskCode != null && serverTaskCode.isNotEmpty)
+          'taskCode': serverTaskCode,
+      },
+      where: 'id = ?',
+      whereArgs: [task['id']],
     );
   }
 

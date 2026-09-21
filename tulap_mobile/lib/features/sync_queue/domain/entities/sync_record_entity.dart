@@ -8,6 +8,7 @@
 enum SyncEntityType {
   geotagPhoto,
   expenseNote,
+  task,
   taskChecklist,
   activityReport,
   travelMission,
