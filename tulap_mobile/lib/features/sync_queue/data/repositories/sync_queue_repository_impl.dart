@@ -102,7 +102,18 @@ class SyncQueueRepositoryImpl implements SyncQueueRepository {
       return Right(synced);
     } on DioException catch (e) {
       final errorMessage = _mapDioErrorToUserMessage(e);
-      final result = await _recordAttemptFailure(record, errorMessage);
+      // Sesi login benar-benar tidak valid (access token kedaluwarsa DAN
+      // refresh token-nya juga ditolak server - DioClient sudah mencoba
+      // refresh otomatis sebelum melempar error ini, lihat DioClient
+      // onError). Retry otomatis sia-sia di sini: tanpa login ulang,
+      // percobaan ke-2 sampai ke-5 pasti gagal dengan alasan yang sama -
+      // langsung tandai `failed` supaya user tahu harus login ulang,
+      // bukan menunggu 5 percobaan otomatis yang mustahil berhasil.
+      final result = await _recordAttemptFailure(
+        record,
+        errorMessage,
+        forceFailedImmediately: e.response?.statusCode == 401,
+      );
       return Right(result);
     } catch (e) {
       final result = await _recordAttemptFailure(
@@ -135,10 +146,12 @@ class SyncQueueRepositoryImpl implements SyncQueueRepository {
   /// tetap gagal", bukan "gagal sekali".
   Future<SyncRecordModel> _recordAttemptFailure(
     SyncRecordEntity record,
-    String errorMessage,
-  ) async {
+    String errorMessage, {
+    bool forceFailedImmediately = false,
+  }) async {
     final newAttemptCount = record.attemptCount + 1;
     final willAutoRetry =
+        !forceFailedImmediately &&
         newAttemptCount < SyncRecordEntity.maxAutoRetryAttempts;
 
     final updated = SyncRecordModel.fromEntity(
@@ -189,6 +202,9 @@ class SyncQueueRepositoryImpl implements SyncQueueRepository {
       default:
         if (e.response?.statusCode == 409) {
           return 'Data ini tampaknya sudah pernah dikirim sebelumnya.';
+        }
+        if (e.response?.statusCode == 401) {
+          return 'Sesi login sudah berakhir. Silakan login ulang untuk mengirim data ini.';
         }
         return 'Data belum berhasil dikirim.';
     }
