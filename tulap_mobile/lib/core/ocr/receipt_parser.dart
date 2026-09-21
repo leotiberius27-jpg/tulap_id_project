@@ -281,15 +281,20 @@ class ReceiptParser {
         ..sort((a, b) => b.key.length.compareTo(a.key.length));
 
   ParsedReceiptField<String> _extractVendor(List<String> lines, String rawText) {
-    // 1. Cek kecocokan kamus vendor terkenal di seluruh baris awal
-    final upperText = rawText.toUpperCase();
-    for (final entry in _sortedVendorKeywords) {
-      final key = entry.key;
-      if (upperText.contains(key)) {
-        for (final line in lines.take(6)) {
-          if (line.toUpperCase().contains(key)) {
-            return ParsedReceiptField(value: line, confidence: 0.92);
-          }
+    // 1. Cek kecocokan kamus vendor terkenal, BERDASARKAN URUTAN BARIS
+    // (bukan urutan panjang keyword seperti _inferCategory) - nama
+    // vendor/brand SPBU selalu muncul di baris paling atas struk,
+    // sedangkan kamus yang sama juga berisi nama produk/jenis BBM
+    // ('PERTALITE', 'SOLAR', dst) yang bisa muncul di badan struk.
+    // Mengurutkan berdasarkan panjang keyword (spesifik ke kategori)
+    // pernah membuat 'PERTALITE' (9 huruf) diperiksa SEBELUM 'SPBU'
+    // (4 huruf) walau 'SPBU 84.999.01 JAYAPURA' ada di baris pertama -
+    // vendor yang terdeteksi jadi baris produk BBM, bukan nama SPBU-nya.
+    for (final line in lines.take(6)) {
+      final upperLine = line.toUpperCase();
+      for (final entry in _sortedVendorKeywords) {
+        if (upperLine.contains(entry.key)) {
+          return ParsedReceiptField(value: line, confidence: 0.92);
         }
       }
     }
