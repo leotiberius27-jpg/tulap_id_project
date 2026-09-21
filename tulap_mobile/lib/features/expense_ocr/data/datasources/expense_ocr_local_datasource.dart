@@ -2,15 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
+import '../../../../core/ocr/receipt_image_processor.dart';
 import '../../../../core/ocr/receipt_ocr_engine.dart';
 import '../../../../core/ocr/receipt_parser.dart';
 import '../models/expense_note_model.dart';
-
-const int _kTargetMaxFileSizeBytes = 300 * 1024; // ~300KB
 
 class ExpenseOcrLocalDataSource {
   final ReceiptOcrEngine _ocrEngine;
@@ -29,8 +26,17 @@ class ExpenseOcrLocalDataSource {
   String? _lastCompressedPath;
   String? get lastCompressedPath => _lastCompressedPath;
 
-  /// Memfoto nota dari [controller] kamera, mengompresnya, lalu
-  /// menjalankan OCR + parsing.
+  /// Memfoto nota dari [controller] kamera, memprosesnya (crop ke bingkai
+  /// pemandu + grayscale/contrast enhancement - lihat
+  /// ReceiptImageProcessor.enhanceForOcr), lalu menjalankan OCR + parsing.
+  ///
+  /// SEBELUM perbaikan ini, langkah di sini HANYA re-kompresi JPEG murni
+  /// (target ~300KB) tanpa enhancement piksel apa pun, dan bingkai
+  /// pemandu di layar kamera murni dekoratif - foto PENUH (termasuk
+  /// latar belakang di luar bingkai) selalu dikirim mentah-mentah ke ML
+  /// Kit. Itu penyebab utama hasil scan "kurang teliti/rinci" yang
+  /// dilaporkan user - nota kertas thermal yang pudar dibaca OCR dalam
+  /// kontras rendah aslinya, dan noise latar belakang ikut terbaca.
   Future<ParsedReceiptResult> captureAndScan(
     CameraController controller,
   ) async {
@@ -39,12 +45,16 @@ class ExpenseOcrLocalDataSource {
     }
 
     final rawFile = await controller.takePicture();
-    final compressedPath = await _compressImage(rawFile.path);
+    final processed = await ReceiptImageProcessor.enhanceForOcr(
+      sourcePath: rawFile.path,
+      receiptId: _uuid.v4(),
+      cropToGuideFrame: true,
+    );
 
-    final recognizedText = await _ocrEngine.recognizeText(compressedPath);
+    final recognizedText = await _ocrEngine.recognizeText(processed.processedPath);
     final parsed = _parser.parse(recognizedText);
 
-    _lastCompressedPath = compressedPath;
+    _lastCompressedPath = processed.processedPath;
 
     final rawFileOnDisk = File(rawFile.path);
     if (await rawFileOnDisk.exists()) {
@@ -54,36 +64,20 @@ class ExpenseOcrLocalDataSource {
     return parsed;
   }
 
-  /// Menjalankan OCR langsung pada berkas gambar yang ada (misal dari Galeri)
+  /// Menjalankan OCR langsung pada berkas gambar yang ada (misal dari
+  /// Galeri) - TIDAK crop ke bingkai pemandu (foto galeri belum tentu
+  /// mengikuti proporsi bingkai kamera; crop paksa berisiko memotong
+  /// nota itu sendiri), tapi tetap dapat grayscale/contrast enhancement.
   Future<ParsedReceiptResult> scanImageFile(String imagePath) async {
-    final compressedPath = await _compressImage(imagePath);
-    final recognizedText = await _ocrEngine.recognizeText(compressedPath);
+    final processed = await ReceiptImageProcessor.enhanceForOcr(
+      sourcePath: imagePath,
+      receiptId: _uuid.v4(),
+      cropToGuideFrame: false,
+    );
+    final recognizedText = await _ocrEngine.recognizeText(processed.processedPath);
     final parsed = _parser.parse(recognizedText);
-    _lastCompressedPath = compressedPath;
+    _lastCompressedPath = processed.processedPath;
     return parsed;
-  }
-
-  Future<String> _compressImage(String originalPath) async {
-    final dir = await getApplicationDocumentsDirectory();
-    final targetPath =
-        '${dir.path}/tulap_receipt_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-    int quality = 85;
-    XFile? result;
-    do {
-      result = await FlutterImageCompress.compressAndGetFile(
-        originalPath,
-        targetPath,
-        quality: quality,
-        keepExif: false,
-      );
-      if (result == null) break;
-      final size = await File(result.path).length();
-      if (size <= _kTargetMaxFileSizeBytes || quality <= 40) break;
-      quality -= 15;
-    } while (true);
-
-    return result?.path ?? originalPath;
   }
 
   /// Cek apakah hash SHA-256 berkas fisik identik sudah tersimpan sebelumnya

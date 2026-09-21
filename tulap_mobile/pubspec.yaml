@@ -42,6 +42,8 @@ dependencies:
   camera: ^0.12.0            # Akses hardware kamera lintas platform
   geolocator: ^13.0.1        # GPS, akurasi lokasi, deteksi mock location (Android)
   flutter_image_compress: ^2.3.0  # Kompresi foto ke target ~300KB
+  image: ^4.9.0                # Enhancement piksel (grayscale/kontras/crop) untuk akurasi OCR nota
+  path: ^1.9.0                  # Manipulasi path berkas nota lintas platform
   path_provider: ^2.1.4      # Lokasi direktori penyimpanan lokal aplikasi
   sqflite: ^2.3.3            # Database lokal (offline-first)
   crypto: ^3.0.5             # SHA-256 checksum integritas file

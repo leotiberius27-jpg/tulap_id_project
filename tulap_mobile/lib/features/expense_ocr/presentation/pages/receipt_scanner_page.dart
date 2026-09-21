@@ -358,8 +358,40 @@ class ReceiptScannerPage extends StatelessWidget {
   }
 }
 
-class _DocumentScanOverlay extends StatelessWidget {
+/// _DocumentScanOverlay
+/// ----------------------------------------------------------------------
+/// Bingkai pemandu ala Google Lens: area di luar bingkai digelapkan
+/// (scrim) supaya jelas TIDAK ikut dibaca, dan garis pindai animasi naik
+/// -turun di dalam bingkai memberi kesan "live scanning". Proporsi
+/// bingkai (85% lebar x 58% tinggi, tengah) HARUS SAMA dengan
+/// `ReceiptImageProcessor._cropWidthFraction/_cropHeightFraction` - sejak
+/// perbaikan pipeline OCR, area inilah yang benar-benar dipotong &
+/// dikirim ke OCR untuk hasil kamera langsung, bukan cuma dekorasi.
+class _DocumentScanOverlay extends StatefulWidget {
   const _DocumentScanOverlay();
+
+  @override
+  State<_DocumentScanOverlay> createState() => _DocumentScanOverlayState();
+}
+
+class _DocumentScanOverlayState extends State<_DocumentScanOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -367,16 +399,71 @@ class _DocumentScanOverlay extends StatelessWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth * 0.85;
         final height = constraints.maxHeight * 0.58;
+        final rect = Rect.fromCenter(
+          center: Offset(constraints.maxWidth / 2, constraints.maxHeight / 2),
+          width: width,
+          height: height,
+        );
 
         return Stack(
           children: [
-            Center(
+            // Scrim: gelapkan seluruh area DI LUAR bingkai - sejak crop
+            // sungguhan diterapkan, ini menegaskan secara visual bahwa
+            // area gelap memang tidak ikut terbaca OCR.
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _ScrimPainter(cutout: rect, radius: 16),
+              ),
+            ),
+            Positioned(
+              left: rect.left,
+              top: rect.top,
+              width: rect.width,
+              height: rect.height,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, _) {
+                    return Align(
+                      alignment: Alignment(0, -1 + 2 * _controller.value),
+                      child: Container(
+                        height: 2.5,
+                        margin: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(2),
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.primary.withValues(alpha: 0.0),
+                              AppColors.primary,
+                              AppColors.primary.withValues(alpha: 0.0),
+                            ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.7),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            Positioned(
+              left: rect.left,
+              top: rect.top,
+              width: rect.width,
+              height: rect.height,
               child: Container(
-                width: width,
-                height: height,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.primary, width: 2.5),
+                  border: Border.all(
+                    color: AppColors.primary,
+                    width: 2.5,
+                  ),
                 ),
                 child: Stack(
                   children: [
@@ -394,6 +481,26 @@ class _DocumentScanOverlay extends StatelessWidget {
       },
     );
   }
+}
+
+class _ScrimPainter extends CustomPainter {
+  final Rect cutout;
+  final double radius;
+
+  const _ScrimPainter({required this.cutout, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final outer = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final inner = Path()
+      ..addRRect(RRect.fromRectAndRadius(cutout, Radius.circular(radius)));
+    final scrimPath = Path.combine(PathOperation.difference, outer, inner);
+    canvas.drawPath(scrimPath, Paint()..color = Colors.black.withValues(alpha: 0.55));
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScrimPainter oldDelegate) =>
+      oldDelegate.cutout != cutout || oldDelegate.radius != radius;
 }
 
 class _CornerBracket extends StatelessWidget {

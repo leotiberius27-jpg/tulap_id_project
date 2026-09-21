@@ -228,8 +228,8 @@ class ReceiptParser {
 
     final vendor = _extractVendor(lines, rawText);
     final category = _inferCategory(rawText, vendor.value);
-    final total = _extractTotalAmount(lines);
-    final subtotal = _extractAmount(lines, _subtotalKeywords);
+    var total = _extractTotalAmount(lines);
+    var subtotal = _extractAmount(lines, _subtotalKeywords);
     final tax = _extractAmount(lines, _taxKeywords);
     final discount = _extractAmount(lines, _discountKeywords);
     final service = _extractAmount(lines, _serviceKeywords);
@@ -237,6 +237,22 @@ class ReceiptParser {
     final time = _extractTime(rawText);
     final receiptNumber = _extractReceiptNumber(lines);
     final paymentMethod = _extractPaymentMethod(rawText);
+
+    // Pemeriksaan konsistensi silang: subtotal TIDAK PERNAH boleh lebih
+    // besar dari total akhir (yang benar hanya bisa terjadi kalau ada
+    // diskon besar, itu pun sudah punya field discountAmount terpisah).
+    // Kontradiksi ini biasanya berarti salah satu dari keduanya salah
+    // baca baris (mis. tertukar dengan baris subtotal/qty lain) -
+    // turunkan confidence keduanya supaya Review Sheet menandainya untuk
+    // diperiksa manual, alih-alih diam-diam menyimpan angka yang saling
+    // bertentangan.
+    if (total.value != null &&
+        subtotal.value != null &&
+        subtotal.value! > total.value! &&
+        (discount.value == null || subtotal.value! - discount.value! > total.value!)) {
+      total = ParsedReceiptField(value: total.value, confidence: total.confidence * 0.5);
+      subtotal = ParsedReceiptField(value: subtotal.value, confidence: subtotal.confidence * 0.5);
+    }
 
     return ParsedReceiptResult(
       vendorName: vendor,
@@ -254,10 +270,21 @@ class ReceiptParser {
     );
   }
 
+  /// Kata kunci diurutkan dari yang PALING PANJANG/SPESIFIK dulu - tanpa
+  /// ini, `Map.keys` diperiksa sesuai urutan deklarasi (mis. 'TOKO'
+  /// duluan sebelum 'TOKO BUKU'), sehingga nota "TOKO BUKU GRAMEDIA"
+  /// salah cocok ke kategori Retail ('TOKO') padahal seharusnya ATK
+  /// ('TOKO BUKU') - persis jenis kesalahan "informasi bertolak
+  /// belakang" yang dilaporkan user.
+  static final List<MapEntry<String, ReceiptCategory>> _sortedVendorKeywords =
+      _knownVendorKeywords.entries.toList()
+        ..sort((a, b) => b.key.length.compareTo(a.key.length));
+
   ParsedReceiptField<String> _extractVendor(List<String> lines, String rawText) {
     // 1. Cek kecocokan kamus vendor terkenal di seluruh baris awal
     final upperText = rawText.toUpperCase();
-    for (final key in _knownVendorKeywords.keys) {
+    for (final entry in _sortedVendorKeywords) {
+      final key = entry.key;
       if (upperText.contains(key)) {
         for (final line in lines.take(6)) {
           if (line.toUpperCase().contains(key)) {
@@ -282,7 +309,7 @@ class ReceiptParser {
 
   ReceiptCategory _inferCategory(String rawText, String? vendorName) {
     final upperText = rawText.toUpperCase();
-    for (final entry in _knownVendorKeywords.entries) {
+    for (final entry in _sortedVendorKeywords) {
       if (upperText.contains(entry.key)) {
         return entry.value;
       }
@@ -317,6 +344,21 @@ class ReceiptParser {
 
         // Tolak baris yang jelas-jelas uang kembalian / uang tunai dibayar
         if (upper.contains('KEMBALI') || upper.contains('KEMBALIAN') || upper.contains('CHANGE')) {
+          continue;
+        }
+
+        // Kata kunci bare 'TOTAL'/'JUMLAH' adalah substring dari
+        // 'SUBTOTAL'/'SUB TOTAL' dan dari baris jumlah ITEM (mis.
+        // "JUMLAH ITEM: 5") - TANPA penjagaan ini, baris subtotal atau
+        // baris kuantitas barang bisa salah kebaca sebagai nominal
+        // TOTAL akhir (nominal jadi lebih kecil dari yang sebenarnya
+        // dibayar) - persis penyebab "informasi bertolak belakang".
+        if ((keyword == 'TOTAL' || keyword == 'JUMLAH') &&
+            (upper.contains('SUBTOTAL') ||
+                upper.contains('SUB TOTAL') ||
+                upper.contains('ITEM') ||
+                upper.contains('QTY') ||
+                upper.contains('BARANG'))) {
           continue;
         }
 
