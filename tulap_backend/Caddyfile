@@ -1,0 +1,26 @@
+# Caddyfile - reverse proxy publik untuk MinIO API Tulap.id
+# ----------------------------------------------------------------------
+# HANYA mem-proxy port 9000 (API S3-compatible) ke publik - port 9001
+# (MinIO Console/dashboard admin) SENGAJA TIDAK dibuka di sini, tetap
+# hanya bisa diakses lewat domain Tailscale (fino-production.tailf5234a.ts.net:9001)
+# untuk keamanan.
+#
+# `auto_https disable_redirects` WAJIB ada di server ini - port 80 sudah
+# dipakai fino_frontend (container FINO lain di server yang sama), jadi
+# Caddy TIDAK BOLEH mencoba bind port 80 untuk redirect HTTP->HTTPS
+# otomatis (kalau dibiarkan default, seluruh service caddy gagal start
+# total dengan error "address already in use" - terkonfirmasi langsung
+# saat deploy 2026-09-20). Sertifikat HTTPS tetap didapat otomatis lewat
+# tantangan TLS-ALPN-01 di port 443 saja, jadi ini TIDAK mengurangi
+# keamanan/fungsi HTTPS-nya - cuma redirect otomatis dari http:// ke
+# https:// yang tidak aktif (klien S3/mobile app kita selalu memanggil
+# https:// langsung, jadi tidak masalah).
+{
+	auto_https disable_redirects
+}
+
+storage.tulap.id {
+	reverse_proxy localhost:9000
+
+	encode gzip
+}

@@ -3,35 +3,49 @@ version: '3.8'
 # ----------------------------------------------------------------------
 # MinIO khusus Tulap.id, dipasang terpisah dari instance MinIO milik FINO
 # (kredensial & volume sendiri, tidak berbagi data) di server Biznet Gio
-# yang sama. Diakses lewat domain Tailscale (fino-production.tailf5234a.ts.net)
-# alih-alih IP publik/subdomain publik seperti r2.dev - lihat
-# docs/MINIO_SETUP_GUIDE.md untuk alasan & catatan penting soal HTTPS
-# sebelum dipakai APK rilis.
+# yang sama.
+#
+# Port publikasi SENGAJA dibatasi (bukan 0.0.0.0) - live-tested 2026-09-20:
+#   - 9000 (API)     -> 127.0.0.1 saja. Publik dijangkau lewat Caddy
+#                       (lihat Caddyfile) di storage.tulap.id, BUKAN port
+#                       MinIO mentah - port 9000 tidak pernah dibuka ke
+#                       IP publik server.
+#   - 9001 (Console) -> IP Tailscale server saja (GANTI sesuai `tailscale
+#                       status` server Anda), supaya dashboard admin
+#                       hanya bisa diakses dari tailnet pribadi, tidak
+#                       pernah ke publik sama sekali.
 # ----------------------------------------------------------------------
 
 services:
   minio-tulap:
-    image: minio/minio:latest
+    # PENTING: gunakan quay.io/minio/minio, BUKAN minio/minio - image
+    # minio/minio di Docker Hub sudah tidak bisa ditarik lagi ("pull
+    # access denied"), terkonfirmasi langsung saat deploy 2026-09-20.
+    image: quay.io/minio/minio:latest
     container_name: tulap-minio-prod
     restart: always
     environment:
       # GANTI DUA NILAI INI sebelum `docker compose up` - JANGAN pakai
       # nilai contoh di bawah. Root user minimal 3 karakter, root
-      # password minimal 8 karakter (syarat MinIO). Simpan kombinasi ini
-      # sebagai S3_ACCESS_KEY/S3_SECRET_KEY sementara sebelum Anda buat
-      # Access Key terpisah yang lebih sempit cakupannya lewat Console
-      # (lihat panduan) - root credentials sebaiknya TIDAK dipakai
-      # langsung oleh backend produksi.
+      # password minimal 8 karakter (syarat MinIO).
       MINIO_ROOT_USER: "GANTI_DENGAN_USERNAME_ROOT_ANDA"
       MINIO_ROOT_PASSWORD: "GANTI_DENGAN_PASSWORD_ROOT_MINIMAL_8_KARAKTER"
+      # WAJIB dikosongkan paksa seperti ini - image quay.io/minio/minio
+      # membawa default MINIO_ROOT_USER_FILE=access_key /
+      # MINIO_ROOT_PASSWORD_FILE=secret_key yang MENIMPA nilai literal
+      # di atas (MinIO coba baca kredensial dari file yang tidak ada,
+      # sehingga root login selalu "invalid" walau usernam/password
+      # sudah benar) - terkonfirmasi langsung saat debugging 2026-09-20.
+      MINIO_ROOT_USER_FILE: ""
+      MINIO_ROOT_PASSWORD_FILE: ""
       # Supaya URL yang ditampilkan MinIO Console/API (mis. saat generate
       # presigned URL) memakai domain Tailscale, bukan IP internal server.
       MINIO_SERVER_URL: "http://fino-production.tailf5234a.ts.net:9000"
       MINIO_BROWSER_REDIRECT_URL: "http://fino-production.tailf5234a.ts.net:9001"
     command: server /data --console-address ":9001"
     ports:
-      - '9000:9000'  # API S3-compatible - ini yang dipakai backend (S3_ENDPOINT)
-      - '9001:9001'  # Console/Dashboard web - dibuka lewat browser untuk kelola bucket
+      - '127.0.0.1:9000:9000'
+      - '100.68.183.121:9001:9001'  # GANTI ke IP Tailscale server Anda kalau beda
     volumes:
       - tulap_minio_data:/data
     healthcheck:
