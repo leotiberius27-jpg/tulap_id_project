@@ -620,15 +620,19 @@ export class AuthService {
 
     const result = await this.loginOrCreateFromOAuth(profile, 'firebaseUid');
 
-    try {
-      await getAuth(this.firebaseAdminApp).setCustomUserClaims(decoded.uid, {
-        tulapUserId: result.user.id,
+    // Best-effort, TIDAK di-await: claim ini hanya dipakai kalau Firebase
+    // ID Token dibaca ulang di tempat lain, response login tidak butuh
+    // hasilnya sama sekali. Meng-await round-trip ke Firebase Admin di
+    // sini menambah 1 network call penuh ke SETIAP login (bukan cuma
+    // login pertama), padahal claim-nya nyaris tidak pernah berubah
+    // antar-login user yang sama - ini penyebab utama login terasa lambat.
+    getAuth(this.firebaseAdminApp)
+      .setCustomUserClaims(decoded.uid, { tulapUserId: result.user.id })
+      .catch((err) => {
+        this.logger.warn(
+          `Gagal memasang custom claim tulapUserId untuk Firebase UID ${decoded.uid}: ${err}`,
+        );
       });
-    } catch (err) {
-      this.logger.warn(
-        `Gagal memasang custom claim tulapUserId untuk Firebase UID ${decoded.uid}: ${err}`,
-      );
-    }
 
     return result;
   }
@@ -705,11 +709,10 @@ export class AuthService {
       );
     }
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
-
+    // lastLoginAt hanya metadata observabilitas - response login tidak
+    // menunggunya. Dijalankan paralel dengan pembuatan token, bukan
+    // sequential sebelumnya (yang menambah 1 DB round-trip penuh ke
+    // waktu tunggu user sebelum masuk ke aplikasi).
     const [tokens, firebaseToken] = await Promise.all([
       this.generateTokens({
         sub: user.id,
@@ -717,6 +720,10 @@ export class AuthService {
         role: user.role.name,
       }),
       this.mintFirebaseCustomToken(user.id),
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      }),
     ]);
 
     return {
