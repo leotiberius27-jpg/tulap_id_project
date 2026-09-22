@@ -112,13 +112,32 @@ class DashboardSummaryModel extends DashboardSummaryEntity {
 
     // 4. Top Locations List
     final locRaw = json['topLocations'] as List<dynamic>? ?? [];
+    LocationActivityStat parseActivity(Map<String, dynamic> a) {
+      final rawDate = a['date'] as String?;
+      return LocationActivityStat(
+        taskId: a['taskId'] as String? ?? '',
+        title: a['title'] as String? ?? '',
+        status: a['status'] as String? ?? '',
+        date: rawDate != null ? DateTime.tryParse(rawDate) : null,
+      );
+    }
+
     final topLocations = locRaw.map((l) {
       final item = l as Map<String, dynamic>;
+      final activitiesRaw = item['activities'] as List<dynamic>? ?? [];
+      final activities = activitiesRaw
+          .map((a) => parseActivity(a as Map<String, dynamic>))
+          .toList();
+      final latestActivityRaw = item['latestActivity'] as Map<String, dynamic>?;
       return TopLocationStat(
         location: item['location'] as String? ?? '',
         count: (item['count'] as num?)?.toInt() ?? 0,
         latitude: (item['latitude'] as num?)?.toDouble(),
         longitude: (item['longitude'] as num?)?.toDouble(),
+        thumbnailUrl: item['thumbnailUrl'] as String?,
+        latestActivity:
+            latestActivityRaw != null ? parseActivity(latestActivityRaw) : null,
+        activities: activities,
       );
     }).toList();
 

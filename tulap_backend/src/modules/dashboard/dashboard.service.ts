@@ -71,6 +71,7 @@ export class DashboardService {
           latitude: true,
           longitude: true,
           address: true,
+          photoUrl: true,
         },
       }),
       this.prisma.expense_Note.findMany({
@@ -259,13 +260,52 @@ export class DashboardService {
       }
     }
 
+    // Kegiatan per klaster lokasi (diurutkan terbaru dulu) - dipakai untuk
+    // kartu "kegiatan terbaru" di Beranda & linimasa di halaman detail
+    // lokasi, BUKAN untuk hitung `count` di atas (count tetap gabungan
+    // task+foto seperti semula supaya tidak mengubah statistik existing).
+    const locationTasksMap = new Map<string, typeof tasks>();
+    for (const t of tasks) {
+      const loc = this.extractCityOrLocation(t.destination || 'Wilayah Tugas');
+      const arr = locationTasksMap.get(loc) || [];
+      arr.push(t);
+      locationTasksMap.set(loc, arr);
+    }
+    for (const arr of locationTasksMap.values()) {
+      arr.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+    }
+
+    // Foto geotag terbaru per klaster lokasi - dipakai sebagai thumbnail
+    // kartu (mendekati foto "sampul" kegiatan di lokasi itu).
+    const locationPhotoMap = new Map<string, { url: string; createdAt: Date }>();
+    for (const p of photos) {
+      if (!p.address) continue;
+      const loc = this.extractCityOrLocation(p.address);
+      const prev = locationPhotoMap.get(loc);
+      if (!prev || p.createdAt > prev.createdAt) {
+        locationPhotoMap.set(loc, { url: p.photoUrl, createdAt: p.createdAt });
+      }
+    }
+
     const topLocations: TopLocationItemDto[] = Array.from(locationMap.entries())
-      .map(([location, data]) => ({
-        location,
-        count: data.count,
-        latitude: data.count > 0 && data.latSum !== 0 ? data.latSum / data.count : undefined,
-        longitude: data.count > 0 && data.lngSum !== 0 ? data.lngSum / data.count : undefined,
-      }))
+      .map(([location, data]) => {
+        const locTasks = locationTasksMap.get(location) || [];
+        const activities = locTasks.slice(0, 20).map((t) => ({
+          taskId: t.id,
+          title: t.taskName,
+          status: t.status,
+          date: t.startDate.toISOString(),
+        }));
+        return {
+          location,
+          count: data.count,
+          latitude: data.count > 0 && data.latSum !== 0 ? data.latSum / data.count : undefined,
+          longitude: data.count > 0 && data.lngSum !== 0 ? data.lngSum / data.count : undefined,
+          thumbnailUrl: locationPhotoMap.get(location)?.url,
+          latestActivity: activities[0],
+          activities,
+        };
+      })
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 

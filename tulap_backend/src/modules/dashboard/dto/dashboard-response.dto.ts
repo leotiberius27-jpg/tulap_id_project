@@ -49,11 +49,21 @@ export interface ExpenseCategoryItemDto {
   count: number;
 }
 
+export interface TopLocationActivityItemDto {
+  taskId: string;
+  title: string;
+  status: string;
+  date: string;
+}
+
 export interface TopLocationItemDto {
   location: string;
   count: number;
   latitude?: number;
   longitude?: number;
+  thumbnailUrl?: string;
+  latestActivity?: TopLocationActivityItemDto;
+  activities: TopLocationActivityItemDto[];
 }
 
 export interface TravelDestinationItemDto {

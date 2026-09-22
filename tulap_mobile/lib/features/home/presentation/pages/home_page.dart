@@ -352,10 +352,11 @@ class _HomeView extends StatelessWidget {
                       const SizedBox(height: AppSpacing.md),
                       LocationIntelligenceCard(
                         topLocations: summary.topLocations,
-                        onLocationTap: (loc) => _drilldownToSearch(
-                          context,
-                          location: loc,
-                          periodState: state,
+                        onOpenTask: (ctx, taskId) => _openTaskDetail(
+                          ctx,
+                          taskId: taskId,
+                          officerName: officerName,
+                          agencyName: agencyName,
                         ),
                       ),
                     ],

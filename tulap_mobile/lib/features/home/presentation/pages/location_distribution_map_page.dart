@@ -9,6 +9,9 @@ import '../../../../app/di/injection_container.dart';
 import '../../../../core/map/map_launcher_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../dashboard/domain/entities/top_location_stat.dart';
+import '../theme/map_palette.dart';
+import '../widgets/map_ui_kit.dart';
+import 'location_activity_detail_page.dart';
 
 /// LocationDistributionMapPage
 /// ----------------------------------------------------------------------
@@ -34,8 +37,13 @@ import '../../../dashboard/domain/entities/top_location_stat.dart';
 /// ----------------------------------------------------------------------
 class LocationDistributionMapPage extends StatefulWidget {
   final List<TopLocationStat> topLocations;
+  final void Function(BuildContext context, String taskId)? onOpenTask;
 
-  const LocationDistributionMapPage({super.key, required this.topLocations});
+  const LocationDistributionMapPage({
+    super.key,
+    required this.topLocations,
+    this.onOpenTask,
+  });
 
   @override
   State<LocationDistributionMapPage> createState() =>
@@ -306,8 +314,8 @@ class _LocationDistributionMapPageState
     );
 
     final Color bgColor = isSelected
-        ? AppColors.success
-        : (isHighIntensity ? AppColors.primary : AppColors.primary.withValues(alpha: 0.6));
+        ? MapPalette.accent
+        : (isHighIntensity ? MapPalette.deep : MapPalette.deep.withValues(alpha: 0.62));
     final center = Offset(canvasSize / 2, canvasSize / 2);
     final radius = canvasSize / 2 - (4 * scale);
 
@@ -390,7 +398,7 @@ class _LocationDistributionMapPageState
         circleId: CircleId('pulse-${loc.location}'),
         center: LatLng(loc.latitude!, loc.longitude!),
         radius: radius,
-        fillColor: AppColors.primary.withValues(alpha: opacity),
+        fillColor: MapPalette.accent.withValues(alpha: opacity),
         strokeWidth: 0,
         consumeTapEvents: false,
       );
@@ -399,16 +407,10 @@ class _LocationDistributionMapPageState
 
   @override
   Widget build(BuildContext context) {
-    final plotted = _plotted;
     final unplotted = _unplotted;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Peta Sebaran Lokasi'),
-      ),
+      backgroundColor: MapPalette.deep,
       body: Column(
         children: [
           Expanded(
@@ -429,15 +431,26 @@ class _LocationDistributionMapPageState
                         onTap: (_) => _selectLocation(null),
                       ),
 
-                      // Search bar mengambang di atas peta
+                      // Baris atas: tombol kembali bulat + search bar mengambang
                       Positioned(
                         top: MediaQuery.of(context).padding.top + 8,
                         left: 16,
                         right: 16,
-                        child: _FloatingSearchBar(
-                          controller: _searchController,
-                          onChanged: _onSearchChanged,
-                          resultCount: plotted.length + unplotted.length,
+                        child: Row(
+                          children: [
+                            MapCircleButton(
+                              icon: Icons.arrow_back_rounded,
+                              tooltip: 'Kembali',
+                              onTap: () => Navigator.of(context).pop(),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: MapFloatingSearchBar(
+                                controller: _searchController,
+                                onChanged: _onSearchChanged,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
 
@@ -447,13 +460,13 @@ class _LocationDistributionMapPageState
                         bottom: _selected == null ? 24 : 190,
                         child: Column(
                           children: [
-                            _MapFab(
+                            MapCircleButton(
                               icon: Icons.my_location_rounded,
                               tooltip: 'Lokasi Saya',
                               onTap: _goToMyLocation,
                             ),
                             const SizedBox(height: 10),
-                            _MapFab(
+                            MapCircleButton(
                               icon: _mapType == MapType.normal
                                   ? Icons.layers_outlined
                                   : Icons.map_outlined,
@@ -461,7 +474,7 @@ class _LocationDistributionMapPageState
                               onTap: _toggleMapType,
                             ),
                             const SizedBox(height: 10),
-                            _MapFab(
+                            MapCircleButton(
                               icon: Icons.center_focus_strong_rounded,
                               tooltip: 'Lihat Semua Lokasi',
                               onTap: _fitToPlotted,
@@ -494,6 +507,17 @@ class _LocationDistributionMapPageState
                                     sl<MapLauncherService>().openGoogleMaps(
                                       latitude: _selected!.latitude!,
                                       longitude: _selected!.longitude!,
+                                    );
+                                  },
+                                  onOpenDetail: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => LocationActivityDetailPage(
+                                          location: _selected!,
+                                          allLocations: widget.topLocations,
+                                          onOpenTask: widget.onOpenTask,
+                                        ),
+                                      ),
                                     );
                                   },
                                 ),
@@ -542,7 +566,7 @@ class _LocationDistributionMapPageState
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(
-          top: BorderSide(color: AppColors.border),
+          top: BorderSide(color: MapPalette.softBorder),
         ),
       ),
       child: Column(
@@ -586,7 +610,7 @@ class _LocationDistributionMapPageState
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
+                      color: MapPalette.accentDark,
                     ),
                   ),
                 );
@@ -599,110 +623,19 @@ class _LocationDistributionMapPageState
   }
 }
 
-/// _FloatingSearchBar
-/// ----------------------------------------------------------------------
-/// Search bar mengambang di atas peta - meniru pola aplikasi navigasi
-/// (search box putih dengan bayangan lembut, ikon kaca pembesar). Filter
-/// bekerja sungguhan (bukan dekoratif): menyaring marker peta & daftar
-/// lokasi tanpa koordinat sekaligus.
-class _FloatingSearchBar extends StatelessWidget {
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-  final int resultCount;
-
-  const _FloatingSearchBar({
-    required this.controller,
-    required this.onChanged,
-    required this.resultCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 6,
-      shadowColor: Colors.black26,
-      borderRadius: BorderRadius.circular(16),
-      color: AppColors.surface,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        child: Row(
-          children: [
-            const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 22),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: controller,
-                onChanged: onChanged,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  hintText: 'Cari nama lokasi kegiatan...',
-                  isDense: true,
-                ),
-                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
-              ),
-            ),
-            if (controller.text.isNotEmpty)
-              GestureDetector(
-                onTap: () {
-                  controller.clear();
-                  onChanged('');
-                },
-                child: const Padding(
-                  padding: EdgeInsets.all(4),
-                  child: Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// _MapFab
-/// ----------------------------------------------------------------------
-/// Tombol aksi bulat mengambang di atas peta - dipakai untuk "Lokasi
-/// Saya", ganti jenis peta, dan reset tampilan ke semua lokasi.
-class _MapFab extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  const _MapFab({required this.icon, required this.tooltip, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        elevation: 4,
-        shadowColor: Colors.black26,
-        shape: const CircleBorder(),
-        color: AppColors.surface,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(11),
-            child: Icon(icon, size: 20, color: AppColors.primary),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _SelectedLocationCard extends StatelessWidget {
   final TopLocationStat location;
   final double? distanceKm;
   final VoidCallback onClose;
   final VoidCallback onRoute;
+  final VoidCallback onOpenDetail;
 
   const _SelectedLocationCard({
     super.key,
     required this.location,
     required this.distanceKm,
     required this.onClose,
+    required this.onOpenDetail,
     required this.onRoute,
   });
 
@@ -721,51 +654,62 @@ class _SelectedLocationCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.location_on_rounded, color: AppColors.primary),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        location.location,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: [
-                          _InfoChip(
-                            icon: Icons.assignment_turned_in_outlined,
-                            label: '${location.count} kegiatan',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: onOpenDetail,
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: const BoxDecoration(
+                            color: MapPalette.soft,
+                            shape: BoxShape.circle,
                           ),
-                          if (distanceKm != null)
-                            _InfoChip(
-                              icon: Icons.social_distance_rounded,
-                              label: '${distanceKm!.toStringAsFixed(1)} km dari Anda',
-                            ),
-                        ],
-                      ),
-                    ],
+                          child: const Icon(Icons.location_on_rounded, color: MapPalette.deep),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                location.location,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                  color: MapPalette.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children: [
+                                  _InfoChip(
+                                    icon: Icons.assignment_turned_in_outlined,
+                                    label: '${location.count} kegiatan',
+                                  ),
+                                  if (distanceKm != null)
+                                    _InfoChip(
+                                      icon: Icons.social_distance_rounded,
+                                      label: '${distanceKm!.toStringAsFixed(1)} km dari Anda',
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded, color: MapPalette.textSecondary),
+                      ],
+                    ),
                   ),
                 ),
                 IconButton(
                   onPressed: onClose,
-                  icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textMuted),
+                  icon: const Icon(Icons.close_rounded, size: 20, color: MapPalette.textSecondary),
                   visualDensity: VisualDensity.compact,
                 ),
               ],
@@ -781,7 +725,7 @@ class _SelectedLocationCard extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: MapPalette.accent,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -809,20 +753,20 @@ class _InfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: MapPalette.soft,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: AppColors.primary),
+          Icon(icon, size: 12, color: MapPalette.deep),
           const SizedBox(width: 4),
           Text(
             label,
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
+              color: MapPalette.textSecondary,
             ),
           ),
         ],
