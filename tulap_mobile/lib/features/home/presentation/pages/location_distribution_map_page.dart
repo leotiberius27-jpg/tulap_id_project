@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -37,12 +38,17 @@ import 'location_activity_detail_page.dart';
 /// ----------------------------------------------------------------------
 class LocationDistributionMapPage extends StatefulWidget {
   final List<TopLocationStat> topLocations;
+
+  /// Sumber klaster tersinkron dari Beranda (HomeController.syncedLocations)
+  /// - marker & kartu terpilih ikut diperbarui saat "Kegiatan Saya" berubah.
+  final ValueListenable<List<TopLocationStat>>? liveLocations;
   final void Function(BuildContext context, String taskId)? onOpenTask;
 
   const LocationDistributionMapPage({
     super.key,
     required this.topLocations,
     this.onOpenTask,
+    this.liveLocations,
   });
 
   @override
@@ -66,9 +72,24 @@ class _LocationDistributionMapPageState
 
   final Map<String, BitmapDescriptor> _iconCache = {};
 
+  List<TopLocationStat> get _locations =>
+      widget.liveLocations?.value ?? widget.topLocations;
+
+  void _onLiveLocationsChanged() {
+    if (!mounted) return;
+    final selectedName = _selected?.location;
+    setState(() {
+      _selected = selectedName == null
+          ? null
+          : _locations.where((l) => l.location == selectedName).firstOrNull;
+    });
+    _rebuildMarkers();
+  }
+
   @override
   void initState() {
     super.initState();
+    widget.liveLocations?.addListener(_onLiveLocationsChanged);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
@@ -92,6 +113,7 @@ class _LocationDistributionMapPageState
 
   @override
   void dispose() {
+    widget.liveLocations?.removeListener(_onLiveLocationsChanged);
     _pulseTimer?.cancel();
     _pulseController.dispose();
     _mapController?.dispose();
@@ -171,11 +193,11 @@ class _LocationDistributionMapPageState
     _rebuildMarkers();
   }
 
-  List<TopLocationStat> get _allPlotted => widget.topLocations
+  List<TopLocationStat> get _allPlotted => _locations
       .where((l) => l.latitude != null && l.longitude != null)
       .toList();
 
-  List<TopLocationStat> get _allUnplotted => widget.topLocations
+  List<TopLocationStat> get _allUnplotted => _locations
       .where((l) => l.latitude == null || l.longitude == null)
       .toList();
 
@@ -514,8 +536,9 @@ class _LocationDistributionMapPageState
                                       MaterialPageRoute(
                                         builder: (_) => LocationActivityDetailPage(
                                           location: _selected!,
-                                          allLocations: widget.topLocations,
+                                          allLocations: _locations,
                                           onOpenTask: widget.onOpenTask,
+                                          liveLocations: widget.liveLocations,
                                         ),
                                       ),
                                     );

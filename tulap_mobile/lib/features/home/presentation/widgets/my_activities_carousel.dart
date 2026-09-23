@@ -20,12 +20,20 @@ class MyActivitiesCarousel extends StatelessWidget {
   final Function(TaskEntity task) onTaskTap;
   final VoidCallback onSeeAll;
 
+  /// Membuka klaster lokasi kegiatan di "Peta & Sebaran Lokasi". Baris
+  /// lokasi di kartu hanya bisa diketuk bila [onLocationTap] ada dan
+  /// [isOnMap] (jika diisi) mengembalikan true untuk kegiatan tersebut.
+  final void Function(TaskEntity task)? onLocationTap;
+  final bool Function(TaskEntity task)? isOnMap;
+
   const MyActivitiesCarousel({
     super.key,
     required this.activities,
     this.taskPhotos = const {},
     required this.onTaskTap,
     required this.onSeeAll,
+    this.onLocationTap,
+    this.isOnMap,
   });
 
   @override
@@ -132,6 +140,13 @@ class MyActivitiesCarousel extends StatelessWidget {
                     HapticFeedback.selectionClick();
                     onTaskTap(task);
                   },
+                  onLocationTap:
+                      onLocationTap != null && (isOnMap?.call(task) ?? true)
+                      ? () {
+                          HapticFeedback.selectionClick();
+                          onLocationTap!(task);
+                        }
+                      : null,
                 );
               },
             ),
@@ -146,12 +161,14 @@ class _ActivityCard extends StatelessWidget {
   final String? photoPath;
   final double width;
   final VoidCallback onTap;
+  final VoidCallback? onLocationTap;
 
   const _ActivityCard({
     required this.task,
     this.photoPath,
     required this.width,
     required this.onTap,
+    this.onLocationTap,
   });
 
   String _formatIndonesianDate(DateTime date) {
@@ -295,27 +312,51 @@ class _ActivityCard extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Location
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.location_on_outlined,
-                                size: 13,
-                                color: AppColors.textSecondary,
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  task.destination,
-                                  style: AppTypography.small.copyWith(
-                                    fontSize: 12.5,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                          // Location - bila kegiatan ini ada di klaster
+                          // "Peta & Sebaran Lokasi", ketuk untuk membukanya.
+                          InkWell(
+                            onTap: onLocationTap,
+                            borderRadius: BorderRadius.circular(6),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  size: 13,
+                                  color: onLocationTap != null
+                                      ? AppColors.action
+                                      : AppColors.textSecondary,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    task.destination,
+                                    style: AppTypography.small.copyWith(
+                                      fontSize: 12.5,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (onLocationTap != null) ...[
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.map_outlined,
+                                    size: 13,
+                                    color: AppColors.action,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    'Peta',
+                                    style: AppTypography.small.copyWith(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.action,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 3),
                           // Date

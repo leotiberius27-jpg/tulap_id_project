@@ -40,7 +40,10 @@ import '../../../task_list/presentation/controllers/task_list_controller.dart';
 import '../../../task_list/presentation/pages/task_list_page.dart';
 import '../../../travel_mission/presentation/pages/travel_mission_list_page.dart';
 import '../../../subscription/presentation/utils/activity_quota_guard.dart';
+import '../../../task_detail/domain/entities/task_entity.dart';
+import '../../domain/location_activity_sync.dart';
 import '../controllers/home_controller.dart';
+import 'location_activity_detail_page.dart';
 import '../widgets/action_required_section.dart';
 import '../widgets/activity_trend_chart.dart';
 import '../widgets/compact_sync_bar.dart';
@@ -140,6 +143,7 @@ class _HomeView extends StatelessWidget {
                 ? state.taskPhotos[activeTask.id]
                 : null;
             final summary = state.dashboardSummary;
+            final syncedLocations = controller.syncedLocations.value;
 
             // Tula: tandai ada insight yang perlu perhatian user (tugas
             // mendesak, item aksi tertunda, atau bukti belum tersinkron)
@@ -231,6 +235,7 @@ class _HomeView extends StatelessWidget {
                       coverPhotoPath: activeCoverPhoto,
                       onTap: () => _openTaskDetail(
                         context,
+                        controller: controller,
                         taskId: activeTask.id,
                         officerName: officerName,
                         agencyName: agencyName,
@@ -346,21 +351,27 @@ class _HomeView extends StatelessWidget {
                         },
                       ),
                     ],
+                  ],
 
-                    // 9. PHASE 11: LOCATION INTELLIGENCE
-                    if (summary.topLocations.isNotEmpty) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      LocationIntelligenceCard(
-                        topLocations: summary.topLocations,
-                        onOpenTask: (ctx, taskId) => _openTaskDetail(
-                          ctx,
-                          taskId: taskId,
-                          officerName: officerName,
-                          agencyName: agencyName,
-                        ),
+                  // 9. PHASE 11: LOCATION INTELLIGENCE - tersinkron dengan
+                  // "Kegiatan Saya" (status dari tugas lokal + kegiatan
+                  // yang belum tersinkron), tetap tampil saat offline.
+                  if (syncedLocations.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    LocationIntelligenceCard(
+                      topLocations: syncedLocations,
+                      liveLocations: controller.syncedLocations,
+                      onOpenTask: (ctx, taskId) => _openTaskDetail(
+                        ctx,
+                        controller: controller,
+                        taskId: taskId,
+                        officerName: officerName,
+                        agencyName: agencyName,
                       ),
-                    ],
+                    ),
+                  ],
 
+                  if (summary != null) ...[
                     // 10. PHASE 11: EXPENSE INTELLIGENCE
                     if (summary.expenseTotal > 0 ||
                         summary.expenseByCategory.isNotEmpty) ...[
@@ -407,11 +418,21 @@ class _HomeView extends StatelessWidget {
                     taskPhotos: state.taskPhotos,
                     onTaskTap: (task) => _openTaskDetail(
                       context,
+                      controller: controller,
                       taskId: task.id,
                       officerName: officerName,
                       agencyName: agencyName,
                     ),
                     onSeeAll: () => _openTaskList(context),
+                    isOnMap: (task) =>
+                        locationForTask(syncedLocations, task) != null,
+                    onLocationTap: (task) => _openLocationForTask(
+                      context,
+                      controller: controller,
+                      task: task,
+                      officerName: officerName,
+                      agencyName: agencyName,
+                    ),
                   ),
 
                   // 13. SYNC STATUS BANNER (Compact)
@@ -561,13 +582,19 @@ class _HomeView extends StatelessWidget {
     );
   }
 
-  void _openTaskDetail(
+  /// Setelah kembali dari Detail Tugas, Beranda dimuat ulang supaya
+  /// "Kegiatan Saya" dan "Peta & Sebaran Lokasi" (termasuk halaman peta/
+  /// detail lokasi yang masih terbuka) memakai status tugas terbaru.
+  /// [controller] dioper eksplisit karena [context] bisa berasal dari
+  /// halaman peta yang berada di luar ChangeNotifierProvider Beranda.
+  Future<void> _openTaskDetail(
     BuildContext context, {
+    required HomeController controller,
     required String taskId,
     required String officerName,
     required String agencyName,
-  }) {
-    Navigator.of(context).push(
+  }) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ChangeNotifierProvider<TaskDetailController>(
           create: (_) => TaskDetailController(
@@ -579,6 +606,38 @@ class _HomeView extends StatelessWidget {
             getTaskPhotoPreviews: sl<GetTaskPhotoPreviews>(),
           ),
           child: TaskDetailPage(
+            officerName: officerName,
+            agencyName: agencyName,
+          ),
+        ),
+      ),
+    );
+    await controller.loadHome();
+  }
+
+  /// Dari kartu "Kegiatan Saya" langsung ke klaster lokasinya di
+  /// "Peta & Sebaran Lokasi" (halaman detail lokasi yang sama dengan
+  /// kartu peta di Beranda).
+  void _openLocationForTask(
+    BuildContext context, {
+    required HomeController controller,
+    required TaskEntity task,
+    required String officerName,
+    required String agencyName,
+  }) {
+    final locations = controller.syncedLocations.value;
+    final location = locationForTask(locations, task);
+    if (location == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LocationActivityDetailPage(
+          location: location,
+          allLocations: locations,
+          liveLocations: controller.syncedLocations,
+          onOpenTask: (ctx, taskId) => _openTaskDetail(
+            ctx,
+            controller: controller,
+            taskId: taskId,
             officerName: officerName,
             agencyName: agencyName,
           ),

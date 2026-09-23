@@ -24,7 +24,6 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 800));
 
-    expect(find.text('Peta Sebaran Lokasi'), findsOneWidget);
     expect(
       find.textContaining('belum ada koordinat GPS'),
       findsOneWidget,

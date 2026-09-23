@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../app/di/injection_container.dart';
 import '../../../../core/map/map_launcher_service.dart';
@@ -22,11 +23,17 @@ class LocationActivityDetailPage extends StatefulWidget {
   final List<TopLocationStat> allLocations;
   final void Function(BuildContext context, String taskId)? onOpenTask;
 
+  /// Sumber klaster tersinkron dari Beranda (HomeController.syncedLocations)
+  /// - jika ada, status & linimasa di halaman ini ikut diperbarui saat
+  /// kegiatan di "Kegiatan Saya" berubah.
+  final ValueListenable<List<TopLocationStat>>? liveLocations;
+
   const LocationActivityDetailPage({
     super.key,
     required this.location,
     required this.allLocations,
     this.onOpenTask,
+    this.liveLocations,
   });
 
   @override
@@ -40,8 +47,31 @@ class _LocationActivityDetailPageState
   String _query = '';
   GoogleMapController? _mapController;
 
+  List<TopLocationStat> get _locations =>
+      widget.liveLocations?.value ?? widget.allLocations;
+
+  /// Versi terbaru klaster ini (dicari lewat nama) - jatuh kembali ke
+  /// snapshot awal bila klaster sudah tidak ada di data terbaru.
+  TopLocationStat get _location {
+    for (final l in _locations) {
+      if (l.location == widget.location.location) return l;
+    }
+    return widget.location;
+  }
+
+  void _onLiveLocationsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    widget.liveLocations?.addListener(_onLiveLocationsChanged);
+  }
+
   @override
   void dispose() {
+    widget.liveLocations?.removeListener(_onLiveLocationsChanged);
     _searchController.dispose();
     _mapController?.dispose();
     super.dispose();
@@ -50,9 +80,9 @@ class _LocationActivityDetailPageState
   List<TopLocationStat> get _searchResults {
     if (_query.isEmpty) return const [];
     final q = _query.toLowerCase();
-    return widget.allLocations
+    return _locations
         .where((l) =>
-            l.location != widget.location.location &&
+            l.location != _location.location &&
             l.location.toLowerCase().contains(q))
         .toList();
   }
@@ -62,8 +92,9 @@ class _LocationActivityDetailPageState
       MaterialPageRoute(
         builder: (_) => LocationActivityDetailPage(
           location: loc,
-          allLocations: widget.allLocations,
+          allLocations: _locations,
           onOpenTask: widget.onOpenTask,
+          liveLocations: widget.liveLocations,
         ),
       ),
     );
@@ -71,7 +102,7 @@ class _LocationActivityDetailPageState
 
   @override
   Widget build(BuildContext context) {
-    final loc = widget.location;
+    final loc = _location;
     final hasCoords = loc.latitude != null && loc.longitude != null;
     final latestStatus = loc.latestActivity?.status;
 

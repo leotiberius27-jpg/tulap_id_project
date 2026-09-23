@@ -17,7 +17,9 @@ import '../../../sync_queue/domain/repositories/sync_queue_repository.dart';
 import '../../../task_detail/domain/entities/task_entity.dart';
 import '../../../task_detail/domain/usecases/get_active_tasks.dart';
 import '../../../task_detail/domain/usecases/get_task_detail.dart';
+import '../../../dashboard/domain/entities/top_location_stat.dart';
 import '../../domain/home_category.dart';
+import '../../domain/location_activity_sync.dart';
 
 enum HomeStatus { loading, loaded, error }
 
@@ -60,6 +62,18 @@ class HomeState {
 
   /// Helper getter for safe selected period
   DashboardPeriod get safePeriod => selectedPeriod ?? DashboardPeriod.thisMonth();
+
+  /// Klaster "Peta & Sebaran Lokasi" yang sudah disinkronkan dengan
+  /// "Kegiatan Saya" - status kegiatan diambil dari tugas lokal, dan tugas
+  /// lokal dalam periode aktif yang belum ada di snapshot server (mis.
+  /// kegiatan mandiri offline) ikut masuk ke klaster lokasinya. Tetap
+  /// terisi dari tugas lokal saat dashboard server gagal dimuat/offline.
+  List<TopLocationStat> get syncedTopLocations => mergeLocationsWithTasks(
+    serverLocations: dashboardSummary?.topLocations ?? const [],
+    localTasks: allActiveTasks,
+    periodStart: safePeriod.startDate,
+    periodEnd: safePeriod.endDate,
+  );
 
   /// Daftar kegiatan prioritas di carousel horizontal (maksimal 5 kegiatan)
   List<TaskEntity> get topActivities {
@@ -174,6 +188,15 @@ class HomeController extends ChangeNotifier {
 
   StreamSubscription<int>? _unreadSubscription;
 
+  /// Klaster lokasi tersinkron (lihat [HomeState.syncedTopLocations]) dalam
+  /// bentuk listenable - halaman Peta Sebaran & Detail Lokasi yang dibuka
+  /// dari Beranda ikut diperbarui saat status kegiatan berubah (mis.
+  /// kembali dari Detail Tugas setelah memulai/mengirim tugas), tanpa
+  /// harus ditutup dan dibuka ulang.
+  final ValueNotifier<List<TopLocationStat>> syncedLocations =
+      ValueNotifier(const []);
+  String _syncedLocationsSignature = '';
+
   HomeState _state = HomeState(selectedPeriod: DashboardPeriod.thisMonth());
   HomeState get state => _state;
 
@@ -276,13 +299,33 @@ class HomeController extends ChangeNotifier {
     _unreadSubscription?.cancel();
     _authSessionManager?.removeListener(_onUserSessionChanged);
     _backgroundSyncService.removeListener(_onBackgroundSyncChanged);
+    syncedLocations.dispose();
     super.dispose();
   }
 
   void _update(HomeState newState) {
     if (_isDisposed) return;
     _state = newState;
+    _publishSyncedLocations();
     notifyListeners();
+  }
+
+  /// Hanya memberi tahu listener saat isi klaster benar-benar berubah -
+  /// `_update` dipanggil sangat sering (spinner sync, notifikasi, dst.)
+  /// dan halaman peta membangun ulang marker native setiap kali berubah.
+  void _publishSyncedLocations() {
+    final locations = _state.syncedTopLocations;
+    final signature = locations
+        .map(
+          (l) =>
+              '${l.location}|${l.count}|${l.latitude}|${l.longitude}|'
+              '${l.thumbnailUrl}|'
+              '${l.activities.map((a) => '${a.taskId}:${a.status}:${a.title}').join(',')}',
+        )
+        .join(';');
+    if (signature == _syncedLocationsSignature) return;
+    _syncedLocationsSignature = signature;
+    syncedLocations.value = locations;
   }
 
   Future<void> load() => loadHome();

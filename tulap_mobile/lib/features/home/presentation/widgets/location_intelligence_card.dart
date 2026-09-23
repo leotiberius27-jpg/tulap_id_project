@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_date_formatter.dart';
 import '../../../dashboard/domain/entities/top_location_stat.dart';
@@ -19,10 +20,15 @@ class LocationIntelligenceCard extends StatefulWidget {
   final List<TopLocationStat> topLocations;
   final void Function(BuildContext context, String taskId)? onOpenTask;
 
+  /// Diteruskan ke halaman Detail Lokasi & Peta Sebaran supaya keduanya
+  /// tetap tersinkron dengan "Kegiatan Saya" selama terbuka.
+  final ValueListenable<List<TopLocationStat>>? liveLocations;
+
   const LocationIntelligenceCard({
     super.key,
     required this.topLocations,
     this.onOpenTask,
+    this.liveLocations,
   });
 
   @override
@@ -169,6 +175,7 @@ class _LocationIntelligenceCardState extends State<LocationIntelligenceCard> {
           location: loc,
           allLocations: widget.topLocations,
           onOpenTask: widget.onOpenTask,
+          liveLocations: widget.liveLocations,
         ),
       ),
     );
@@ -180,6 +187,7 @@ class _LocationIntelligenceCardState extends State<LocationIntelligenceCard> {
         builder: (_) => LocationDistributionMapPage(
           topLocations: widget.topLocations,
           onOpenTask: widget.onOpenTask,
+          liveLocations: widget.liveLocations,
         ),
       ),
     );
