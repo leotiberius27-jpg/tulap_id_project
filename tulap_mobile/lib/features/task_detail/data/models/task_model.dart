@@ -49,9 +49,6 @@ class ChecklistItemModel extends ChecklistItemEntity {
   }
 }
 
-/// Status mapping camelCase (Dart) <-> SCREAMING_SNAKE_CASE (backend
-/// enum TaskStatus) - dipusatkan di sini agar tidak tersebar di banyak
-/// tempat.
 TaskStatusEntity taskStatusFromApiString(String value) {
   switch (value) {
     case 'DRAFT':
@@ -98,12 +95,11 @@ class TaskModel extends TaskEntity {
     super.completedAt,
     super.createdAt,
     super.updatedAt,
+    super.targetLatitude,
+    super.targetLongitude,
+    super.locationRadiusMeters,
   });
 
-  /// Parsing dari response `GET /tasks/:id` backend - backend
-  /// mengembalikan relasi `assignee` sebagai object, bukan hanya ID.
-  /// `revisionNotes` (jika ada) diurutkan terbaru-dulu oleh backend
-  /// (TasksService._defaultInclude) - ambil elemen pertama saja.
   factory TaskModel.fromApiJson(
     Map<String, dynamic> json, {
     List<ChecklistItemModel> checklistItems = const [],
@@ -111,6 +107,16 @@ class TaskModel extends TaskEntity {
     int expenseNoteCount = 0,
   }) {
     final revisionNotes = json['revisionNotes'] as List?;
+    final targetLat = json['targetLatitude'] is num
+        ? (json['targetLatitude'] as num).toDouble()
+        : null;
+    final targetLng = json['targetLongitude'] is num
+        ? (json['targetLongitude'] as num).toDouble()
+        : null;
+    final radius = json['locationRadiusMeters'] is num
+        ? (json['locationRadiusMeters'] as num).toDouble()
+        : 100.0;
+
     return TaskModel(
       id: json['id'] as String,
       taskCode: json['taskCode'] as String,
@@ -122,8 +128,7 @@ class TaskModel extends TaskEntity {
       budgetAmount: double.parse(json['budgetAmount'].toString()),
       status: taskStatusFromApiString(json['status'] as String),
       assigneeId: (json['assignee'] as Map<String, dynamic>)['id'] as String,
-      assigneeName:
-          (json['assignee'] as Map<String, dynamic>)['fullName'] as String,
+      assigneeName: (json['assignee'] as Map<String, dynamic>)['fullName'] as String,
       checklistItems: checklistItems,
       geotagPhotoCount: geotagPhotoCount,
       expenseNoteCount: expenseNoteCount,
@@ -134,23 +139,16 @@ class TaskModel extends TaskEntity {
       syncStatus: 'SYNCED',
       syncVersion: (json['syncVersion'] as int?) ?? 1,
       travelId: (json['travelMissionId'] ?? json['travelId'] ?? json['travel_mission_id']) as String?,
-      startedAt: json['startedAt'] != null
-          ? DateTime.tryParse(json['startedAt'] as String)
-          : null,
-      completedAt: json['completedAt'] != null
-          ? DateTime.tryParse(json['completedAt'] as String)
-          : null,
-      createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'] as String)
-          : null,
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.tryParse(json['updatedAt'] as String)
-          : null,
+      startedAt: json['startedAt'] != null ? DateTime.tryParse(json['startedAt'] as String) : null,
+      completedAt: json['completedAt'] != null ? DateTime.tryParse(json['completedAt'] as String) : null,
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) : null,
+      updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'] as String) : null,
+      targetLatitude: targetLat,
+      targetLongitude: targetLng,
+      locationRadiusMeters: radius,
     );
   }
 
-  /// Untuk cache lokal - hanya field intinya, checklist disimpan
-  /// terpisah di tabel task_checklist_items dan digabung ulang saat dibaca.
   Map<String, dynamic> toCacheMap() {
     return {
       'id': id,
@@ -172,6 +170,9 @@ class TaskModel extends TaskEntity {
       'completedAt': completedAt?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'targetLatitude': targetLatitude,
+      'targetLongitude': targetLongitude,
+      'locationRadiusMeters': locationRadiusMeters,
     };
   }
 
@@ -203,18 +204,19 @@ class TaskModel extends TaskEntity {
       syncStatus: (map['syncStatus'] as String?) ?? 'SYNCED',
       syncVersion: (map['syncVersion'] as int?) ?? 1,
       travelId: map['travelId'] as String?,
-      startedAt: map['startedAt'] != null
-          ? DateTime.tryParse(map['startedAt'] as String)
+      startedAt: map['startedAt'] != null ? DateTime.tryParse(map['startedAt'] as String) : null,
+      completedAt: map['completedAt'] != null ? DateTime.tryParse(map['completedAt'] as String) : null,
+      createdAt: map['createdAt'] != null ? DateTime.tryParse(map['createdAt'] as String) : null,
+      updatedAt: map['updatedAt'] != null ? DateTime.tryParse(map['updatedAt'] as String) : null,
+      targetLatitude: map['targetLatitude'] is num
+          ? (map['targetLatitude'] as num).toDouble()
           : null,
-      completedAt: map['completedAt'] != null
-          ? DateTime.tryParse(map['completedAt'] as String)
+      targetLongitude: map['targetLongitude'] is num
+          ? (map['targetLongitude'] as num).toDouble()
           : null,
-      createdAt: map['createdAt'] != null
-          ? DateTime.tryParse(map['createdAt'] as String)
-          : null,
-      updatedAt: map['updatedAt'] != null
-          ? DateTime.tryParse(map['updatedAt'] as String)
-          : null,
+      locationRadiusMeters: map['locationRadiusMeters'] is num
+          ? (map['locationRadiusMeters'] as num).toDouble()
+          : 100.0,
     );
   }
 }

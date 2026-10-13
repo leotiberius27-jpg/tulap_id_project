@@ -1,17 +1,47 @@
-# tulap_mobile
+# Tulap Mobile
 
-A new Flutter project.
+Tulap Mobile adalah aplikasi Android/iOS berbasis Flutter untuk pegawai lapangan yang melakukan dokumentasi tugas, geotag bukti kegiatan, validasi lokasi, scan nota, dan sinkronisasi offline-first.
 
-## Getting Started
+Tujuan utama aplikasi ini adalah memastikan bukti lapangan dapat dipercaya, aman, dan terdokumentasi dengan baik di lokasi kerja, bahkan saat sinyal lemah atau offline.
 
-This project is a starting point for a Flutter application.
+## Fokus rilis awal
 
-A few resources to get you started if this is your first Flutter project:
+- Field evidence capture dengan GPS dan geotag
+- Validasi anti-fake GPS dan anti-root/jailbreak
+- Offline-first sync queue
+- OCR nota dan data lapangan
+- Autentikasi dan task management
+- Build Android release yang siap ke Play Store
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Hasil inti yang sudah diperkuat
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Lokasi realtime dengan filter kualitas dan smoothing
+- Deteksi data GPS stale dan posisi tidak realistis
+- Tier status GPS: verified / freshRefining / fastInitial
+- Task model siap menerima target latitude/longitude + radius tugas
+- Geofence helper siap dipakai untuk validasi area kerja
+
+## Quick start
+
+```bash
+cd tulap_mobile
+flutter pub get
+flutter analyze
+flutter test
+```
+
+## Build release
+
+```bash
+flutter build appbundle --release --dart-define=API_BASE_URL=https://your-api-host
+```
+
+## Catatan penting
+
+- Fokus pengembangan utama adalah Android mobile untuk rilis awal.
+- Background tracking lokasi tidak digunakan; aplikasi hanya memakai lokasi foreground saat capture atau pengecekan tugas.
+- Keamanan dan audit dokumen bukti lebih diutamakan daripada fitur non-inti.
+
+## Lisensi
+
+Proyek ini dibuat untuk kebutuhan operasional lapangan dan internalisasi kerja berbasis lokasi.

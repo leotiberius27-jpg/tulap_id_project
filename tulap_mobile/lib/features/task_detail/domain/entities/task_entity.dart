@@ -1,28 +1,8 @@
-/// TaskStatusEntity
+/// TaskEntity
 /// ----------------------------------------------------------------------
-/// Selaras 1:1 dengan enum TaskStatus di skema Prisma backend.
+/// Representasi murni satu tugas SPPD di layer domain. Field selaras
+/// dengan tabel `Task_SPPD` di skema Prisma backend.
 /// ----------------------------------------------------------------------
-enum TaskStatusEntity {
-  draft,
-  ongoing,
-  pendingVerification,
-  revisionNeeded,
-  verified,
-  rejected,
-  completed,
-}
-
-/// Status akhir yang tidak lagi butuh tindakan pegawai - dipakai untuk
-/// memisahkan tab "Tugas" (aktif/butuh tindakan) dari "Riwayat" (sudah
-/// tuntas), lihat TaskListController & HistoryController. Satu sumber
-/// kebenaran agar definisi "selesai" tidak drift antara kedua tab.
-extension TaskStatusEntityX on TaskStatusEntity {
-  bool get isFinal =>
-      this == TaskStatusEntity.verified ||
-      this == TaskStatusEntity.rejected ||
-      this == TaskStatusEntity.completed;
-}
-
 class ChecklistItemEntity {
   final String id;
   final String taskId;
@@ -52,11 +32,23 @@ class ChecklistItemEntity {
   }
 }
 
-/// TaskEntity
-/// ----------------------------------------------------------------------
-/// Representasi murni satu tugas SPPD di layer domain. Field selaras
-/// dengan tabel `Task_SPPD` di skema Prisma backend.
-/// ----------------------------------------------------------------------
+enum TaskStatusEntity {
+  draft,
+  ongoing,
+  pendingVerification,
+  revisionNeeded,
+  verified,
+  rejected,
+  completed,
+}
+
+extension TaskStatusEntityX on TaskStatusEntity {
+  bool get isFinal =>
+      this == TaskStatusEntity.verified ||
+      this == TaskStatusEntity.rejected ||
+      this == TaskStatusEntity.completed;
+}
+
 class TaskEntity {
   final String id;
   final String taskCode;
@@ -74,24 +66,23 @@ class TaskEntity {
   final int geotagPhotoCount;
   final int expenseNoteCount;
 
-  /// Catatan Verifikator paling baru saat status revisionNeeded/rejected
-  /// (Bagian 22 spesifikasi: "Nota BBM - Nominal kurang jelas") - null
-  /// untuk status lain, atau untuk data lama dari cache lokal sebelum
-  /// field ini ada.
   final String? latestRevisionNote;
 
   final bool isSelfCreated;
   final String syncStatus;
   final int syncVersion;
-
-  /// Kaitan ke Perjalanan Dinas (opsional jika aktivitas berdiri sendiri)
   final String? travelId;
 
-  /// Timestamp pencatatan waktu kegiatan di lapangan (offline/cloud-aware)
   final DateTime? startedAt;
   final DateTime? completedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+
+  /// Target lokasi tugas agar geotag foto hanya valid pada area kerja yang
+  /// sesuai. Nilai opsional: bila null, task tidak memaksa geofence.
+  final double? targetLatitude;
+  final double? targetLongitude;
+  final double locationRadiusMeters;
 
   const TaskEntity({
     required this.id,
@@ -117,43 +108,31 @@ class TaskEntity {
     this.completedAt,
     this.createdAt,
     this.updatedAt,
+    this.targetLatitude,
+    this.targetLongitude,
+    this.locationRadiusMeters = 100.0,
   });
 
-  /// True jika kegiatan berlangsung lebih dari 1 hari kalender
+  bool get isLocationBounded =>
+      targetLatitude != null &&
+      targetLongitude != null &&
+      locationRadiusMeters > 0;
+
   bool get isMultiDay =>
       startDate.year != endDate.year ||
       startDate.month != endDate.month ||
       startDate.day != endDate.day;
 
-  /// Dipakai TaskRepositoryImpl untuk menempelkan `latestRevisionNote`
-  /// dari hasil fetch server ke atas entity hasil gabungan cache lokal
-  TaskEntity withLatestRevisionNote(String? note) {
-    return TaskEntity(
-      id: id,
-      taskCode: taskCode,
-      taskName: taskName,
-      destination: destination,
-      description: description,
-      startDate: startDate,
-      endDate: endDate,
-      budgetAmount: budgetAmount,
-      status: status,
-      assigneeId: assigneeId,
-      assigneeName: assigneeName,
-      checklistItems: checklistItems,
-      geotagPhotoCount: geotagPhotoCount,
-      expenseNoteCount: expenseNoteCount,
-      latestRevisionNote: note,
-      isSelfCreated: isSelfCreated,
-      syncStatus: syncStatus,
-      syncVersion: syncVersion,
-      travelId: travelId,
-      startedAt: startedAt,
-      completedAt: completedAt,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-    );
-  }
+  int get completedChecklistCount =>
+      checklistItems.where((i) => i.isCompleted).length;
+
+  List<ChecklistItemEntity> get incompleteMandatoryItems =>
+      checklistItems.where((i) => i.isMandatory && !i.isCompleted).toList();
+
+  bool get isReadyToSubmit => incompleteMandatoryItems.isEmpty;
+
+  double get checklistProgress =>
+      checklistItems.isEmpty ? 0 : completedChecklistCount / checklistItems.length;
 
   TaskEntity copyWith({
     String? id,
@@ -179,6 +158,9 @@ class TaskEntity {
     DateTime? completedAt,
     DateTime? createdAt,
     DateTime? updatedAt,
+    double? targetLatitude,
+    double? targetLongitude,
+    double? locationRadiusMeters,
   }) {
     return TaskEntity(
       id: id ?? this.id,
@@ -204,21 +186,9 @@ class TaskEntity {
       completedAt: completedAt ?? this.completedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      targetLatitude: targetLatitude ?? this.targetLatitude,
+      targetLongitude: targetLongitude ?? this.targetLongitude,
+      locationRadiusMeters: locationRadiusMeters ?? this.locationRadiusMeters,
     );
   }
-
-  int get completedChecklistCount =>
-      checklistItems.where((i) => i.isCompleted).length;
-
-  List<ChecklistItemEntity> get incompleteMandatoryItems =>
-      checklistItems.where((i) => i.isMandatory && !i.isCompleted).toList();
-
-  /// Sesuai Bagian 7 spesifikasi: "1 bukti wajib belum lengkap." -
-  /// dipakai UI untuk menentukan apakah tombol "Kirim Tugas" aktif
-  /// atau CTA sekunder "Lengkapi Bukti" yang harus ditampilkan.
-  bool get isReadyToSubmit => incompleteMandatoryItems.isEmpty;
-
-  double get checklistProgress => checklistItems.isEmpty
-      ? 0
-      : completedChecklistCount / checklistItems.length;
 }
