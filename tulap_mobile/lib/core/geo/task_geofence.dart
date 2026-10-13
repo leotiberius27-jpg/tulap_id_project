@@ -1,9 +1,11 @@
+import 'dart:math';
+
 /// Task geofence status for location-aware field tasks.
 ///
-/// This utility keeps the app's field evidence logic honest: a task can have
-/// a target GPS coordinate and a radius within which evidence is considered
-/// valid. The check is intentionally simple and deterministic so it can be
-/// reused in camera capture, task validation, and verification workflows.
+/// This utility keeps field evidence honest: a task can have a target GPS
+/// coordinate and a radius within which evidence is considered valid. The check
+/// is deterministic and intentionally simple so it can be reused in the camera,
+/// task validation, and verification workflows.
 class TaskGeofenceResult {
   final bool isWithinRadius;
   final double distanceMeters;
@@ -57,18 +59,18 @@ class TaskGeofence {
     required double lat2,
     required double lon2,
   }) {
-    const earthRadius = 6371000.0;
+    const earthRadiusMeters = 6371000.0;
+    final lat1Rad = _toRadians(lat1);
+    final lat2Rad = _toRadians(lat2);
     final dLat = _toRadians(lat2 - lat1);
     final dLon = _toRadians(lon2 - lon1);
-    final a =
-        (0.5 - (dLat / 2).cos()) +
-        (0.5 - (dLon / 2).cos()) *
-            (1 - (dLat / 2).cos()) *
-            (1 - (dLon / 2).cos());
 
-    final c = 2 * (a.sqrt().asin());
-    return earthRadius * c;
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1Rad) * cos(lat2Rad) * sin(dLon / 2) * sin(dLon / 2);
+
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return earthRadiusMeters * c;
   }
 
-  double _toRadians(double degrees) => degrees * 3.141592653589793 / 180.0;
+  double _toRadians(double degrees) => degrees * pi / 180.0;
 }
