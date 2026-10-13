@@ -22,20 +22,20 @@ class LocationIntegrityResult {
 /// MockLocationDetector
 /// ----------------------------------------------------------------------
 /// Bertugas memeriksa apakah lokasi yang dilaporkan device dapat
-/// dipercaya, dengan menggabungkan tiga sinyal:
-///   1. Flag `isMocked` dari sistem Android/iOS (via package geolocator,
-///      yang di Android memanfaatkan Location.isFromMockProvider()).
-///   2. Akurasi GPS - akurasi yang sangat buruk (>50m) dianggap
-///      mencurigakan untuk keperluan bukti resmi.
-///   3. (Opsional, disiapkan untuk pengembangan lanjutan) Validasi
-///      root/jailbreak dari RootDetector, dikombinasikan di usecase.
+/// dipercaya, dengan menggabungkan beberapa sinyal praktis untuk
+/// kebutuhan bukti lapangan:
+///   1. Flag `isMocked` dari sistem Android/iOS (via package geolocator).
+///   2. Akurasi GPS - threshold lebih ketat (30m) untuk meningkatkan
+///      kepercayaan bukti.
+///   3. Waktu tunggu (timeout) sedang diperpanjang agar device punya
+///      kesempatan memperoleh fix yang lebih baik (6s).
 ///
-/// Threshold akurasi & timeout SENGAJA dikonfigurasi sebagai konstanta
-/// agar mudah disesuaikan tanpa mengubah logic inti.
+/// Implementasi ini dirancang mudah disesuaikan: ubah konstanta di atas
+/// tanpa mengubah logika utama.
 /// ----------------------------------------------------------------------
 class MockLocationDetector {
-  static const double _maxAcceptableAccuracyMeters = 50.0;
-  static const Duration _locationTimeout = Duration(seconds: 4);
+  static const double _maxAcceptableAccuracyMeters = 30.0;
+  static const Duration _locationTimeout = Duration(seconds: 6);
 
   /// Mengevaluasi objek [Position] yang sudah didapat secara instan
   /// tanpa memicu I/O GPS baru (dipakai untuk Fast Pipeline & atomic capture).
@@ -74,16 +74,13 @@ class MockLocationDetector {
       }
     }
     if (permission == LocationPermission.deniedForever) {
-      throw Exception(
-        'Izin lokasi ditolak permanen. Aktifkan lewat pengaturan.',
-      );
+      throw Exception('Izin lokasi ditolak permanen. Aktifkan lewat pengaturan.');
     }
 
-    // Coba last known position dahulu secara instan (jika akurasi <= 50m)
     try {
       final lastKnown = await Geolocator.getLastKnownPosition();
       if (lastKnown != null &&
-          DateTime.now().difference(lastKnown.timestamp).inMinutes <= 15 &&
+          DateTime.now().difference(lastKnown.timestamp!).inMinutes <= 15 &&
           lastKnown.accuracy <= _maxAcceptableAccuracyMeters) {
         return evaluatePosition(lastKnown);
       }
