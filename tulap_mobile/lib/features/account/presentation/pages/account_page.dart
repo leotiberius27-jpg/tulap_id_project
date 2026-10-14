@@ -12,6 +12,7 @@ import '../../../sync_queue/domain/repositories/sync_queue_repository.dart';
 import '../../../sync_queue/presentation/pages/sync_center_page.dart';
 import '../../../subscription/presentation/pages/payment_history_page.dart';
 import '../../../subscription/presentation/pages/subscription_page.dart';
+import '../../../quick_geotag/presentation/pages/quick_geotag_page.dart';
 import '../../domain/usecases/clear_app_cache.dart';
 import '../../domain/usecases/get_storage_breakdown.dart';
 import '../controllers/account_controller.dart';
@@ -325,6 +326,17 @@ class _AccountView extends StatelessWidget {
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const CameraSettingsPage(),
+                          ),
+                        ),
+                      ),
+                      AccountMenuRow(
+                        icon: Icons.add_location_alt_outlined,
+                        iconBgColor: AppColors.iconSoftTeal,
+                        title: 'Foto + Kunci GPS',
+                        subtitle: 'Jepret kamera & kunci koordinat terkini',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const QuickGeotagPage(),
                           ),
                         ),
                       ),

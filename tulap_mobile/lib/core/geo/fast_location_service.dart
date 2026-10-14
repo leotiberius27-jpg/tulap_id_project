@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:geolocator/geolocator.dart';
 import 'location_exceptions.dart';
+import 'location_fusion_engine.dart';
 import 'reverse_geocoder.dart';
 
 /// LocationTier
@@ -226,19 +227,35 @@ class FastLocationService {
 
   FastLocationService._internal();
 
+  /// Ambang akurasi "GPS Akurat" (badge hijau, tier verified).
+  static const double verifiedAccuracyMeters = 15.0;
+
+  /// Estimasi yang lebih tua dari ini tidak dipakai mentah-mentah saat
+  /// shutter - wajib fix baru (lihat getAtomicCaptureLocation).
+  static const Duration captureMaxAge = Duration(seconds: 30);
+
+  /// Lama GPS tetap "panas" setelah panggilan startWarmUp() terakhir.
+  /// Setiap layar yang memanggil startWarmUp() memperpanjang jendela ini.
+  static const Duration defaultWarmWindow = Duration(minutes: 3);
+
+  /// Mesin fusi Kalman - SATU sumber kebenaran posisi untuk warm-up,
+  /// stream kamera, dan shutter.
+  final LocationFusionEngine _engine = LocationFusionEngine();
+
   Position? _warmCandidatePosition;
   Position? _latestVerifiedPosition;
-  Position? _latestCandidatePosition;
-  DateTime? _latestPositionReceivedTime;
+  Position? _lastMockedPosition;
   String? _cachedAddress;
   double? _cachedAddressLat;
   double? _cachedAddressLng;
+  bool _isGeocodeInFlight = false;
 
+  StreamSubscription<Position>? _warmSub;
   StreamSubscription<Position>? _activePositionStream;
   Timer? _warmUpTimer;
-  Timer? _escalationTimer;
-  bool _isWarmUpRunning = false;
+  bool _isWarmUpStarting = false;
   bool _isCameraStreamRunning = false;
+  AppLifecycleListener? _lifecycleListener;
 
   ReverseGeocoder? _reverseGeocoder;
 
@@ -278,11 +295,7 @@ class FastLocationService {
   /// ingin menyapa user dengan pesan error yang jelas SEBELUM mereka
   /// masuk ke kamera). Melempar exception bertipe dari
   /// `location_exceptions.dart` alih-alih mengembalikan status via
-  /// callback, agar pemanggil bisa memakai try-catch biasa. Method ini
-  /// TIDAK dipakai ulang di dalam `startActiveCameraStream()` sendiri -
-  /// alur itu sudah teruji stabil (live-tested di perangkat fisik) dan
-  /// sengaja tetap memakai gaya callback-nya sendiri agar tidak berisiko
-  /// meregresi jalur yang sudah terbukti bekerja.
+  /// callback, agar pemanggil bisa memakai try-catch biasa.
   Future<void> checkAndRequestPermissions() async {
     final isEnabled = await Geolocator.isLocationServiceEnabled();
     if (!isEnabled) {
@@ -303,111 +316,205 @@ class FastLocationService {
     }
   }
 
+  /// Sampel mentah terakhir dari stream warm-up.
   Position? get warmCandidatePosition => _warmCandidatePosition;
+
+  /// Estimasi terfusi terakhir yang akurasinya <= 15 m saat diterima.
+  /// Cek umurnya (timestamp) sebelum dipakai - bisa saja sudah lama.
   Position? get latestVerifiedPosition => _latestVerifiedPosition;
 
-  /// Alias nama sesuai spesifikasi ("lastKnownValidLocation") untuk
-  /// `latestVerifiedPosition` yang sudah ada - satu sumber state yang
-  /// sama, dua nama, tidak ada duplikasi field.
+  /// Alias nama sesuai spesifikasi ("lastKnownValidLocation").
   Position? get lastKnownValidLocation => _latestVerifiedPosition;
 
-  /// Alias nama sesuai spesifikasi ("currentAccuracy") - akurasi (meter)
-  /// dari kandidat posisi terbaik yang tersedia saat ini, apa pun tier-nya.
-  double? get currentAccuracy => latestCandidatePosition?.accuracy;
+  /// Ketidakpastian (meter) estimasi saat ini, sudah termasuk umur.
+  double? get currentAccuracy => _engine.accuracyAt(DateTime.now());
 
+  /// Estimasi posisi terbaik (hasil fusi Kalman semua fix yang diterima).
   Position? get latestCandidatePosition =>
-      _latestCandidatePosition ??
-      _latestVerifiedPosition ??
-      _warmCandidatePosition;
+      _engine.estimate ?? _warmCandidatePosition;
 
   // ====================================================================
-  // 1. WORKSPACE PREFETCH / WARM-UP (PERSISTENT & ULTRA-RESPONSIVE)
+  // 0. FUSION HELPERS
   // ====================================================================
-  /// Dipanggil saat user membuka aplikasi, Activity Workspace, atau navigasi.
-  /// Mempersiapkan GPS lebih awal secara asinkron tanpa memblokir UI.
-  Future<void> startWarmUp({
-    Duration timeout = const Duration(seconds: 15),
-  }) async {
-    if (_isWarmUpRunning || _isCameraStreamRunning) return;
+  /// Memasukkan satu fix (non-mock) ke mesin fusi. `observedAt` default
+  /// = sekarang (fix live dari stream). Untuk last-known position oper
+  /// timestamp aslinya agar umurnya dihitung jujur.
+  bool _ingest(Position pos, {DateTime? observedAt}) {
+    if (pos.isMocked) return false;
+    final now = DateTime.now();
+    var at = observedAt ?? now;
+    if (at.isAfter(now)) at = now;
+    final accepted = _engine.addSample(pos, observedAt: at);
+    if (accepted) {
+      final acc = _engine.accuracyAt(now);
+      if (acc != null && acc <= verifiedAccuracyMeters) {
+        _latestVerifiedPosition = _engine.estimate;
+      }
+    }
+    return accepted;
+  }
+
+  LocationTier _tierAt(DateTime now) {
+    final acc = _engine.accuracyAt(now);
+    final age = _engine.ageAt(now);
+    if (acc == null || age == null) return LocationTier.none;
+    if (age > captureMaxAge) return LocationTier.fastInitial;
+    if (acc <= verifiedAccuracyMeters) return LocationTier.verified;
+    if (acc <= 50.0) return LocationTier.freshRefining;
+    return LocationTier.poor;
+  }
+
+  /// Snapshot estimasi terfusi untuk UI / shutter. `accuracy` sudah
+  /// termasuk pertumbuhan ketidakpastian karena umur.
+  FastLocationData _snapshot({DateTime? timestamp, String? address}) {
+    final now = DateTime.now();
+    final est = _engine.estimate;
+    if (est == null) {
+      return FastLocationData(tier: LocationTier.none, timestamp: now);
+    }
+    final age = _engine.ageAt(now) ?? Duration.zero;
+    return FastLocationData(
+      tier: _tierAt(now),
+      position: est,
+      latitude: est.latitude,
+      longitude: est.longitude,
+      accuracy: _engine.accuracyAt(now),
+      altitude: est.altitude,
+      heading: est.heading,
+      address: address ?? _cachedAddress,
+      timestamp: timestamp ?? now,
+      isMocked: false,
+      isStale: age > captureMaxAge,
+    );
+  }
+
+  FastLocationData _mockedData(Position pos) => FastLocationData(
+    tier: LocationTier.mocked,
+    position: pos,
+    latitude: pos.latitude,
+    longitude: pos.longitude,
+    accuracy: pos.accuracy,
+    timestamp: DateTime.now(),
+    isMocked: true,
+  );
+
+  void _flagMocked(Position pos) {
+    _lastMockedPosition = pos;
+    if (!_isSecurityCompromised) {
+      _isSecurityCompromised = true;
+      onMockLocationDetected?.call();
+    }
+  }
+
+  // ====================================================================
+  // 1. WARM-UP: GPS TETAP PANAS SELAMA APLIKASI DIBUKA
+  // ====================================================================
+  /// Dipanggil saat aplikasi dibuka & di layar-layar kerja (Beranda,
+  /// daftar/detail tugas). Berbeda dari versi lama yang mematikan GPS
+  /// begitu dapat satu fix ±15 m (sehingga fix itu sudah basi saat
+  /// kamera dibuka beberapa menit kemudian), stream warm-up sekarang
+  /// tetap berjalan selama [timeout] sejak panggilan TERAKHIR - mirip
+  /// aplikasi GPS kamera profesional yang menjaga GPS panas selama
+  /// aplikasi di layar. Otomatis berhenti saat aplikasi ke background
+  /// dan hidup lagi saat kembali ke depan.
+  Future<void> startWarmUp({Duration timeout = defaultWarmWindow}) async {
+    if (_isCameraStreamRunning) return;
+    _ensureLifecycleListener();
+
+    // Stream sudah jalan -> cukup perpanjang jendelanya (rolling).
+    if (_warmSub != null) {
+      _armWarmWindow(timeout);
+      return;
+    }
+    if (_isWarmUpStarting) return;
+    _isWarmUpStarting = true;
 
     try {
       final isEnabled = await Geolocator.isLocationServiceEnabled();
       if (!isEnabled) return;
 
-      var permission = await Geolocator.checkPermission();
+      final permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         return;
       }
+      if (_isCameraStreamRunning) return;
 
-      _isWarmUpRunning = true;
-      debugPrint('[FAST_LOCATION] 🚀 Background location warm-up started...');
+      debugPrint('[FAST_LOCATION] 🚀 Warm-up GPS stream started.');
 
-      // 1. Ambil last known position secara instan
+      // 1. Last known = jangkar instan (umur dihitung jujur oleh fusi).
       final lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null) {
-        _warmCandidatePosition = lastKnown;
-        _latestCandidatePosition ??= lastKnown;
-        _latestPositionReceivedTime = DateTime.now();
-        if (lastKnown.accuracy <= 15.0 && !lastKnown.isMocked) {
-          _latestVerifiedPosition = lastKnown;
-        }
-        debugPrint(
-          '[FAST_LOCATION] ⚡ Last known acquired in warm-up: ${lastKnown.latitude}, ${lastKnown.longitude} (±${lastKnown.accuracy.round()}m)',
-        );
+      if (lastKnown != null && !lastKnown.isMocked) {
+        _warmCandidatePosition ??= lastKnown;
+        _ingest(lastKnown, observedAt: lastKnown.timestamp);
       }
+      if (_isCameraStreamRunning) return;
 
-      // 2. Buka stream cepat untuk refine koordinat terbaru
-      final locationSettings = _buildPlatformLocationSettings(
-        LocationAccuracy.high,
-      );
-      final warmStream = Geolocator.getPositionStream(
-        locationSettings: locationSettings,
-      );
-
-      StreamSubscription<Position>? warmSub;
-      warmSub = warmStream.listen(
-        (pos) {
-          if (pos.isMocked) return;
-          _warmCandidatePosition = pos;
-          _latestCandidatePosition = pos;
-          _latestPositionReceivedTime = DateTime.now();
-
-          if (pos.accuracy <= 15.0) {
-            _latestVerifiedPosition = pos;
-            debugPrint(
-              '[FAST_LOCATION] 🎯 Warm-up locked high accuracy fix: ±${pos.accuracy.round()}m.',
-            );
-            warmSub?.cancel();
-            _isWarmUpRunning = false;
-          }
-        },
-        onError: (_) {
-          warmSub?.cancel();
-          _isWarmUpRunning = false;
-        },
-      );
-
-      // 3. Batasi waktu warm-up maksimal untuk menghemat baterai
-      _warmUpTimer?.cancel();
-      _warmUpTimer = Timer(timeout, () {
-        if (_isWarmUpRunning) {
-          warmSub?.cancel();
-          _isWarmUpRunning = false;
-          debugPrint(
-            '[FAST_LOCATION] ⏱️ Warm-up timeout reached. Stream stopped to preserve battery.',
+      // 2. Stream 1 Hz (laju native chip GNSS) - hemat baterai namun
+      // estimasi selalu < 1-2 detik umurnya saat kamera dibuka.
+      _warmSub =
+          Geolocator.getPositionStream(
+            locationSettings: _buildPlatformLocationSettings(
+              LocationAccuracy.high,
+              interval: const Duration(seconds: 1),
+            ),
+          ).listen(
+            (pos) {
+              if (pos.isMocked) return;
+              _warmCandidatePosition = pos;
+              _ingest(pos);
+            },
+            onError: (Object e) {
+              debugPrint('[FAST_LOCATION] ⚠️ Warm stream error: $e');
+              _cancelWarmStream();
+            },
+            cancelOnError: true,
           );
-        }
-      });
+      _armWarmWindow(timeout);
     } catch (e) {
-      _isWarmUpRunning = false;
       debugPrint('[FAST_LOCATION] ⚠️ Warm-up error: $e');
+    } finally {
+      _isWarmUpStarting = false;
     }
+  }
+
+  void _armWarmWindow(Duration timeout) {
+    _warmUpTimer?.cancel();
+    _warmUpTimer = Timer(timeout, () {
+      debugPrint('[FAST_LOCATION] ⏱️ Warm window ended, GPS released.');
+      _cancelWarmStream();
+    });
   }
 
   void stopWarmUp() {
     _warmUpTimer?.cancel();
-    _isWarmUpRunning = false;
+    _warmUpTimer = null;
+    _cancelWarmStream();
+  }
+
+  void _cancelWarmStream() {
+    _warmSub?.cancel();
+    _warmSub = null;
+  }
+
+  void _ensureLifecycleListener() {
+    if (_lifecycleListener != null) return;
+    try {
+      _lifecycleListener = AppLifecycleListener(
+        onHide: () {
+          if (_warmSub != null) {
+            debugPrint('[FAST_LOCATION] 💤 App hidden, warm GPS paused.');
+          }
+          stopWarmUp();
+        },
+        onShow: () {
+          if (!_isCameraStreamRunning) startWarmUp();
+        },
+      );
+    } catch (_) {
+      // Tanpa WidgetsBinding (mis. unit test) - warm-up tetap jalan,
+      // hanya tanpa jeda otomatis saat background.
+    }
   }
 
   // ====================================================================
@@ -418,16 +525,14 @@ class FastLocationService {
     required void Function(FastLocationData data) onLocationUpdate,
     Position? initialCandidate,
   }) async {
-    _warmUpTimer?.cancel();
-    _isWarmUpRunning = false;
+    // Stream kamera menggantikan stream warm-up; estimasi fusi DIBAWA.
+    stopWarmUp();
 
-    // Bersihkan stream lama jika ada
     await stopActiveCameraStream();
     _isCameraStreamRunning = true;
-    // Sesi baru = clean slate keamanan - lihat catatan di deklarasi
-    // _isSecurityCompromised soal kenapa flag ini TIDAK auto-reset saat
-    // stream berjalan, hanya saat sesi benar-benar dimulai ulang di sini.
+    // Sesi baru = clean slate keamanan.
     _isSecurityCompromised = false;
+    _lastMockedPosition = null;
 
     final startTime = DateTime.now();
     debugPrint('[FAST_LOCATION_PERF] 📷 camera_open = 0ms');
@@ -474,428 +579,194 @@ class FastLocationService {
     } catch (e) {
       debugPrint('[FAST_LOCATION] ℹ️ Location service check fallback: $e');
     }
+    if (!_isCameraStreamRunning) return null;
 
-    // 2. TAMPILKAN FAST INITIAL / LAST-KNOWN SEGERA (<1 Detik)
-    final candidate =
-        initialCandidate ??
-        _latestVerifiedPosition ??
-        _latestCandidatePosition ??
-        _warmCandidatePosition;
+    // 2. TAMPILKAN ESTIMASI YANG ADA SEGERA (<100 ms)
+    if (initialCandidate != null && initialCandidate.isMocked) {
+      _flagMocked(initialCandidate);
+      onLocationUpdate(_mockedData(initialCandidate));
+    } else if (initialCandidate != null && !_engine.hasEstimate) {
+      _ingest(initialCandidate, observedAt: initialCandidate.timestamp);
+    }
 
-    if (candidate != null) {
-      final isFresh = _isPositionFresh(candidate);
-      final isAccurate = candidate.accuracy <= 15.0;
-
-      final initialTier = candidate.isMocked
-          ? LocationTier.mocked
-          : (isAccurate
-                ? LocationTier.verified
-                : (candidate.accuracy <= 30.0
-                    ? LocationTier.freshRefining
-                    : LocationTier.fastInitial));
-
-      final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
-      debugPrint(
-        '[FAST_LOCATION_PERF] ⚡ last_known_displayed = ${elapsedMs}ms (tier: $initialTier, ±${candidate.accuracy.round()}m)',
-      );
-
-      onLocationUpdate(
-        FastLocationData(
-          tier: initialTier,
-          position: candidate,
-          latitude: candidate.latitude,
-          longitude: candidate.longitude,
-          accuracy: candidate.accuracy,
-          altitude: candidate.altitude,
-          heading: candidate.heading,
-          address: _cachedAddress,
-          timestamp: candidate.timestamp,
-          isMocked: candidate.isMocked,
-          isStale: !isFresh,
-        ),
-      );
-
-      // Trigger reverse geocoding paralel di latar belakang
-      _triggerAsyncReverseGeocode(
-        candidate.latitude,
-        candidate.longitude,
-        onLocationUpdate,
-      );
-    } else {
-      // Coba ambil getLastKnownPosition secara instan
+    if (!_engine.hasEstimate) {
       try {
         final lastKnown = await Geolocator.getLastKnownPosition();
-        if (lastKnown != null && _isCameraStreamRunning) {
-          _warmCandidatePosition = lastKnown;
-          _latestCandidatePosition = lastKnown;
-          final isFresh = _isPositionFresh(lastKnown);
-          final initialTier = lastKnown.isMocked
-              ? LocationTier.mocked
-              : (lastKnown.accuracy <= 15.0
-                    ? LocationTier.verified
-                    : (lastKnown.accuracy <= 30.0
-                        ? LocationTier.freshRefining
-                        : LocationTier.fastInitial));
-
-          final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
-          debugPrint(
-            '[FAST_LOCATION_PERF] ⚡ direct_last_known = ${elapsedMs}ms (±${lastKnown.accuracy.round()}m)',
-          );
-
-          onLocationUpdate(
-            FastLocationData(
-              tier: initialTier,
-              position: lastKnown,
-              latitude: lastKnown.latitude,
-              longitude: lastKnown.longitude,
-              accuracy: lastKnown.accuracy,
-              altitude: lastKnown.altitude,
-              heading: lastKnown.heading,
-              address: _cachedAddress,
-              timestamp: lastKnown.timestamp,
-              isMocked: lastKnown.isMocked,
-              isStale: !isFresh,
-            ),
-          );
-
-          _triggerAsyncReverseGeocode(
-            lastKnown.latitude,
-            lastKnown.longitude,
-            onLocationUpdate,
-          );
-        } else if (_isCameraStreamRunning) {
-          onLocationUpdate(
-            FastLocationData(
-              tier: LocationTier.none,
-              timestamp: DateTime.now(),
-            ),
-          );
+        if (lastKnown != null && !lastKnown.isMocked) {
+          _ingest(lastKnown, observedAt: lastKnown.timestamp);
         }
       } catch (_) {}
     }
+    if (!_isCameraStreamRunning) return null;
 
-    // 3. MULAI FRESH HIGH-ACCURACY POSITION STREAM
-    // Target agresif: akurasi <= 15m dalam < 2 detik selagi layar kamera
-    // terbuka. Berbeda dari startWarmUp() (LocationAccuracy.high, demi
-    // baterai karena bisa berjalan lama di background) - stream ini
-    // HANYA aktif selagi kamera terbuka (durasi terbatas, distopped di
-    // stopActiveCameraStream()), jadi aman memakai mode paling agresif.
+    if (_engine.hasEstimate) {
+      final initial = _snapshot();
+      debugPrint(
+        '[FAST_LOCATION_PERF] ⚡ initial_estimate = ${DateTime.now().difference(startTime).inMilliseconds}ms (tier: ${initial.tier}, ±${initial.accuracy?.round()}m)',
+      );
+      onLocationUpdate(initial);
+      _triggerAsyncReverseGeocode(
+        initial.latitude!,
+        initial.longitude!,
+        onLocationUpdate,
+      );
+    }
+    // Tanpa estimasi: sengaja tidak mengirim tier `none` - itu akan
+    // menimpa hasil validasi lokasi awal milik pemanggil.
+
+    // 3. FIX CEPAT PARALEL: getCurrentLocation fused (Wi-Fi/sel/GNSS)
+    // sering memberi fix segar < 1 detik saat GNSS masih cold-start;
+    // stream di bawah lalu terus mempersempitnya lewat fusi.
+    unawaited(_parallelQuickFix(onLocationUpdate, startTime));
+
+    // 4. STREAM GNSS AKURASI TERTINGGI selama kamera terbuka. Sengaja
+    // TANPA "eskalasi" yang memutus & membuka ulang stream: di Android
+    // best/bestForNavigation sama-sama PRIORITY_HIGH_ACCURACY sehingga
+    // eskalasi hanya menciptakan jeda tanpa data.
     try {
-      final settings = _buildPlatformLocationSettings(
-        LocationAccuracy.bestForNavigation,
-      );
-      final positionStream = Geolocator.getPositionStream(
-        locationSettings: settings,
-      );
-
       bool firstFreshLogged = false;
-
-      _activePositionStream = positionStream.listen(
-        (pos) {
-          if (!_isCameraStreamRunning) return;
-
-          final now = DateTime.now();
-          _latestPositionReceivedTime = now;
-          _latestCandidatePosition = pos;
-
-          final elapsedMs = now.difference(startTime).inMilliseconds;
-          if (!firstFreshLogged) {
-            firstFreshLogged = true;
-            debugPrint(
-              '[FAST_LOCATION_PERF] 🟢 first_fresh_gps = ${elapsedMs}ms (acc: ±${pos.accuracy.round()}m)',
-            );
-          }
-
-          // Gunakan Best Location Candidate Selection Strategy
-          final bestPos = selectBestCandidate(
-            currentBest: _latestCandidatePosition,
-            newCandidate: pos,
-          );
-          _latestCandidatePosition = bestPos;
-
-          if (pos.isMocked) {
-            // Kirim SATU update terakhir bertier `mocked` dulu (agar UI
-            // sempat menampilkan modal blokir dengan koordinat mock yang
-            // terdeteksi), baru hentikan stream sepenuhnya. Ini sengaja
-            // BERBEDA dari perilaku lama (stream tetap jalan, tier mocked
-            // hanya dilaporkan tiap tick) - spesifikasi keamanan
-            // mengharuskan sesi yang terbukti terkompromi berhenti total,
-            // bukan diam-diam pulih sendiri jika mock dimatikan user.
-            onLocationUpdate(
-              FastLocationData(
-                tier: LocationTier.mocked,
-                position: pos,
-                latitude: pos.latitude,
-                longitude: pos.longitude,
-                accuracy: pos.accuracy,
-                timestamp: now,
-                isMocked: true,
-              ),
-            );
-            if (!_isSecurityCompromised) {
-              _isSecurityCompromised = true;
-              onMockLocationDetected?.call();
-            }
-            stopActiveCameraStream();
-            return;
-          }
-
-          LocationTier currentTier;
-          if (bestPos.accuracy <= 15.0) {
-            currentTier = LocationTier.verified;
-            _latestVerifiedPosition = bestPos;
-          } else if (bestPos.accuracy <= 30.0) {
-            currentTier = LocationTier.freshRefining;
-          } else if (bestPos.accuracy <= 50.0) {
-            currentTier = LocationTier.freshRefining;
-          } else {
-            currentTier = LocationTier.poor;
-          }
-
-          onLocationUpdate(
-            FastLocationData(
-              tier: currentTier,
-              position: bestPos,
-              latitude: bestPos.latitude,
-              longitude: bestPos.longitude,
-              accuracy: bestPos.accuracy,
-              altitude: bestPos.altitude,
-              heading: bestPos.heading,
-              address: _cachedAddress,
-              timestamp: now,
-              isMocked: false,
-              isStale: false,
+      _activePositionStream =
+          Geolocator.getPositionStream(
+            locationSettings: _buildPlatformLocationSettings(
+              LocationAccuracy.bestForNavigation,
+              interval: const Duration(milliseconds: 100),
             ),
-          );
+          ).listen(
+            (pos) {
+              if (!_isCameraStreamRunning) return;
 
-          // Asynchronous geocoding update jika berpindah > 30 meter
-          _triggerAsyncReverseGeocode(
-            bestPos.latitude,
-            bestPos.longitude,
-            onLocationUpdate,
+              if (!firstFreshLogged) {
+                firstFreshLogged = true;
+                debugPrint(
+                  '[FAST_LOCATION_PERF] 🟢 first_fresh_gps = ${DateTime.now().difference(startTime).inMilliseconds}ms (raw ±${pos.accuracy.round()}m)',
+                );
+              }
+
+              if (pos.isMocked) {
+                // Kirim SATU update bertier `mocked` (agar UI menampilkan
+                // modal blokir), lalu hentikan stream sepenuhnya - sesi yang
+                // terbukti terkompromi tidak boleh pulih diam-diam.
+                onLocationUpdate(_mockedData(pos));
+                _flagMocked(pos);
+                stopActiveCameraStream();
+                return;
+              }
+
+              _ingest(pos);
+              final data = _snapshot();
+              onLocationUpdate(data);
+              _triggerAsyncReverseGeocode(
+                data.latitude!,
+                data.longitude!,
+                onLocationUpdate,
+              );
+            },
+            onError: (Object err) {
+              debugPrint('[FAST_LOCATION] ⚠️ Stream error: $err');
+            },
           );
-        },
-        onError: (err) {
-          debugPrint('[FAST_LOCATION] ⚠️ Stream error: $err');
-        },
-      );
     } catch (e) {
       debugPrint(
         '[FAST_LOCATION] ℹ️ Position stream initialization fallback: $e',
       );
     }
 
-    // 4. ADAPTIVE ESCALATION: target <= 15m dalam < 2 detik (spesifikasi
-    // agresif). Dipersingkat dari 4 detik -> 1.5 detik supaya perangkat
-    // yang belum konvergen ke stream bestForNavigation di atas (mis. GPS
-    // chain baru dingin) segera dipaksa ke LocationAccuracy.best sebelum
-    // ambang 2 detik terlewati, bukan menunggu sampai 4 detik berlalu.
-    _escalationTimer?.cancel();
-    _escalationTimer = Timer(const Duration(milliseconds: 1500), () {
-      if (_isCameraStreamRunning &&
-          (_latestVerifiedPosition == null ||
-              _latestVerifiedPosition!.accuracy > 30.0)) {
-        debugPrint(
-          '[FAST_LOCATION] ⚡ Escalating stream to LocationAccuracy.best for faster convergence...',
-        );
-        _escalateStreamAccuracy(onLocationUpdate);
-      }
-    });
-
     return _activePositionStream;
   }
 
-  void _escalateStreamAccuracy(
+  Future<void> _parallelQuickFix(
     void Function(FastLocationData data) onLocationUpdate,
-  ) {
-    if (!_isCameraStreamRunning) return;
+    DateTime startTime,
+  ) async {
     try {
-      final bestSettings = _buildPlatformLocationSettings(
-        LocationAccuracy.best,
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: _buildPlatformLocationSettings(
+          LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 3),
+        ),
       );
-      _activePositionStream?.cancel();
-      _activePositionStream =
-          Geolocator.getPositionStream(locationSettings: bestSettings).listen((
-            pos,
-          ) {
-            if (!_isCameraStreamRunning) return;
-            final now = DateTime.now();
-            _latestPositionReceivedTime = now;
-            _latestCandidatePosition = pos;
-
-            if (pos.isMocked) {
-              onLocationUpdate(
-                FastLocationData(
-                  tier: LocationTier.mocked,
-                  position: pos,
-                  latitude: pos.latitude,
-                  longitude: pos.longitude,
-                  accuracy: pos.accuracy,
-                  timestamp: now,
-                  isMocked: true,
-                ),
-              );
-              if (!_isSecurityCompromised) {
-                _isSecurityCompromised = true;
-                onMockLocationDetected?.call();
-              }
-              stopActiveCameraStream();
-              return;
-            }
-
-            final isVerified = pos.accuracy <= 15.0;
-            if (isVerified) {
-              _latestVerifiedPosition = pos;
-            }
-
-            onLocationUpdate(
-              FastLocationData(
-                tier: isVerified
-                    ? LocationTier.verified
-                    : LocationTier.freshRefining,
-                position: pos,
-                latitude: pos.latitude,
-                longitude: pos.longitude,
-                accuracy: pos.accuracy,
-                address: _cachedAddress,
-                timestamp: now,
-                isMocked: false,
-                isStale: false,
-              ),
-            );
-          });
-    } catch (_) {}
+      if (!_isCameraStreamRunning) return;
+      if (pos.isMocked) {
+        onLocationUpdate(_mockedData(pos));
+        _flagMocked(pos);
+        stopActiveCameraStream();
+        return;
+      }
+      if (_ingest(pos)) {
+        final data = _snapshot();
+        debugPrint(
+          '[FAST_LOCATION_PERF] ⚡ parallel_quick_fix = ${DateTime.now().difference(startTime).inMilliseconds}ms (raw ±${pos.accuracy.round()}m, fused ±${data.accuracy?.round()}m)',
+        );
+        onLocationUpdate(data);
+      }
+    } catch (_) {
+      // Timeout / tidak ada fix cepat - stream utama tetap berjalan.
+    }
   }
 
   Future<void> stopActiveCameraStream() async {
     _isCameraStreamRunning = false;
-    _escalationTimer?.cancel();
     await _activePositionStream?.cancel();
     _activePositionStream = null;
     debugPrint('[FAST_LOCATION] 🛑 Camera stream stopped and released.');
   }
 
   // ====================================================================
-  // 3. ATOMIC CAPTURE LOCATION (0ms SHUTTER LATENCY)
+  // 3. ATOMIC CAPTURE LOCATION (0 ms SHUTTER LATENCY)
   // ====================================================================
-  /// Mengambil data lokasi terverifikasi secara atomik saat tombol jepret ditekan.
-  /// MENGHILANGKAN `await getCurrentPosition()` saat shutter.
+  /// Mengambil lokasi saat tombol jepret ditekan. Bila estimasi fusi
+  /// berumur <= [captureMaxAge] dipakai instan (0 ms). Bila tidak, minta
+  /// fix baru maks 2.5 detik - TIDAK PERNAH diam-diam mencap koordinat
+  /// basi sebagai lokasi foto.
   Future<FastLocationData> getAtomicCaptureLocation() async {
     final now = DateTime.now();
 
-    // 1. Prioritas 1: Gunakan latest verified position jika fresh
-    if (_latestVerifiedPosition != null &&
-        _isPositionFresh(_latestVerifiedPosition!)) {
-      debugPrint(
-        '[FAST_LOCATION_PERF] 📸 shutter_atomic_verified = 0ms delay (acc: ±${_latestVerifiedPosition!.accuracy.round()}m)',
-      );
-      return FastLocationData(
-        tier: LocationTier.verified,
-        position: _latestVerifiedPosition,
-        latitude: _latestVerifiedPosition!.latitude,
-        longitude: _latestVerifiedPosition!.longitude,
-        accuracy: _latestVerifiedPosition!.accuracy,
-        altitude: _latestVerifiedPosition!.altitude,
-        heading: _latestVerifiedPosition!.heading,
-        address: _cachedAddress,
-        timestamp: now,
-        isMocked: _latestVerifiedPosition!.isMocked,
-        isStale: false,
-      );
+    // 0. Sesi terbukti mock -> tetap laporkan mock (diblokir pemanggil).
+    final mocked = _lastMockedPosition;
+    if (_isSecurityCompromised && mocked != null) {
+      return _mockedData(mocked);
     }
 
-    // 2. Prioritas 2: Gunakan latest candidate jika fresh
-    final bestCandidate =
-        _latestCandidatePosition ?? _warmCandidatePosition;
-    if (bestCandidate != null && _isPositionFresh(bestCandidate)) {
+    // 1. Estimasi fusi yang masih segar.
+    final age = _engine.ageAt(now);
+    if (age != null && age <= captureMaxAge) {
+      final data = _snapshot(timestamp: now);
       debugPrint(
-        '[FAST_LOCATION_PERF] 📸 shutter_atomic_candidate = 0ms delay (acc: ±${bestCandidate.accuracy.round()}m)',
+        '[FAST_LOCATION_PERF] 📸 shutter_atomic = 0ms delay (±${data.accuracy?.round()}m, age ${age.inMilliseconds}ms, ${_engine.sampleCount} fixes fused)',
       );
-      final isVerified =
-          bestCandidate.accuracy <= 15.0 && !bestCandidate.isMocked;
-      return FastLocationData(
-        tier: isVerified ? LocationTier.verified : LocationTier.freshRefining,
-        position: bestCandidate,
-        latitude: bestCandidate.latitude,
-        longitude: bestCandidate.longitude,
-        accuracy: bestCandidate.accuracy,
-        altitude: bestCandidate.altitude,
-        heading: bestCandidate.heading,
-        address: _cachedAddress,
-        timestamp: now,
-        isMocked: bestCandidate.isMocked,
-        isStale: false,
-      );
+      return data;
     }
 
-    // 3. Fallback: Coba getLastKnownPosition instan
+    // 2. Estimasi basi / kosong -> fix baru singkat.
     try {
-      final lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null) {
-        _latestCandidatePosition = lastKnown;
-        final isVerified =
-            lastKnown.accuracy <= 15.0 && !lastKnown.isMocked;
-        return FastLocationData(
-          tier: isVerified
-              ? LocationTier.verified
-              : LocationTier.freshRefining,
-          position: lastKnown,
-          latitude: lastKnown.latitude,
-          longitude: lastKnown.longitude,
-          accuracy: lastKnown.accuracy,
-          altitude: lastKnown.altitude,
-          heading: lastKnown.heading,
-          address: _cachedAddress,
-          timestamp: now,
-          isMocked: lastKnown.isMocked,
-          isStale: false,
-        );
+      debugPrint('[FAST_LOCATION] ⚠️ Estimate stale, requesting 2.5s fix...');
+      final quickPos = await Geolocator.getCurrentPosition(
+        locationSettings: _buildPlatformLocationSettings(
+          LocationAccuracy.high,
+          timeLimit: const Duration(milliseconds: 2500),
+        ),
+      );
+      if (quickPos.isMocked) {
+        _flagMocked(quickPos);
+        return _mockedData(quickPos);
       }
+      _ingest(quickPos);
+      return _snapshot(timestamp: now);
     } catch (_) {}
 
-    // 4. Fallback terakhir: Quick position fix (1.5s)
-    try {
-      debugPrint('[FAST_LOCATION] ⚠️ Cache stale, requesting quick 1.5s fix...');
-      final quickPos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(milliseconds: 1500),
-      );
-      _latestCandidatePosition = quickPos;
-      if (quickPos.accuracy <= 15.0 && !quickPos.isMocked) {
-        _latestVerifiedPosition = quickPos;
-      }
-      return FastLocationData(
-        tier: quickPos.accuracy <= 15.0
-            ? LocationTier.verified
-            : LocationTier.freshRefining,
-        position: quickPos,
-        latitude: quickPos.latitude,
-        longitude: quickPos.longitude,
-        accuracy: quickPos.accuracy,
-        altitude: quickPos.altitude,
-        heading: quickPos.heading,
-        address: _cachedAddress,
-        timestamp: now,
-        isMocked: quickPos.isMocked,
-        isStale: false,
-      );
-    } catch (_) {
-      // Jika GPS gagal, gunakan kandidat yang ada sebagai fallback aman
-      final fallbackPos = _latestCandidatePosition ?? _warmCandidatePosition;
-      return FastLocationData(
-        tier: LocationTier.poor,
-        position: fallbackPos,
-        latitude: fallbackPos?.latitude,
-        longitude: fallbackPos?.longitude,
-        accuracy: fallbackPos?.accuracy ?? 99.0,
-        altitude: fallbackPos?.altitude,
-        heading: fallbackPos?.heading,
-        address: _cachedAddress,
-        timestamp: now,
-        isMocked: fallbackPos?.isMocked ?? false,
-        isStale: true,
-      );
+    // 3. Fallback: estimasi lama dengan ketidakpastian jujur, ditandai
+    // stale & poor agar UI/validasi bisa menolaknya.
+    if (!_engine.hasEstimate) {
+      try {
+        final lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null) {
+          if (lastKnown.isMocked) return _mockedData(lastKnown);
+          _ingest(lastKnown, observedAt: lastKnown.timestamp);
+        }
+      } catch (_) {}
     }
+    final fallback = _snapshot(timestamp: now);
+    return fallback.copyWith(tier: LocationTier.poor, isStale: true);
   }
 
   // ====================================================================
@@ -918,6 +789,10 @@ class FastLocationService {
         return;
       }
     }
+    // Satu request sekaligus - tick stream 100 ms tidak boleh membanjiri
+    // geocoder selagi request sebelumnya masih berjalan.
+    if (_isGeocodeInFlight) return;
+    _isGeocodeInFlight = true;
 
     try {
       final address = await _reverseGeocoder!.reverseGeocode(
@@ -925,126 +800,52 @@ class FastLocationService {
         longitude: lng,
       );
 
-      if (_isCameraStreamRunning) {
-        _cachedAddress = address;
-        _cachedAddressLat = lat;
-        _cachedAddressLng = lng;
-
-        final currentPos =
-            _latestCandidatePosition ??
-            _latestVerifiedPosition ??
-            _warmCandidatePosition;
-        if (currentPos != null) {
-          onLocationUpdate(
-            FastLocationData(
-              tier: currentPos.accuracy <= 15.0
-                  ? LocationTier.verified
-                  : (currentPos.accuracy <= 30.0
-                      ? LocationTier.freshRefining
-                      : LocationTier.fastInitial),
-              position: currentPos,
-              latitude: currentPos.latitude,
-              longitude: currentPos.longitude,
-              accuracy: currentPos.accuracy,
-              altitude: currentPos.altitude,
-              heading: currentPos.heading,
-              address: address,
-              timestamp: DateTime.now(),
-              isMocked: currentPos.isMocked,
-              isStale: false,
-            ),
-          );
-        }
+      _cachedAddress = address;
+      _cachedAddressLat = lat;
+      _cachedAddressLng = lng;
+      if (_isCameraStreamRunning && _engine.hasEstimate) {
+        onLocationUpdate(_snapshot(address: address));
       }
     } catch (_) {
-      // Offline / error: Koordinat tetap valid, alamat di-update nanti saat online
+      // Offline / error: Koordinat tetap valid, alamat di-update nanti.
+    } finally {
+      _isGeocodeInFlight = false;
     }
   }
 
   // ====================================================================
-  // 5. HELPER UTILITIES & BEST-CANDIDATE SELECTION
+  // 5. PLATFORM SETTINGS
   // ====================================================================
-  Position selectBestCandidate({
-    Position? currentBest,
-    required Position newCandidate,
+  /// Android: geolocator memakai FusedLocationProviderClient (GNSS +
+  /// Wi-Fi + sel + sensor); accuracy high/best/bestForNavigation =
+  /// PRIORITY_HIGH_ACCURACY. iOS: `pauseLocationUpdatesAutomatically`
+  /// WAJIB false - petugas yang berdiri diam memotret justru kondisi
+  /// yang membuat iOS menjeda update bila true.
+  LocationSettings _buildPlatformLocationSettings(
+    LocationAccuracy accuracy, {
+    Duration interval = const Duration(seconds: 1),
+    Duration? timeLimit,
   }) {
-    if (currentBest == null) return newCandidate;
-    if (newCandidate.isMocked && !currentBest.isMocked) return currentBest;
-
-    final now = DateTime.now();
-    final ageCurrentMs = now.difference(currentBest.timestamp).inMilliseconds;
-    final ageNewMs = now.difference(newCandidate.timestamp).inMilliseconds;
-
-    // 1. Jika currentBest sudah basi (> 60s) dan newCandidate fresh (<= 60s)
-    if (ageCurrentMs > 60000 && ageNewMs <= 60000) {
-      return newCandidate;
-    }
-
-    // 2. Sanity check: Pergeseran posisi mustahil (> 150 m/s atau ~540 km/h)
-    final distanceMeters = Geolocator.distanceBetween(
-      currentBest.latitude,
-      currentBest.longitude,
-      newCandidate.latitude,
-      newCandidate.longitude,
-    );
-    final deltaSeconds = (ageCurrentMs - ageNewMs).abs() / 1000.0;
-    if (deltaSeconds > 0.1 && (distanceMeters / deltaSeconds) > 150.0) {
-      return currentBest;
-    }
-
-    // 3. Jika akurasi newCandidate lebih baik atau sama
-    if (newCandidate.accuracy <= currentBest.accuracy) {
-      return newCandidate;
-    }
-
-    // 4. Jika newCandidate sedikit kurang akurat tapi currentBest sudah berumur (> 10s)
-    // dan newCandidate sangat baru (< 1s)
-    if (ageCurrentMs > 10000 &&
-        ageNewMs < 1000 &&
-        (newCandidate.accuracy - currentBest.accuracy) < 15.0) {
-      return newCandidate;
-    }
-
-    return currentBest;
-  }
-
-  bool _isPositionFresh(Position position) {
-    if (_latestPositionReceivedTime != null) {
-      final age = DateTime.now()
-          .difference(_latestPositionReceivedTime!)
-          .inSeconds;
-      return age <= 60;
-    }
-    final age = DateTime.now().difference(position.timestamp).inSeconds;
-    return age <= 90;
-  }
-
-  /// Mapping ke spesifikasi "maximum aggressiveness" (Priority HIGH_ACCURACY,
-  /// interval & fastestInterval 1 detik): `AndroidSettings.accuracy` di
-  /// atas `LocationAccuracy.high`/`.bestForNavigation` sudah setara
-  /// `PRIORITY_HIGH_ACCURACY` pada FusedLocationProviderClient yang
-  /// dipakai geolocator secara internal di Android. `intervalDuration`
-  /// 100ms di bawah ini SUDAH LEBIH agresif daripada interval 1 detik
-  /// yang diminta (geolocator tidak mengekspos interval & fastestInterval
-  /// terpisah - satu parameter ini memetakan ke keduanya) - sengaja
-  /// dipertahankan di 100ms, tidak dilonggarkan ke 1000ms, karena target
-  /// <= 15m dalam < 2 detik butuh sample serapat mungkin untuk difilter
-  /// oleh selectBestCandidate().
-  LocationSettings _buildPlatformLocationSettings(LocationAccuracy accuracy) {
     if (Platform.isAndroid) {
       return AndroidSettings(
         accuracy: accuracy,
         distanceFilter: 0,
-        intervalDuration: const Duration(milliseconds: 100),
+        intervalDuration: interval,
+        timeLimit: timeLimit,
       );
     } else if (Platform.isIOS) {
       return AppleSettings(
         accuracy: accuracy,
         distanceFilter: 0,
         activityType: ActivityType.fitness,
-        pauseLocationUpdatesAutomatically: true,
+        pauseLocationUpdatesAutomatically: false,
+        timeLimit: timeLimit,
       );
     }
-    return LocationSettings(accuracy: accuracy, distanceFilter: 0);
+    return LocationSettings(
+      accuracy: accuracy,
+      distanceFilter: 0,
+      timeLimit: timeLimit,
+    );
   }
 }

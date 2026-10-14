@@ -405,7 +405,9 @@ class TaskDetailController extends ChangeNotifier {
   @override
   void dispose() {
     _isDisposed = true;
-    FastLocationService.instance.stopWarmUp();
+    // GPS warm-up sengaja TIDAK dihentikan di sini: kembali ke Beranda
+    // lalu buka kamera harus tetap dapat fix panas. Jendela warm-up
+    // berakhir sendiri & jeda otomatis saat aplikasi ke background.
     super.dispose();
   }
 }
