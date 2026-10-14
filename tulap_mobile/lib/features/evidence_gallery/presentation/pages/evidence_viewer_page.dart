@@ -6,6 +6,7 @@ import '../../../../core/media/media_share_service.dart';
 import '../../../evidence_verification/presentation/pages/evidence_detail_page.dart';
 import '../../../geotag_camera/domain/entities/geotag_photo_entity.dart';
 import '../../../task_detail/domain/entities/task_entity.dart';
+import '../../domain/evidence_deletion_policy.dart';
 import '../../domain/usecases/delete_evidence.dart';
 import '../widgets/evidence_photo_viewer_widget.dart';
 import '../widgets/evidence_video_player_widget.dart';
@@ -128,8 +129,60 @@ class _EvidenceViewerPageState extends State<EvidenceViewerPage> {
     );
   }
 
+  /// Penjelasan saat bukti belum aman dihapus (file asli belum
+  /// terverifikasi di server) - lihat EvidenceDeletionPolicy.
+  Future<void> _showDeletionBlocked(EvidenceDeletionDecision decision) {
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Colors.white12),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.lock_outline_rounded, color: Color(0xFFF59E0B)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                decision.title,
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          decision.message,
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF334155),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Mengerti'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _confirmDeleteEvidence(GeotagPhotoEntity photo) async {
     HapticFeedback.mediumImpact();
+
+    final decision = await _deleteEvidence.check(evidenceId: photo.id);
+    if (!mounted) return;
+    if (decision != null && !decision.isAllowed) {
+      await _showDeletionBlocked(decision);
+      return;
+    }
+
     final taskTitle = widget.taskName ?? widget.task?.taskName ?? 'kegiatan ini';
 
     final confirmed = await showDialog<bool>(
@@ -181,6 +234,10 @@ class _EvidenceViewerPageState extends State<EvidenceViewerPage> {
       final result = await _deleteEvidence(evidenceId: photo.id);
       result.fold(
         (failure) {
+          if (failure is EvidenceDeletionBlockedFailure) {
+            if (mounted) _showDeletionBlocked(failure.decision);
+            return;
+          }
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

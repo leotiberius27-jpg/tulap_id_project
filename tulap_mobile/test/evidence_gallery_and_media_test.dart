@@ -18,6 +18,7 @@ import 'package:tulap_mobile/features/geotag_camera/data/datasources/geotag_came
 import 'package:tulap_mobile/features/geotag_camera/data/models/geotag_photo_model.dart';
 import 'package:tulap_mobile/features/geotag_camera/domain/entities/geotag_photo_entity.dart';
 import 'package:tulap_mobile/features/sync_queue/data/datasources/sync_local_datasource.dart';
+import 'package:tulap_mobile/features/sync_queue/data/models/sync_record_model.dart';
 import 'package:tulap_mobile/features/task_detail/domain/entities/task_entity.dart';
 
 class FakeGeotagCameraLocalDataSource extends Fake
@@ -31,13 +32,29 @@ class FakeGeotagCameraLocalDataSource extends Fake
   }
 
   @override
-  Future<void> deletePhoto(String photoId) async {
+  Future<GeotagPhotoModel?> getEvidenceById(String evidenceId) async {
+    for (final p in photos) {
+      if (p.id == evidenceId) return p;
+    }
+    return null;
+  }
+
+  @override
+  Future<void> deletePhoto(
+    String photoId, {
+    bool originalVerifiedOnServer = false,
+  }) async {
     photos.removeWhere((p) => p.id == photoId);
   }
 }
 
 class FakeSyncLocalDataSource extends Fake implements SyncLocalDataSource {
   final List<String> deletedEntityIds = [];
+
+  @override
+  Future<List<SyncRecordModel>> getRecordsByEntityLocalId(
+    String entityLocalId,
+  ) async => const [];
 
   @override
   Future<int> deleteRecordsByEntityLocalId(String entityLocalId) async {
@@ -230,12 +247,14 @@ void main() {
       expect(list.any((p) => p.taskId != 'task-100'), isFalse);
     });
 
-    test('DeleteEvidence safely removes database record and outbox sync item', () async {
+    // N-08: perilaku lama (menghapus record + antrean sync + file asli)
+    // sengaja DIHENTIKAN - file asli belum pernah terverifikasi di server.
+    test('DeleteEvidence menolak menghapus bukti yang file aslinya belum aman di server', () async {
       final result = await deleteEvidence(evidenceId: 'photo-1');
-      expect(result.isRight(), isTrue);
+      expect(result.isLeft(), isTrue);
 
-      expect(fakeCameraDataSource.photos.any((p) => p.id == 'photo-1'), isFalse);
-      expect(fakeSyncDataSource.deletedEntityIds.contains('photo-1'), isTrue);
+      expect(fakeCameraDataSource.photos.any((p) => p.id == 'photo-1'), isTrue);
+      expect(fakeSyncDataSource.deletedEntityIds, isEmpty);
     });
 
     test('ShareEvidence delegates to MediaShareService with descriptive metadata', () async {
@@ -317,7 +336,7 @@ void main() {
       expect(find.text('Bagikan'), findsOneWidget);
     });
 
-    testWidgets('EvidenceViewerPage shows safe deletion confirmation and deletes on confirm', (tester) async {
+    testWidgets('EvidenceViewerPage menjelaskan bukti belum dapat dihapus dan tidak menghapusnya', (tester) async {
       await tester.pumpWidget(
         _wrapTestWidget(
           EvidenceViewerPage(
@@ -337,16 +356,18 @@ void main() {
       await tester.tap(find.text('Hapus Bukti'));
       await tester.pumpAndSettle();
 
-      // Verify Dialog
-      expect(find.text('Hapus Bukti?'), findsOneWidget);
-      expect(find.text('Hapus'), findsOneWidget);
+      // Penjelasan, BUKAN konfirmasi hapus (N-08)
+      expect(find.text('Bukti belum dapat dihapus'), findsOneWidget);
+      expect(find.textContaining('belum terkirim ke server'), findsOneWidget);
+      expect(find.text('Hapus Bukti?'), findsNothing);
 
-      // Confirm delete
-      await tester.tap(find.text('Hapus'));
+      await tester.tap(find.text('Mengerti'));
       await tester.pumpAndSettle();
 
-      // Evidence list now has 1 item
-      expect(find.text('1 / 1'), findsOneWidget);
+      // Kedua bukti tetap ada
+      expect(find.text('1 / 2'), findsOneWidget);
+      expect(fakeCameraDataSource.photos.length, 2);
+      expect(fakeSyncDataSource.deletedEntityIds, isEmpty);
     });
 
     testWidgets('EvidenceViewerPage renders clean empty state when no evidence exists', (tester) async {

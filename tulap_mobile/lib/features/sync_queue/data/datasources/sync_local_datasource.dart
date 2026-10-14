@@ -49,6 +49,19 @@ class SyncLocalDataSource {
     return SyncRecordModel.fromMap(rows.first);
   }
 
+  /// Baca-saja: seluruh baris antrean milik satu entity lokal (mis. satu
+  /// foto). Dipakai kebijakan hapus bukti untuk menilai status kirimnya.
+  Future<List<SyncRecordModel>> getRecordsByEntityLocalId(
+    String entityLocalId,
+  ) async {
+    final rows = await _database.query(
+      'sync_queue',
+      where: 'entityLocalId = ?',
+      whereArgs: [entityLocalId],
+    );
+    return rows.map((row) => SyncRecordModel.fromMap(row)).toList();
+  }
+
   Future<void> updateRecord(SyncRecordModel record) async {
     await _database.update(
       'sync_queue',

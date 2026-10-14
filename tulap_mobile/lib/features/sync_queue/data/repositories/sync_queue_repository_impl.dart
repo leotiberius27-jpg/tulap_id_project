@@ -25,6 +25,14 @@ class SyncQueueRepositoryImpl implements SyncQueueRepository {
   final SyncRemoteDataSource _remoteDataSource;
   final NetworkInfo _networkInfo;
 
+  /// ID record yang SEDANG diproses `processRecord` di proses aplikasi
+  /// ini. Status `uploading` di SQLite bertahan walau aplikasi mati di
+  /// tengah upload - set in-memory inilah yang membedakan "benar-benar
+  /// sedang mengirim" dari "tertinggal karena aplikasi tertutup"
+  /// (lihat recoverInterruptedUploads). Repository ini lazy singleton
+  /// di DI, jadi set ini berlaku untuk seluruh aplikasi.
+  final Set<String> _inFlightRecordIds = <String>{};
+
   SyncQueueRepositoryImpl({
     required SyncLocalDataSource localDataSource,
     required SyncRemoteDataSource remoteDataSource,
@@ -70,6 +78,23 @@ class SyncQueueRepositoryImpl implements SyncQueueRepository {
       return const Left(SyncQueueFailure('Data antrian tidak ditemukan.'));
     }
 
+    // Record yang sama sudah sedang dikirim (mis. sync latar belakang
+    // dan tombol "Coba Lagi" berbarengan) - jangan upload paralel kedua
+    // kalinya.
+    if (!_inFlightRecordIds.add(recordId)) {
+      return Right(record);
+    }
+
+    try {
+      return await _processClaimedRecord(record);
+    } finally {
+      _inFlightRecordIds.remove(recordId);
+    }
+  }
+
+  Future<Either<Failure, SyncRecordEntity>> _processClaimedRecord(
+    SyncRecordEntity record,
+  ) async {
     final isOnline = await _networkInfo.isConnected;
     if (!isOnline) {
       final waiting = SyncRecordModel.fromEntity(
@@ -168,11 +193,56 @@ class SyncQueueRepositoryImpl implements SyncQueueRepository {
     return updated;
   }
 
+  /// recoverInterruptedUploads
+  /// ----------------------------------------------------------------------
+  /// SEBELUM ini, item yang ditandai `uploading` lalu aplikasinya mati di
+  /// tengah upload MACET PERMANEN: ProcessSyncQueue hanya memproses
+  /// `pendingUpload`/`waitingForInternet`, dan Sync Center hanya
+  /// menampilkan "Coba Lagi" untuk `failed` - bukti tsb tidak pernah
+  /// sampai ke server tanpa disadari user.
+  ///
+  /// Percobaan yang terputus DIHITUNG sebagai satu percobaan (lewat
+  /// _recordAttemptFailure): jika upload itu sendiri yang membuat
+  /// aplikasi crash (mis. file video sangat besar), item berhenti di
+  /// `failed` setelah batas percobaan, bukan berputar crash tanpa akhir.
+  /// Pengiriman ulang aman karena server idempoten per `id` record lokal.
+  @override
+  Future<Either<Failure, int>> recoverInterruptedUploads() async {
+    try {
+      final records = await _localDataSource.getAll();
+      var recovered = 0;
+      for (final record in records) {
+        if (record.status != SyncStatus.uploading ||
+            _inFlightRecordIds.contains(record.id)) {
+          continue;
+        }
+        final reachesLimit =
+            record.attemptCount + 1 >= SyncRecordEntity.maxAutoRetryAttempts;
+        await _recordAttemptFailure(
+          record,
+          reachesLimit
+              ? 'Pengiriman berulang kali terputus. Ketuk "Coba Lagi" untuk mengirim ulang.'
+              : 'Pengiriman sebelumnya terputus. Data akan dicoba kirim lagi.',
+        );
+        recovered++;
+      }
+      return Right(recovered);
+    } catch (_) {
+      return const Left(LocalStorageFailure());
+    }
+  }
+
   @override
   Future<Either<Failure, void>> retryRecord(String recordId) async {
     final record = await _localDataSource.getById(recordId);
     if (record == null) {
       return const Left(SyncQueueFailure('Data antrian tidak ditemukan.'));
+    }
+
+    // Sedang dikirim - jangan timpa statusnya jadi pendingUpload di
+    // tengah upload yang masih berjalan.
+    if (_inFlightRecordIds.contains(recordId)) {
+      return const Right(null);
     }
 
     // Reset attemptCount agar item yang sudah exceeds retry limit bisa

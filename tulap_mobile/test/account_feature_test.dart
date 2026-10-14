@@ -178,6 +178,8 @@ class _MockSyncQueueRepository implements SyncQueueRepository {
   @override
   Future<Either<Failure, void>> retryRecord(String recordId) async =>
       const Right(null);
+  @override
+  Future<Either<Failure, int>> recoverInterruptedUploads() async => const Right(0);
 }
 
 class _MockAccountLocalDataSource implements AccountLocalDataSource {

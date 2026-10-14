@@ -27,4 +27,11 @@ abstract class SyncQueueRepository {
   /// yang sudah exceeds retry limit bisa dicoba lagi atas permintaan
   /// eksplisit user.
   Future<Either<Failure, void>> retryRecord(String recordId);
+
+  /// Mengembalikan item yang tertinggal berstatus `uploading` padahal
+  /// TIDAK sedang diproses (mis. aplikasi ditutup paksa/crash di tengah
+  /// upload) ke jalur retry otomatis. Mengembalikan jumlah item yang
+  /// dipulihkan. Aman dipanggil kapan saja - upload yang benar-benar
+  /// sedang berjalan tidak disentuh.
+  Future<Either<Failure, int>> recoverInterruptedUploads();
 }

@@ -41,6 +41,12 @@ class ProcessSyncQueue {
        _networkInfo = networkInfo;
 
   Future<ProcessSyncQueueResult> call() async {
+    // Dijalankan SEBELUM cek koneksi: item yang tertinggal `uploading`
+    // (aplikasi mati di tengah upload) dikembalikan ke jalur retry
+    // otomatis - saat offline pun labelnya jadi "Menunggu internet",
+    // bukan "Mengirim" palsu. Upload yang sedang berjalan tidak disentuh.
+    await _repository.recoverInterruptedUploads();
+
     final isOnline = await _networkInfo.isConnected;
     if (!isOnline) {
       return const ProcessSyncQueueResult(

@@ -146,6 +146,8 @@ class _FakeSyncQueueRepository implements SyncQueueRepository {
   Future<Either<Failure, SyncRecordEntity>> processRecord(String recordId) async => throw UnimplementedError();
   @override
   Future<Either<Failure, void>> retryRecord(String recordId) async => const Right(null);
+  @override
+  Future<Either<Failure, int>> recoverInterruptedUploads() async => const Right(0);
 }
 
 class _FakeNetworkInfo implements NetworkInfo {

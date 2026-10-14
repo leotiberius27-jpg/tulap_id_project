@@ -268,7 +268,24 @@ class GeotagCameraLocalDataSource {
     return GeotagPhotoModel.fromJson(rows.first);
   }
 
-  Future<void> deletePhoto(String photoId) async {
+  /// Menghapus file ber-watermark, file ASLI, dan metadata bukti.
+  ///
+  /// Jaring pengaman N-08: menolak berjalan kecuali pemanggil secara
+  /// eksplisit menyatakan file asli sudah terverifikasi tersimpan di
+  /// server (keputusan itu milik EvidenceDeletionPolicy, bukan lapisan
+  /// ini). Mencegah jalur hapus lain - mis. deleteLocalPhoto di
+  /// repository - menghapus salinan asli satu-satunya tanpa sengaja.
+  Future<void> deletePhoto(
+    String photoId, {
+    bool originalVerifiedOnServer = false,
+  }) async {
+    if (!originalVerifiedOnServer) {
+      throw StateError(
+        'File asli bukti $photoId belum terverifikasi tersimpan di server - '
+        'tidak boleh dihapus dari perangkat.',
+      );
+    }
+
     final rows = await _database.query(
       'geotag_photos',
       where: 'id = ?',
