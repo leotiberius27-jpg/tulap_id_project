@@ -52,6 +52,9 @@ export type GeotagPhoto = {
   taskId: string;
   uploaderId: string;
   photoUrl: string;
+  /// URL baca bertanda tangan berumur pendek (P0-07) - utamakan field ini;
+  /// `null`/tidak ada pada backend lama atau URL di luar bucket Tulap.
+  photoSignedUrl?: string | null;
   latitude: string;
   longitude: string;
   address: string | null;
@@ -75,6 +78,7 @@ export type ExpenseNote = {
   taskId: string;
   ownerId: string;
   scanUrl: string;
+  scanSignedUrl?: string | null;
   vendorName: string;
   transactionDate: string;
   totalAmount: string;

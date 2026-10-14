@@ -205,7 +205,7 @@ export default async function TaskDetailPage({
                   >
                     <div className="relative h-48 w-full bg-slate-100">
                       <Image
-                        src={photo.photoUrl}
+                        src={photo.photoSignedUrl ?? photo.photoUrl}
                         alt={photo.caption ?? 'Bukti Lapangan'}
                         fill
                         className="object-cover"
