@@ -39,4 +39,8 @@ jobs:
 
       - run: npm run typecheck
 
+      # Unit test memakai Prisma/S3 mock (tidak butuh database sungguhan).
+      # --ci: snapshot baru tidak ditulis otomatis; gagal jika ada.
+      - run: npm test -- --ci
+
       - run: npm run build

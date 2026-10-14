@@ -12,6 +12,7 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { FirestoreSyncService } from '../../infrastructure/firestore/firestore-sync.service';
+import { S3StorageService } from '../../infrastructure/storage/s3-storage.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CreateSelfTaskDto } from './dto/create-self-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
@@ -48,6 +49,7 @@ export class TasksService {
     private readonly notifications: NotificationsService,
     private readonly subscriptions: SubscriptionsService,
     private readonly firestoreSync: FirestoreSyncService,
+    private readonly storage: S3StorageService,
   ) {}
 
   /// Membuat tugas baru. `taskCode` dibuat otomatis dengan format
@@ -324,7 +326,24 @@ export class TasksService {
       }),
     ]);
 
-    return { photos, expenseNotes };
+    // P0-07: URL baca bertanda tangan berumur pendek DITAMBAHKAN (aditif)
+    // di samping photoUrl/scanUrl lama - client baru memakai field
+    // *SignedUrl, client lama tetap berfungsi selama bucket masih publik.
+    // `null` jika URL tersimpan bukan objek bucket ini.
+    return {
+      photos: await Promise.all(
+        photos.map(async (photo) => ({
+          ...photo,
+          photoSignedUrl: await this.storage.signStoredUrl(photo.photoUrl),
+        })),
+      ),
+      expenseNotes: await Promise.all(
+        expenseNotes.map(async (note) => ({
+          ...note,
+          scanSignedUrl: await this.storage.signStoredUrl(note.scanUrl),
+        })),
+      ),
+    };
   }
 
   async update(id: string, dto: UpdateTaskDto) {

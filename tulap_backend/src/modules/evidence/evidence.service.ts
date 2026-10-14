@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { ExpenseCategory, RoleName } from '@prisma/client';
+import { ExpenseCategory, RoleName, TaskStatus } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { S3StorageService } from '../../infrastructure/storage/s3-storage.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
@@ -15,6 +15,27 @@ import { AuditService } from '../audit/audit.service';
 import { FirestoreSyncService } from '../../infrastructure/firestore/firestore-sync.service';
 import { UploadPhotoDto } from './dto/upload-photo.dto';
 import { UploadReceiptDto } from './dto/upload-receipt.dto';
+
+/// Bukti (foto/video/nota) hanya boleh dihapus selama tugas masih
+/// dikerjakan di lapangan. Begitu tugas dikirim untuk verifikasi
+/// (PENDING_VERIFICATION) atau sudah diputuskan (VERIFIED, REJECTED,
+/// COMPLETED), bukti TERKUNCI - termasuk untuk ADMIN/SUPER_ADMIN -
+/// supaya bukti yang sudah dinilai Verifikator / masuk LPJ tidak bisa
+/// hilang. Jika bukti perlu diganti, Verifikator mengembalikan tugas
+/// (REVISION_NEEDED) lebih dulu.
+const EVIDENCE_DELETABLE_TASK_STATUSES: TaskStatus[] = [
+  TaskStatus.DRAFT,
+  TaskStatus.ONGOING,
+  TaskStatus.REVISION_NEEDED,
+];
+
+const EVIDENCE_LOCKED_MESSAGE =
+  'Bukti terkunci karena tugas sudah dikirim untuk verifikasi atau sudah diputuskan. Minta Verifikator mengembalikan tugas untuk revisi jika bukti perlu diganti.';
+
+/// `id` dikirim client (UUID lokal mobile) agar retry sync idempoten.
+/// Jika id itu sudah dipakai record milik user lain / tugas lain, request
+/// ditolak TANPA mengembalikan data record tsb.
+const CLIENT_ID_CONFLICT_MESSAGE = 'ID data sudah dipakai oleh data lain.';
 
 @Injectable()
 export class EvidenceService {
@@ -46,6 +67,12 @@ export class EvidenceService {
         where: { id: dto.id },
       });
       if (existingById) {
+        // Hanya retry oleh PEMILIK yang sama untuk tugas yang sama yang
+        // dianggap idempoten - id milik orang lain ditolak tanpa
+        // membocorkan data (sebelumnya photoUrl-nya dikembalikan).
+        if (existingById.uploaderId !== actor.id || existingById.taskId !== dto.taskId) {
+          throw new ConflictException(CLIENT_ID_CONFLICT_MESSAGE);
+        }
         return {
           id: existingById.id,
           photoUrl: existingById.photoUrl,
@@ -160,6 +187,10 @@ export class EvidenceService {
         where: { id: dto.id },
       });
       if (existingById) {
+        // Lihat catatan yang sama di uploadPhoto.
+        if (existingById.ownerId !== actor.id || existingById.taskId !== dto.taskId) {
+          throw new ConflictException(CLIENT_ID_CONFLICT_MESSAGE);
+        }
         return {
           id: existingById.id,
           scanUrl: existingById.scanUrl,
@@ -286,13 +317,27 @@ export class EvidenceService {
       throw new NotFoundException('Nota tidak ditemukan.');
     }
 
-    if (actor.role === 'PEGAWAI' && receipt.ownerId !== actor.id) {
+    if (receipt.ownerId !== actor.id) {
       throw new ForbiddenException(
         'Anda hanya dapat menghapus nota yang Anda unggah sendiri.',
       );
     }
 
-    await this.prisma.expense_Note.delete({ where: { id } });
+    this._assertTaskAllowsEvidenceDeletion(receipt.task.status);
+
+    // Syarat kepemilikan & status tugas diulang di query DELETE itu
+    // sendiri (atomik) - tugas yang dikirim untuk verifikasi di antara
+    // pengecekan di atas dan baris ini tidak bisa lolos.
+    const { count } = await this.prisma.expense_Note.deleteMany({
+      where: {
+        id,
+        ownerId: actor.id,
+        task: { is: { status: { in: EVIDENCE_DELETABLE_TASK_STATUSES } } },
+      },
+    });
+    if (count === 0) {
+      throw new ConflictException(EVIDENCE_LOCKED_MESSAGE);
+    }
 
     await this.audit.log({
       actorId: actor.id,
@@ -350,6 +395,20 @@ export class EvidenceService {
     }
 
     return photo;
+  }
+
+  /// Respons GET /evidence/photo/:id dan /evidence/receipt/:id untuk
+  /// client - sama dengan getEvidence*, ditambah URL baca bertanda tangan
+  /// berumur pendek (P0-07, aditif). Dipisah dari getEvidencePhoto karena
+  /// method itu juga dipakai internal (verify/delete) yang tidak butuh URL.
+  async getEvidencePhotoForClient(id: string, actor: AuthenticatedUser) {
+    const photo = await this.getEvidencePhoto(id, actor);
+    return { ...photo, photoSignedUrl: await this.storage.signStoredUrl(photo.photoUrl) };
+  }
+
+  async getEvidenceReceiptForClient(id: string, actor: AuthenticatedUser) {
+    const receipt = await this.getEvidenceReceipt(id, actor);
+    return { ...receipt, scanSignedUrl: await this.storage.signStoredUrl(receipt.scanUrl) };
   }
 
   /// verifyEvidencePhoto
@@ -419,13 +478,30 @@ export class EvidenceService {
   async deleteEvidencePhoto(id: string, actor: AuthenticatedUser) {
     const photo = await this.getEvidencePhoto(id, actor);
 
-    if (actor.role === RoleName.PEGAWAI && photo.uploaderId !== actor.id) {
+    if (photo.uploaderId !== actor.id) {
       throw new ForbiddenException('Anda hanya dapat menghapus bukti milik Anda sendiri.');
     }
 
-    await this.prisma.geotag_Photo.delete({
-      where: { id },
+    const task = await this.prisma.task_SPPD.findUnique({
+      where: { id: photo.taskId },
+      select: { status: true },
     });
+    if (!task) {
+      throw new NotFoundException('Tugas tidak ditemukan.');
+    }
+    this._assertTaskAllowsEvidenceDeletion(task.status);
+
+    // Atomik - lihat catatan yang sama di deleteEvidenceReceipt.
+    const { count } = await this.prisma.geotag_Photo.deleteMany({
+      where: {
+        id,
+        uploaderId: actor.id,
+        task: { is: { status: { in: EVIDENCE_DELETABLE_TASK_STATUSES } } },
+      },
+    });
+    if (count === 0) {
+      throw new ConflictException(EVIDENCE_LOCKED_MESSAGE);
+    }
 
     await this.audit.log({
       actorId: actor.id,
@@ -439,6 +515,12 @@ export class EvidenceService {
     });
 
     return { success: true, message: 'Bukti berhasil dihapus.' };
+  }
+
+  private _assertTaskAllowsEvidenceDeletion(status: TaskStatus) {
+    if (!EVIDENCE_DELETABLE_TASK_STATUSES.includes(status)) {
+      throw new ConflictException(EVIDENCE_LOCKED_MESSAGE);
+    }
   }
 
   /// Memastikan task yang direferensikan benar-benar ada DAN task

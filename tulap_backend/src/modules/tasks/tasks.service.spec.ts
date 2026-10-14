@@ -7,6 +7,7 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { FirestoreSyncService } from '../../infrastructure/firestore/firestore-sync.service';
+import { S3StorageService } from '../../infrastructure/storage/s3-storage.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 
 describe('TasksService', () => {
@@ -78,6 +79,7 @@ describe('TasksService', () => {
         { provide: NotificationsService, useValue: notifications },
         { provide: SubscriptionsService, useValue: subscriptions },
         { provide: FirestoreSyncService, useValue: firestoreSync },
+        { provide: S3StorageService, useValue: { signStoredUrl: jest.fn().mockResolvedValue(null) } },
       ],
     }).compile();
 

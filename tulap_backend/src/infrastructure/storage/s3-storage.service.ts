@@ -4,8 +4,13 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
+
+/// Masa berlaku default URL baca bertanda tangan (presigned GET).
+const DEFAULT_SIGNED_URL_TTL_SECONDS = 15 * 60;
 
 /// S3StorageService
 /// ----------------------------------------------------------------------
@@ -26,19 +31,94 @@ export class S3StorageService {
   private readonly bucketName: string;
   private readonly publicUrlBase: string;
 
+  /// Client KHUSUS penandatanganan URL baca. Signature S3 v4 mengikat
+  /// header Host, sehingga URL harus ditandatangani untuk host yang
+  /// benar-benar dipanggil HP/browser (mis. https://storage.tulap.id di
+  /// belakang Caddy), BUKAN S3_ENDPOINT internal backend (localhost:9000).
+  /// Tidak ada request jaringan - presign murni komputasi lokal.
+  private readonly signingClient: S3Client;
+
   constructor(private readonly configService: ConfigService) {
     this.bucketName = this.configService.get<string>('S3_BUCKET_NAME')!;
     this.publicUrlBase = this.configService.get<string>('S3_PUBLIC_URL_BASE')!;
 
+    const region = this.configService.get<string>('S3_REGION', 'ap-southeast-3'); // Jakarta
+    const credentials = {
+      accessKeyId: this.configService.get<string>('S3_ACCESS_KEY')!,
+      secretAccessKey: this.configService.get<string>('S3_SECRET_KEY')!,
+    };
+
     this.client = new S3Client({
       endpoint: this.configService.get<string>('S3_ENDPOINT'),
-      region: this.configService.get<string>('S3_REGION', 'ap-southeast-3'), // Jakarta
-      credentials: {
-        accessKeyId: this.configService.get<string>('S3_ACCESS_KEY')!,
-        secretAccessKey: this.configService.get<string>('S3_SECRET_KEY')!,
-      },
+      region,
+      credentials,
       forcePathStyle: true, // Kompatibel dengan provider S3-compatible non-AWS
     });
+
+    // Default: origin dari S3_PUBLIC_URL_BASE (format `<origin>/<bucket>`).
+    // S3_SIGNING_ENDPOINT hanya perlu diisi jika URL publik memakai
+    // prefix path lain di depan nama bucket.
+    const signingEndpoint =
+      this.configService.get<string>('S3_SIGNING_ENDPOINT') ||
+      this._originOf(this.publicUrlBase);
+    this.signingClient = new S3Client({
+      endpoint: signingEndpoint,
+      region,
+      credentials,
+      forcePathStyle: true,
+    });
+  }
+
+  /// URL baca bertanda tangan (presigned GET) berumur pendek untuk satu
+  /// objek - jalur akses file yang tetap berfungsi setelah anonymous read
+  /// bucket dicabut (P0-07). JANGAN disimpan permanen oleh client:
+  /// kedaluwarsa setelah `expiresInSeconds`.
+  async getSignedReadUrl(
+    key: string,
+    expiresInSeconds = DEFAULT_SIGNED_URL_TTL_SECONDS,
+  ): Promise<string> {
+    return getSignedUrl(
+      this.signingClient,
+      new GetObjectCommand({ Bucket: this.bucketName, Key: key }),
+      { expiresIn: expiresInSeconds },
+    );
+  }
+
+  /// Menandatangani URL yang TERSIMPAN di database (photoUrl, scanUrl,
+  /// dst). `null` jika URL tsb bukan objek bucket ini (path lokal device,
+  /// URL Google, string kosong) - pemanggil lalu memakai URL lama apa
+  /// adanya.
+  async signStoredUrl(url: string | null | undefined): Promise<string | null> {
+    const key = this.keyFromStoredUrl(url);
+    return key ? this.getSignedReadUrl(key) : null;
+  }
+
+  /// Versi LONGGAR dari keyFromUrl, KHUSUS untuk penandatanganan baca:
+  /// mencocokkan path `/<bucket>/<key>` tanpa mempedulikan host, karena
+  /// URL lama di database bisa memakai host berbeda (IP LAN dev yang
+  /// sudah berganti, atau domain lama). Aman: hanya menghasilkan key di
+  /// bucket milik kita sendiri. JANGAN dipakai untuk deleteFile - jalur
+  /// hapus tetap memakai keyFromUrl yang ketat.
+  keyFromStoredUrl(url: string | null | undefined): string | null {
+    if (!url || !/^https?:\/\//i.test(url)) return null;
+    let pathname: string;
+    try {
+      pathname = new URL(url).pathname;
+    } catch {
+      return null;
+    }
+    const prefix = `/${this.bucketName}/`;
+    if (!pathname.startsWith(prefix)) return null;
+    const key = decodeURIComponent(pathname.slice(prefix.length));
+    return key.length > 0 ? key : null;
+  }
+
+  private _originOf(url: string): string | undefined {
+    try {
+      return new URL(url).origin;
+    } catch {
+      return undefined;
+    }
   }
 
   /// Mengunggah buffer file ke storage dengan path terstruktur per

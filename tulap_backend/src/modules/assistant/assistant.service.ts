@@ -60,7 +60,7 @@ export class AssistantService {
       qLower.includes('tandai selesai') ||
       qLower.includes('tutup tugas')
     ) {
-      return this.handleWriteAction(rawQuery, dto, user);
+      return this.handleWriteAction(rawQuery, dto, user, isPrivileged);
     }
 
     // 3. Exact ID Resolution (ACT-*, PD-*, LPJ-*)
@@ -152,15 +152,18 @@ export class AssistantService {
     query: string,
     dto: AssistantQueryDto,
     user: AuthenticatedUser,
+    isPrivileged: boolean,
   ): Promise<AssistantResponseDto> {
     let taskName = 'Kegiatan Lapangan';
-    let taskId = dto.contextEntityId;
+    // Hanya id tugas yang TERVERIFIKASI boleh diakses user yang dipakai -
+    // id mentah dari client tidak lagi digemakan ke sources/aksi.
+    let taskId: string | undefined;
 
     if (dto.contextEntityId) {
       const task = await this.prisma.task_SPPD.findUnique({
         where: { id: dto.contextEntityId },
       });
-      if (task) {
+      if (task && this.canAccessContextTask(task, user, isPrivileged)) {
         taskName = task.taskName;
         taskId = task.id;
       }
@@ -196,6 +199,20 @@ export class AssistantService {
         isDestructive: false,
       },
     };
+  }
+
+  /// Aturan akses tugas untuk `contextEntityId` dari client - SAMA dengan
+  /// scope yang dipakai handler asisten lain (resolveExactId,
+  /// handleCountQuery, handleFinancialQuery): role non-privileged hanya
+  /// tugas yang ditugaskan kepadanya atau yang ia buat. Sebelum perbaikan
+  /// N-10, handleWriteAction & handleReportAssistance memuat tugas mana
+  /// pun berdasarkan id dari client.
+  private canAccessContextTask(
+    task: { assigneeId: string; creatorId: string },
+    user: AuthenticatedUser,
+    isPrivileged: boolean,
+  ): boolean {
+    return isPrivileged || task.assigneeId === user.id || task.creatorId === user.id;
   }
 
   private async resolveExactId(
@@ -638,6 +655,12 @@ export class AssistantService {
           expenseNotes: { select: { id: true, vendorName: true, totalAmount: true } },
         },
       });
+      // Tugas milik orang lain diperlakukan sama seperti tidak ada -
+      // jatuh ke tugas terbaru milik user sendiri di bawah, sehingga
+      // respons tidak bisa dipakai menebak keberadaan id tugas lain.
+      if (task && !this.canAccessContextTask(task, user, isPrivileged)) {
+        task = null;
+      }
     }
 
     if (!task) {

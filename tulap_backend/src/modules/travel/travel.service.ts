@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -11,6 +12,9 @@ import { CreateSupportingDocumentDto } from './dto/create-supporting-document.dt
 import { CreateTravelMissionDto } from './dto/create-travel-mission.dto';
 import { UpdateTravelMissionDto } from './dto/update-travel-mission.dto';
 import { TravelMissionStatus } from '@prisma/client';
+
+/// `id` dokumen/paket LPJ dikirim client agar retry sync idempoten.
+const CLIENT_ID_CONFLICT_MESSAGE = 'ID data sudah dipakai oleh data lain.';
 
 @Injectable()
 export class TravelService {
@@ -217,6 +221,21 @@ export class TravelService {
   ) {
     const mission = await this.findOneTravelMission(userId, dto.travelMissionId);
 
+    // Idempotensi (retry sync mobile) - dicek SEBELUM unggah file supaya
+    // retry tidak meninggalkan objek storage yatim. id yang sudah dipakai
+    // dokumen perjalanan dinas lain ditolak tanpa mengembalikan datanya
+    // (sebelumnya dokumen milik user lain dikembalikan utuh).
+    const existing = await this.prisma.supporting_Document.findUnique({
+      where: { id: dto.id },
+    });
+
+    if (existing) {
+      if (existing.travelMissionId !== mission.id) {
+        throw new ConflictException(CLIENT_ID_CONFLICT_MESSAGE);
+      }
+      return existing;
+    }
+
     let documentUrl = '';
     if (file) {
       const uploadResult = await this.storageService.uploadFile({
@@ -226,14 +245,6 @@ export class TravelService {
         originalFilename: file.originalname,
       });
       documentUrl = uploadResult.url;
-    }
-
-    const existing = await this.prisma.supporting_Document.findUnique({
-      where: { id: dto.id },
-    });
-
-    if (existing) {
-      return existing;
     }
 
     const doc = await this.prisma.supporting_Document.create({
@@ -298,6 +309,18 @@ export class TravelService {
   ) {
     const mission = await this.findOneTravelMission(userId, dto.travelMissionId);
 
+    // Lihat catatan yang sama di uploadSupportingDocument.
+    const existing = await this.prisma.lPJ_Package.findUnique({
+      where: { id: dto.id },
+    });
+
+    if (existing) {
+      if (existing.travelMissionId !== mission.id) {
+        throw new ConflictException(CLIENT_ID_CONFLICT_MESSAGE);
+      }
+      return existing;
+    }
+
     let pdfUrl = '';
     if (file) {
       const uploadResult = await this.storageService.uploadFile({
@@ -307,14 +330,6 @@ export class TravelService {
         originalFilename: file.originalname,
       });
       pdfUrl = uploadResult.url;
-    }
-
-    const existing = await this.prisma.lPJ_Package.findUnique({
-      where: { id: dto.id },
-    });
-
-    if (existing) {
-      return existing;
     }
 
     const pkg = await this.prisma.lPJ_Package.create({

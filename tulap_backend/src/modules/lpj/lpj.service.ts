@@ -1,4 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { RoleName } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import PDFDocument = require('pdfkit');
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
@@ -200,18 +207,56 @@ export class LpjService {
     doc.text(`${label}: ${value}`);
   }
 
+  // ============================================================
+  // LAPORAN KEGIATAN (/lpj/report/*)
+  // ------------------------------------------------------------
+  // Kebijakan akses - SEMUA keputusan memakai `actor` hasil
+  // JwtStrategy.validate() (token tervalidasi + user aktif dari DB),
+  // tidak pernah dari field yang dikirim client (mis. metadata.userId).
+  //
+  //  - Unggah : HANYA petugas yang ditugaskan (task.assigneeId), apa
+  //             pun role-nya - ADMIN/VERIFIKATOR tidak bisa "menitipkan"
+  //             laporan ke tugas orang lain.
+  //  - Baca   : petugas yang ditugaskan; SUPER_ADMIN; ADMIN/VERIFIKATOR
+  //             HANYA jika pembuat tugas tsb ATAU satu instansi dengan
+  //             petugasnya. ADMIN TIDAK otomatis bisa membaca laporan
+  //             instansi lain. Pencocokan instansi sementara memakai
+  //             `User.instansiName` (string) sampai entitas Organization
+  //             tersedia - instansi kosong di salah satu sisi = ditolak.
+  //  - Hapus  : HANYA pengunggah laporan itu sendiri.
+  // ============================================================
+
   async uploadReport(
     dto: UploadReportDto,
     file: Express.Multer.File | undefined,
     actor: AuthenticatedUser,
   ) {
-    const task = await this.prisma.task_SPPD.findUnique({
-      where: { id: dto.taskId },
-      select: { id: true, taskCode: true, taskName: true, assigneeId: true, creatorId: true },
-    });
+    const task = await this._findTaskForReportAccess(dto.taskId);
 
     if (!task) {
       throw new NotFoundException('Tugas tidak ditemukan.');
+    }
+
+    if (task.assigneeId !== actor.id) {
+      throw new ForbiddenException(
+        'Anda hanya dapat mengunggah laporan untuk tugas yang ditugaskan kepada Anda.',
+      );
+    }
+
+    // `id` laporan berasal dari client (idempoten untuk retry sync
+    // mobile) - tolak jika id tsb sudah dipakai laporan milik user lain
+    // atau tugas lain, supaya laporan orang lain tidak bisa "dibayangi"
+    // record baru dengan id yang sama. Retry oleh pemilik yang sama
+    // tetap diizinkan seperti sebelumnya.
+    if (dto.id) {
+      const existing = await this._findReportLog(dto.id);
+      const existingMeta = existing?.metadata as any;
+      if (
+        existing &&
+        (existingMeta?.userId !== actor.id || existingMeta?.taskId !== dto.taskId)
+      ) {
+        throw new ConflictException('ID laporan sudah dipakai oleh laporan lain.');
+      }
     }
 
     const reportId = dto.id || randomUUID();
@@ -265,6 +310,16 @@ export class LpjService {
   }
 
   async getTaskReports(taskId: string, actor: AuthenticatedUser) {
+    const task = await this._findTaskForReportAccess(taskId);
+
+    if (!task) {
+      throw new NotFoundException('Tugas tidak ditemukan.');
+    }
+
+    if (!this._canReadTaskReports(task, actor)) {
+      throw new ForbiddenException('Anda tidak memiliki akses ke laporan tugas ini.');
+    }
+
     const logs = await this.prisma.audit_Log.findMany({
       where: {
         entity: 'Activity_Report',
@@ -284,36 +339,44 @@ export class LpjService {
   }
 
   async getReportById(reportId: string, actor: AuthenticatedUser) {
-    const log = await this.prisma.audit_Log.findFirst({
-      where: {
-        entity: 'Activity_Report',
-        entityId: reportId,
-        action: 'REPORT_GENERATED',
-      },
-    });
-
-    if (!log) {
-      throw new NotFoundException('Laporan kegiatan tidak ditemukan.');
-    }
-
-    return log.metadata;
-  }
-
-  async deleteReport(reportId: string, actor: AuthenticatedUser) {
-    const log = await this.prisma.audit_Log.findFirst({
-      where: {
-        entity: 'Activity_Report',
-        entityId: reportId,
-        action: 'REPORT_GENERATED',
-      },
-    });
+    const log = await this._findReportLog(reportId);
 
     if (!log) {
       throw new NotFoundException('Laporan kegiatan tidak ditemukan.');
     }
 
     const meta = log.metadata as any;
-    if (meta && meta.s3Key) {
+    const task = meta?.taskId
+      ? await this._findTaskForReportAccess(meta.taskId)
+      : null;
+
+    // Tugas induk sudah tidak ada (atau metadata rusak): hanya pengunggah
+    // dan SUPER_ADMIN yang masih boleh melihat - tidak ada dasar untuk
+    // menilai akses instansi.
+    const allowed = task
+      ? this._canReadTaskReports(task, actor)
+      : actor.role === RoleName.SUPER_ADMIN || (!!meta?.userId && meta.userId === actor.id);
+
+    if (!allowed) {
+      throw new ForbiddenException('Anda tidak memiliki akses ke laporan ini.');
+    }
+
+    return log.metadata;
+  }
+
+  async deleteReport(reportId: string, actor: AuthenticatedUser) {
+    const log = await this._findReportLog(reportId);
+
+    if (!log) {
+      throw new NotFoundException('Laporan kegiatan tidak ditemukan.');
+    }
+
+    const meta = log.metadata as any;
+    if (!meta?.userId || meta.userId !== actor.id) {
+      throw new ForbiddenException('Anda hanya dapat menghapus laporan yang Anda unggah sendiri.');
+    }
+
+    if (meta.s3Key) {
       try {
         await this.s3Storage.deleteFile(meta.s3Key);
       } catch (_) {}
@@ -328,6 +391,51 @@ export class LpjService {
     });
 
     return { success: true, message: 'Laporan berhasil dihapus.' };
+  }
+
+  /// Record REPORT_GENERATED paling AWAL untuk id ini. Retry sync mobile
+  /// bisa menulis beberapa record dengan entityId sama - urutan eksplisit
+  /// membuat hasil deterministik (sebelumnya findFirst tanpa orderBy).
+  private _findReportLog(reportId: string) {
+    return this.prisma.audit_Log.findFirst({
+      where: {
+        entity: 'Activity_Report',
+        entityId: reportId,
+        action: 'REPORT_GENERATED',
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  private _findTaskForReportAccess(taskId: string) {
+    return this.prisma.task_SPPD.findUnique({
+      where: { id: taskId },
+      select: {
+        id: true,
+        taskCode: true,
+        taskName: true,
+        assigneeId: true,
+        creatorId: true,
+        assignee: { select: { instansiName: true } },
+      },
+    });
+  }
+
+  private _canReadTaskReports(
+    task: { assigneeId: string; creatorId: string; assignee: { instansiName: string | null } | null },
+    actor: AuthenticatedUser,
+  ): boolean {
+    if (task.assigneeId === actor.id) return true;
+    if (actor.role === RoleName.SUPER_ADMIN) return true;
+
+    if (actor.role === RoleName.ADMIN || actor.role === RoleName.VERIFIKATOR) {
+      if (task.creatorId === actor.id) return true;
+      const actorInstansi = actor.instansiName?.trim().toLowerCase();
+      const taskInstansi = task.assignee?.instansiName?.trim().toLowerCase();
+      return !!actorInstansi && actorInstansi === taskInstansi;
+    }
+
+    return false;
   }
 }
 

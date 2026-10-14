@@ -70,7 +70,7 @@ export class EvidenceController {
     @Param('id') id: string,
     @CurrentUser() actor: AuthenticatedUser,
   ) {
-    return this.evidenceService.getEvidenceReceipt(id, actor);
+    return this.evidenceService.getEvidenceReceiptForClient(id, actor);
   }
 
   @Delete('receipt/:id')
@@ -86,7 +86,7 @@ export class EvidenceController {
     @Param('id') id: string,
     @CurrentUser() actor: AuthenticatedUser,
   ) {
-    return this.evidenceService.getEvidencePhoto(id, actor);
+    return this.evidenceService.getEvidencePhotoForClient(id, actor);
   }
 
   @Get('photo/:id/verify')

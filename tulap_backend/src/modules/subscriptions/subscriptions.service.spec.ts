@@ -11,6 +11,16 @@ describe('SubscriptionsService', () => {
 
   const userId = 'user_1';
 
+  /// Periode langganan yang SEDANG berjalan, relatif terhadap jam saat
+  /// test dijalankan. Sebelumnya fixture memakai tanggal tetap
+  /// (2026-09-01..2026-10-01) yang otomatis kedaluwarsa begitu kalender
+  /// melewatinya - test "di bawah kuota" mulai gagal dan test "kuota
+  /// tercapai" diam-diam menguji kuota GRATIS, bukan BASIC.
+  const activePeriod = () => ({
+    currentPeriodStart: new Date(Date.now() - 24 * 3600 * 1000),
+    currentPeriodEnd: new Date(Date.now() + 29 * 24 * 3600 * 1000),
+  });
+
   beforeEach(async () => {
     prisma = {
       subscription: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
@@ -34,8 +44,7 @@ describe('SubscriptionsService', () => {
       userId,
       planCode: PlanCode.BASIC,
       status: SubscriptionStatus.ACTIVE,
-      currentPeriodStart: new Date('2026-09-01'),
-      currentPeriodEnd: new Date('2026-10-01'),
+      ...activePeriod(),
     });
     prisma.task_SPPD.count.mockResolvedValue(10); // BASIC limit = 10
 
@@ -50,8 +59,7 @@ describe('SubscriptionsService', () => {
       userId,
       planCode: PlanCode.PRO,
       status: SubscriptionStatus.ACTIVE,
-      currentPeriodStart: new Date('2026-09-01'),
-      currentPeriodEnd: new Date('2026-10-01'),
+      ...activePeriod(),
     });
     prisma.task_SPPD.count.mockResolvedValue(29); // PRO limit = 30
 
